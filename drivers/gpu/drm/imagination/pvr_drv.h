@@ -29,4 +29,6 @@ pvr_get_ ## __obj_name ## _array(struct drm_pvr_obj_array *in) \
 	return pvr_get_obj_array(in, min_stride, sizeof(struct drm_pvr_ ## __obj_name)); \
 }
 
+DRM_PVR_OBJ_ARRAY_GETTER(sync_op, value);
+
 #endif /* __PVR_DRV_H__ */
