@@ -464,35 +464,6 @@ fence_array_add(struct xarray *fence_array, struct dma_fence *fence)
 	return ret;
 }
 
-static u32 *
-get_syncobj_handles(u32 num_in_syncobj_handles, u64 in_syncobj_handles_p)
-{
-	const void __user *uptr = u64_to_user_ptr(in_syncobj_handles_p);
-	u32 *in_syncobj_handles;
-	int err;
-
-	in_syncobj_handles = kcalloc(num_in_syncobj_handles, sizeof(*in_syncobj_handles),
-				     GFP_KERNEL);
-	if (!in_syncobj_handles) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-
-	if (copy_from_user(in_syncobj_handles, uptr,
-			   sizeof(*in_syncobj_handles) * num_in_syncobj_handles)) {
-		err = -EFAULT;
-		goto err_free_memory;
-	}
-
-	return in_syncobj_handles;
-
-err_free_memory:
-	kfree(in_syncobj_handles);
-
-err_out:
-	return ERR_PTR(err);
-}
-
 static int
 pvr_job_add_deps(struct pvr_file *pvr_file, struct pvr_job *job,
 		 u32 num_handles, u32 __user *user_handles)
@@ -1069,6 +1040,35 @@ out:
 
 	pvr_job_put(job);
 	return err;
+}
+
+static u32 *
+get_syncobj_handles(u32 num_in_syncobj_handles, u64 in_syncobj_handles_p)
+{
+	const void __user *uptr = u64_to_user_ptr(in_syncobj_handles_p);
+	u32 *in_syncobj_handles;
+	int err;
+
+	in_syncobj_handles = kcalloc(num_in_syncobj_handles, sizeof(*in_syncobj_handles),
+				     GFP_KERNEL);
+	if (!in_syncobj_handles) {
+		err = -ENOMEM;
+		goto err_out;
+	}
+
+	if (copy_from_user(in_syncobj_handles, uptr,
+			   sizeof(*in_syncobj_handles) * num_in_syncobj_handles)) {
+		err = -EFAULT;
+		goto err_free_memory;
+	}
+
+	return in_syncobj_handles;
+
+err_free_memory:
+	kfree(in_syncobj_handles);
+
+err_out:
+	return ERR_PTR(err);
 }
 
 static int
