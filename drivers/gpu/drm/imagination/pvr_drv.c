@@ -25,6 +25,7 @@
 #include <linux/err.h>
 #include <linux/export.h>
 #include <linux/fs.h>
+#include <linux/kernel.h>
 #include <linux/limits.h>
 #include <linux/math.h>
 #include <linux/minmax.h>
@@ -1046,6 +1047,49 @@ pvr_ioctl_submit_job(struct drm_device *drm_dev, void *raw_args,
 	struct pvr_file *pvr_file = to_pvr_file(file);
 
 	return pvr_submit_job(pvr_dev, pvr_file, args);
+}
+
+void *
+pvr_get_obj_array(struct drm_pvr_obj_array *in, u32 min_stride, u32 obj_size)
+{
+	u32 cpy_elem_size = min_t(u32, in->stride, obj_size);
+	int ret = 0;
+	void *out;
+
+	if (in->stride < min_stride)
+		return ERR_PTR(-EINVAL);
+
+	if (!in->count)
+		return NULL;
+
+	out = kvmalloc_array(in->count, obj_size, GFP_KERNEL | __GFP_ZERO);
+	if (!out)
+		return ERR_PTR(-ENOMEM);
+
+	if (obj_size == in->stride) {
+		if (copy_from_user(out, u64_to_user_ptr(in->array), obj_size * in->count))
+			ret = -EFAULT;
+	} else {
+		void __user *in_ptr = u64_to_user_ptr(in->array);
+		void *out_ptr = out;
+
+		for (u32 i = 0; i < in->count; i++) {
+			if (copy_from_user(out_ptr, in_ptr, cpy_elem_size)) {
+				ret = -EFAULT;
+				break;
+			}
+
+			out_ptr += obj_size;
+			in_ptr += in->stride;
+		}
+	}
+
+	if (ret) {
+		kvfree(out);
+		return ERR_PTR(ret);
+	}
+
+	return out;
 }
 
 #define DRM_PVR_IOCTL(_name, _func, _flags) \

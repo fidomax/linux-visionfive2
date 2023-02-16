@@ -380,6 +380,35 @@ enum drm_pvr_ctx_type {
 	DRM_PVR_CTX_TYPE_TRANSFER_FRAG,
 };
 
+/**
+ * struct drm_pvr_obj_array - Container used to pass arrays of objects
+ *
+ * It is not unusual to have to extend objects to pass new parameters, and the DRM
+ * ioctl infrastructure is supporting that by padding ioctl arguments with zeros
+ * when the data passed by userspace is smaller than the struct defined in the
+ * drm_ioctl_desc, thus keeping things backward compatible. This drm_pvr_obj_array
+ * is just applying the same concepts to indirect objects passed through arrays
+ * referenced from the main ioctl arguments structure: the stride basically defines
+ * the size of the object passed by userspace, which allows the kernel driver to
+ * pad things with zeros when it's smaller than the size of the object it expects.
+ *
+ * Use DRM_PVR_OBJ_ARRAY() to fill object array fields, unless you have a very
+ * good reason not to.
+ */
+struct drm_pvr_obj_array {
+	/** @stride: Stride of object struct. Used for versioning. */
+	__u32 stride;
+
+	/** @count: Number of objects in the array. */
+	__u32 count;
+
+	/** @array: User pointer to an array of objects. */
+	__u64 array;
+};
+
+#define DRM_PVR_OBJ_ARRAY(cnt, ptr) \
+	{ .stride = sizeof((ptr)[0]), .count = (cnt), .array = (__u64)(uintptr_t)(ptr) }
+
 /* clang-format on */
 
 /**
