@@ -3,6 +3,7 @@
 
 #include "pvr_context.h"
 #include "pvr_device.h"
+#include "pvr_drv.h"
 #include "pvr_gem.h"
 #include "pvr_hwrt.h"
 #include "pvr_job.h"
@@ -417,6 +418,232 @@ pvr_job_put(struct pvr_job *job)
 		kref_put(&job->ref_count, pvr_job_release);
 }
 
+static int
+pvr_check_sync_op(const struct drm_pvr_sync_op *sync_op)
+{
+	u8 handle_type;
+
+	if (sync_op->flags & ~DRM_PVR_SYNC_OP_FLAGS_MASK)
+		return -EINVAL;
+
+	handle_type = sync_op->flags & DRM_PVR_SYNC_OP_FLAG_HANDLE_TYPE_MASK;
+	if (handle_type != DRM_PVR_SYNC_OP_FLAG_HANDLE_TYPE_SYNCOBJ &&
+	    handle_type != DRM_PVR_SYNC_OP_FLAG_HANDLE_TYPE_TIMELINE_SYNCOBJ)
+		return -EINVAL;
+
+	if (handle_type == DRM_PVR_SYNC_OP_FLAG_HANDLE_TYPE_SYNCOBJ &&
+	    sync_op->value != 0)
+		return -EINVAL;
+
+	return 0;
+}
+
+/**
+ * struct pvr_sync_signal - Object encoding a syncobj signal operation
+ *
+ * The job submission logic collects all signal operations in an array of
+ * pvr_sync_signal objects. This array also serves as a cache to get the
+ * latest dma_fence when multiple jobs are submitted at once, and one job
+ * signals a syncobj point that's later waited on by a subsequent job.
+ */
+struct pvr_sync_signal {
+	/** @handle: Handle of the syncobj to signal. */
+	u32 handle;
+
+	/** @point: Point to signal in the syncobj.
+	 *
+	 * Only relevant for timeline syncobjs.
+	 */
+	u64 point;
+
+	/** @syncobj: Syncobj retrieved from the handle. */
+	struct drm_syncobj *syncobj;
+
+	/**
+	 * @chain: Chain object used to link the new fence with the
+	 *	   existing timeline syncobj.
+	 *
+	 * Should be zero when manipulating a regular syncobj.
+	 */
+	struct dma_fence_chain *chain;
+
+	/**
+	 * @fence: New fence object to attach to the syncobj.
+	 *
+	 * This pointer starts with the currently fence bound to
+	 * the <handle,point> pair.
+	 */
+	struct dma_fence *fence;
+};
+
+static void
+pvr_sync_signal_free(struct pvr_sync_signal *sig_sync)
+{
+	if (!sig_sync)
+		return;
+
+	drm_syncobj_put(sig_sync->syncobj);
+	dma_fence_chain_free(sig_sync->chain);
+	dma_fence_put(sig_sync->fence);
+	kfree(sig_sync);
+}
+
+static void
+pvr_sync_signal_array_cleanup(struct xarray *array)
+{
+	struct pvr_sync_signal *sig_sync;
+	unsigned long i;
+
+	xa_for_each(array, i, sig_sync)
+		pvr_sync_signal_free(sig_sync);
+
+	xa_destroy(array);
+}
+
+static struct pvr_sync_signal *
+pvr_sync_signal_array_add(struct xarray *array, struct drm_file *file, u32 handle, u64 point)
+{
+	struct pvr_sync_signal *sig_sync;
+	int err;
+	u32 id;
+
+	sig_sync = kzalloc(sizeof(*sig_sync), GFP_KERNEL);
+	if (!sig_sync)
+		return ERR_PTR(-ENOMEM);
+
+	sig_sync->handle = handle;
+	sig_sync->point = point;
+
+	if (point > 0) {
+		sig_sync->chain = dma_fence_chain_alloc();
+		if (!sig_sync->chain) {
+			err = -ENOMEM;
+			goto err_free_sig_sync;
+		}
+	}
+
+	sig_sync->syncobj = drm_syncobj_find(file, handle);
+	if (!sig_sync->syncobj) {
+		err = -EINVAL;
+		goto err_free_sig_sync;
+	}
+
+	/* Retrieve the current fence attached to that point. It's
+	 * perfectly fine to get a NULL fence here, it just means there's
+	 * no fence attached to that point yet.
+	 */
+	drm_syncobj_find_fence(file, handle, point, 0, &sig_sync->fence);
+
+	err = xa_alloc(array, &id, sig_sync, xa_limit_32b, GFP_KERNEL);
+	if (err)
+		goto err_free_sig_sync;
+
+	return sig_sync;
+
+err_free_sig_sync:
+	pvr_sync_signal_free(sig_sync);
+	return ERR_PTR(err);
+}
+
+static struct pvr_sync_signal *
+pvr_sync_signal_array_search(struct xarray *array, u32 handle, u64 point)
+{
+	struct pvr_sync_signal *sig_sync;
+	unsigned long i;
+
+	xa_for_each(array, i, sig_sync) {
+		if (handle == sig_sync->handle && point == sig_sync->point)
+			return sig_sync;
+	}
+
+	return NULL;
+}
+
+static struct pvr_sync_signal *
+pvr_sync_signal_array_get(struct xarray *array, struct drm_file *file, u32 handle, u64 point)
+{
+	struct pvr_sync_signal *sig_sync;
+
+	sig_sync = pvr_sync_signal_array_search(array, handle, point);
+	if (sig_sync)
+		return sig_sync;
+
+	return pvr_sync_signal_array_add(array, file, handle, point);
+}
+
+static int
+pvr_sync_signal_array_collect_ops(struct xarray *array,
+				  struct drm_file *file,
+				  u32 sync_op_count,
+				  struct drm_pvr_sync_op *sync_ops)
+{
+	for (u32 i = 0; i < sync_op_count; i++) {
+		struct pvr_sync_signal *sig_sync;
+		int ret;
+
+		if (!(sync_ops[i].flags & DRM_PVR_SYNC_OP_FLAG_SIGNAL))
+			continue;
+
+		ret = pvr_check_sync_op(&sync_ops[i]);
+		if (ret)
+			return ret;
+
+		sig_sync = pvr_sync_signal_array_get(array, file,
+						     sync_ops[i].handle,
+						     sync_ops[i].value);
+		if (IS_ERR(sig_sync))
+			return PTR_ERR(sig_sync);
+	}
+
+	return 0;
+}
+
+static int
+pvr_sync_signal_array_update_fences(struct xarray *array,
+				    u32 sync_op_count,
+				    const struct drm_pvr_sync_op *sync_ops,
+				    struct dma_fence *done_fence)
+{
+	for (u32 i = 0; i < sync_op_count; i++) {
+		struct dma_fence *old_fence;
+		struct pvr_sync_signal *sig_sync;
+
+		if (!(sync_ops[i].flags & DRM_PVR_SYNC_OP_FLAG_SIGNAL))
+			continue;
+
+		sig_sync = pvr_sync_signal_array_search(array, sync_ops[i].handle,
+							sync_ops[i].value);
+		if (WARN_ON(!sig_sync))
+			return -EINVAL;
+
+		old_fence = sig_sync->fence;
+		sig_sync->fence = dma_fence_get(done_fence);
+		dma_fence_put(old_fence);
+
+		if (!sig_sync->fence)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void
+pvr_sync_signal_array_push_fences(struct xarray *array)
+{
+	struct pvr_sync_signal *sig_sync;
+	unsigned long i;
+
+	xa_for_each(array, i, sig_sync) {
+		if (sig_sync->chain) {
+			drm_syncobj_add_point(sig_sync->syncobj, sig_sync->chain,
+					      sig_sync->fence, sig_sync->point);
+			sig_sync->chain = NULL;
+		} else {
+			drm_syncobj_replace_fence(sig_sync->syncobj, sig_sync->fence);
+		}
+	}
+}
+
 /**
  * fence_array_add() - Adds the fence to an array of fences to be waited on,
  *                     deduplicating fences from the same context.
@@ -466,33 +693,42 @@ fence_array_add(struct xarray *fence_array, struct dma_fence *fence)
 
 static int
 pvr_job_add_deps(struct pvr_file *pvr_file, struct pvr_job *job,
-		 u32 num_handles, u32 __user *user_handles)
+		 u32 sync_op_count, const struct drm_pvr_sync_op *sync_ops,
+		 struct xarray *signal_array)
 {
 	struct dma_fence *fence;
 	unsigned long index;
-	u32 *handles;
 	int err = 0;
 
-	if (!num_handles)
+	if (!sync_op_count)
 		return 0;
 
-	handles = kvmalloc_array(num_handles, sizeof(*user_handles), GFP_KERNEL);
-	if (!handles)
-		return -ENOMEM;
-
-	if (copy_from_user(handles, user_handles, sizeof(*handles) * num_handles)) {
-		err = -EFAULT;
-		goto out_free_handles;
-	}
-
-	for (u32 i = 0; i < num_handles; i++) {
+	for (u32 i = 0; i < sync_op_count; i++) {
 		struct dma_fence *unwrapped_fence;
+		struct pvr_sync_signal *sig_sync;
 		struct dma_fence_unwrap iter;
 		u32 native_fence_count = 0;
 
-		err = drm_syncobj_find_fence(pvr_file->file, handles[i], 0, 0, &fence);
+		if (sync_ops[i].flags & DRM_PVR_SYNC_OP_FLAG_SIGNAL)
+			continue;
+
+		err = pvr_check_sync_op(&sync_ops[i]);
 		if (err)
-			goto out_free_handles;
+			return err;
+
+		sig_sync = pvr_sync_signal_array_search(signal_array, sync_ops[i].handle,
+							sync_ops[i].value);
+		if (sig_sync) {
+			if (WARN_ON(!sig_sync->fence))
+				return -EINVAL;
+
+			fence = dma_fence_get(sig_sync->fence);
+		} else {
+			err = drm_syncobj_find_fence(from_pvr_file(pvr_file), sync_ops[i].handle,
+						     sync_ops[i].value, 0, &fence);
+			if (err)
+				return err;
+		}
 
 		dma_fence_unwrap_for_each(unwrapped_fence, &iter, fence) {
 			if (to_pvr_context_queue_fence(unwrapped_fence))
@@ -503,7 +739,7 @@ pvr_job_add_deps(struct pvr_file *pvr_file, struct pvr_job *job,
 			/* No need to unwrap the fence if it's fully non-native. */
 			err = fence_array_add(&job->deps.non_native, fence);
 			if (err)
-				goto out_free_handles;
+				return err;
 		} else {
 			dma_fence_unwrap_for_each(unwrapped_fence, &iter, fence) {
 				/* There's no dma_fence_unwrap_stop() helper cleaning up the refs
@@ -524,16 +760,14 @@ pvr_job_add_deps(struct pvr_file *pvr_file, struct pvr_job *job,
 			}
 
 			if (err)
-				goto out_free_handles;
+				return err;
 		}
 	}
 
 	xa_for_each(&job->deps.native, index, fence)
 		job->deps.native_count++;
 
-out_free_handles:
-	kvfree(handles);
-	return err;
+	return 0;
 }
 
 static int pvr_fw_cmd_init(struct pvr_device *pvr_dev, struct pvr_job *job,
@@ -602,8 +836,10 @@ pvr_create_geom_job(struct pvr_device *pvr_dev,
 		    struct pvr_file *pvr_file,
 		    struct pvr_hwrt_data *hwrt,
 		    struct pvr_context_render *ctx_render,
+		    struct drm_pvr_sync_op *sync_ops,
 		    struct drm_pvr_ioctl_submit_job_args *args,
-		    struct drm_pvr_job_render_args *render_args)
+		    struct drm_pvr_job_render_args *render_args,
+		    struct xarray *signal_array)
 {
 	struct rogue_fwif_cmd_geom *cmd_geom;
 	struct pvr_context_queue *queue;
@@ -632,8 +868,7 @@ pvr_create_geom_job(struct pvr_device *pvr_dev,
 	if (err == -E2BIG)
 		goto err_put_job;
 
-	err = pvr_job_add_deps(pvr_file, job, args->num_in_syncobj_handles,
-			       u64_to_user_ptr(args->in_syncobj_handles));
+	err = pvr_job_add_deps(pvr_file, job, args->sync_ops.count, sync_ops, signal_array);
 	if (err)
 		goto err_put_job;
 
@@ -662,9 +897,11 @@ pvr_create_frag_job(struct pvr_device *pvr_dev,
 		    struct pvr_file *pvr_file,
 		    struct pvr_hwrt_data *hwrt,
 		    struct pvr_context_render *ctx_render,
+		    struct drm_pvr_sync_op *sync_ops,
 		    struct drm_pvr_ioctl_submit_job_args *args,
 		    struct drm_pvr_job_render_args *render_args,
-		    struct dma_fence *geom_done_fence)
+		    struct dma_fence *geom_done_fence,
+		    struct xarray *signal_array)
 {
 	struct rogue_fwif_cmd_frag *cmd_frag;
 	struct pvr_context_queue *queue;
@@ -693,8 +930,7 @@ pvr_create_frag_job(struct pvr_device *pvr_dev,
 	if (err == -E2BIG)
 		goto err_put_job;
 
-	err = pvr_job_add_deps(pvr_file, job, render_args->num_in_syncobj_handles_frag,
-			       u64_to_user_ptr(render_args->in_syncobj_handles_frag));
+	err = pvr_job_add_deps(pvr_file, job, args->sync_ops.count, sync_ops, signal_array);
 	if (err)
 		goto err_put_job;
 
@@ -730,15 +966,13 @@ pvr_process_job_render(struct pvr_device *pvr_dev,
 		       struct drm_pvr_ioctl_submit_job_args *args,
 		       struct drm_pvr_job_render_args *render_args)
 {
-	struct drm_syncobj *geom_out_syncobj = NULL, *frag_out_syncobj = NULL;
+	struct drm_pvr_sync_op *frag_sync_ops = NULL, *geom_sync_ops = NULL;
 	struct pvr_job *geom_job = NULL, *frag_job = NULL;
 	struct pvr_context_render *ctx_render;
+	DEFINE_XARRAY_ALLOC(signal_array);
 	struct pvr_hwrt_data *hwrt = NULL;
 	struct pvr_context *ctx = NULL;
 	int err;
-
-	if (render_args->_padding_54)
-		return -EINVAL;
 
 	/* Verify that at least one command is provided. */
 	if (!render_args->geom_cmd_stream && !render_args->frag_cmd_stream)
@@ -747,6 +981,30 @@ pvr_process_job_render(struct pvr_device *pvr_dev,
 	if ((render_args->geom_flags & ~DRM_PVR_SUBMIT_JOB_GEOM_CMD_FLAGS_MASK) ||
 	    (render_args->frag_flags & ~DRM_PVR_SUBMIT_JOB_FRAG_CMD_FLAGS_MASK))
 		return -EINVAL;
+
+	geom_sync_ops = pvr_get_sync_op_array(&args->sync_ops);
+	if (IS_ERR(geom_sync_ops)) {
+		err = PTR_ERR(geom_sync_ops);
+		goto out;
+	}
+
+	err = pvr_sync_signal_array_collect_ops(&signal_array,
+						from_pvr_file(pvr_file),
+						args->sync_ops.count,
+						geom_sync_ops);
+	if (err)
+		goto out;
+
+	frag_sync_ops = pvr_get_sync_op_array(&render_args->frag_sync_ops);
+	if (IS_ERR(frag_sync_ops))
+		return PTR_ERR(frag_sync_ops);
+
+	err = pvr_sync_signal_array_collect_ops(&signal_array,
+						from_pvr_file(pvr_file),
+						render_args->frag_sync_ops.count,
+						frag_sync_ops);
+	if (err)
+		goto out;
 
 	hwrt = pvr_hwrt_data_lookup(pvr_file, render_args->hwrt_data_set_handle,
 				    render_args->hwrt_data_index);
@@ -766,72 +1024,56 @@ pvr_process_job_render(struct pvr_device *pvr_dev,
 		goto out;
 	}
 
-	if (render_args->out_syncobj_geom) {
-		geom_out_syncobj = drm_syncobj_find(from_pvr_file(pvr_file),
-						    render_args->out_syncobj_geom);
-		if (!geom_out_syncobj) {
-			err = -ENOENT;
-			goto out;
-		}
-	}
-
-	if (render_args->out_syncobj_frag) {
-		frag_out_syncobj = drm_syncobj_find(from_pvr_file(pvr_file),
-						    render_args->out_syncobj_frag);
-		if (!geom_out_syncobj) {
-			err = -ENOENT;
-			goto out;
-		}
-	}
-
 	if (render_args->geom_cmd_stream) {
-		geom_job = pvr_create_geom_job(pvr_dev, pvr_file, hwrt, ctx_render, args,
-					       render_args);
+		geom_job = pvr_create_geom_job(pvr_dev, pvr_file, hwrt, ctx_render, geom_sync_ops,
+					       args, render_args, &signal_array);
 		if (IS_ERR(geom_job)) {
 			err = PTR_ERR(geom_job);
 			geom_job = NULL;
 			goto out;
 		}
+
+		err = pvr_sync_signal_array_update_fences(&signal_array, args->sync_ops.count,
+							  geom_sync_ops, geom_job->done_fence);
+		if (err)
+			goto out;
 	}
 
 	if (render_args->frag_cmd_stream) {
-		frag_job = pvr_create_frag_job(pvr_dev, pvr_file, hwrt, ctx_render, args,
-					       render_args,
-					       geom_job ? geom_job->done_fence : NULL);
+		frag_job = pvr_create_frag_job(pvr_dev, pvr_file, hwrt, ctx_render, frag_sync_ops,
+					       args, render_args,
+					       geom_job ? geom_job->done_fence : NULL,
+					       &signal_array);
 		if (IS_ERR(frag_job)) {
 			err = PTR_ERR(frag_job);
 			frag_job = NULL;
 			goto out;
 		}
+
+		err = pvr_sync_signal_array_update_fences(&signal_array,
+							  render_args->frag_sync_ops.count,
+							  frag_sync_ops, frag_job->done_fence);
+		if (err)
+			goto out;
 	}
 
-	if (geom_job) {
-		if (geom_out_syncobj)
-			drm_syncobj_replace_fence(geom_out_syncobj, geom_job->done_fence);
-
+	if (geom_job)
 		pvr_job_push(geom_job);
-	}
 
-	if (frag_job) {
-		if (frag_out_syncobj)
-			drm_syncobj_replace_fence(frag_out_syncobj, frag_job->done_fence);
-
+	if (frag_job)
 		pvr_job_push(frag_job);
-	}
 
+	pvr_sync_signal_array_push_fences(&signal_array);
 	err = 0;
 
 out:
-	if (frag_out_syncobj)
-		drm_syncobj_put(frag_out_syncobj);
-
-	if (geom_out_syncobj)
-		drm_syncobj_put(geom_out_syncobj);
-
 	pvr_job_put(geom_job);
 	pvr_job_put(frag_job);
 	pvr_context_put(ctx);
 	pvr_hwrt_data_put(hwrt);
+	pvr_sync_signal_array_cleanup(&signal_array);
+	kvfree(frag_sync_ops);
+	kvfree(geom_sync_ops);
 	return err;
 }
 
@@ -856,9 +1098,10 @@ pvr_process_job_compute(struct pvr_device *pvr_dev,
 {
 	struct rogue_fwif_cmd_compute *cmd_compute;
 	struct pvr_context_compute *ctx_compute;
-	struct drm_syncobj *out_syncobj = NULL;
+	struct drm_pvr_sync_op *sync_ops = NULL;
+	DEFINE_XARRAY_ALLOC(signal_array);
 	struct pvr_context_queue *queue;
-	struct pvr_job *job;
+	struct pvr_job *job = NULL;
 	int err;
 
 	if (compute_args->flags & ~DRM_PVR_SUBMIT_JOB_COMPUTE_CMD_FLAGS_MASK)
@@ -871,6 +1114,19 @@ pvr_process_job_compute(struct pvr_device *pvr_dev,
 	job = pvr_create_job(pvr_dev, PVR_JOB_TYPE_COMPUTE);
 	if (IS_ERR(job))
 		return PTR_ERR(job);
+
+	sync_ops = pvr_get_sync_op_array(&args->sync_ops);
+	if (IS_ERR(sync_ops)) {
+		err = PTR_ERR(sync_ops);
+		goto out;
+	}
+
+	err = pvr_sync_signal_array_collect_ops(&signal_array,
+						from_pvr_file(pvr_file),
+						args->sync_ops.count,
+						sync_ops);
+	if (err)
+		goto out;
 
 	err = pvr_fw_cmd_init(pvr_dev, job, &pvr_cmd_compute_stream, compute_args->cmd_stream,
 			      compute_args->cmd_stream_len);
@@ -894,22 +1150,12 @@ pvr_process_job_compute(struct pvr_device *pvr_dev,
 		goto out;
 	}
 
-	if (compute_args->out_syncobj) {
-		out_syncobj = drm_syncobj_find(from_pvr_file(pvr_file),
-					       compute_args->out_syncobj);
-		if (!out_syncobj) {
-			err = -ENOENT;
-			goto out;
-		}
-	}
-
 	/* Check if the job will ever fit in the CCCB. */
 	err = pvr_job_fits_in_cccb(job);
 	if (err == -E2BIG)
 		goto out;
 
-	err = pvr_job_add_deps(pvr_file, job, args->num_in_syncobj_handles,
-			       u64_to_user_ptr(args->in_syncobj_handles));
+	err = pvr_job_add_deps(pvr_file, job, args->sync_ops.count, sync_ops, &signal_array);
 	if (err)
 		goto out;
 
@@ -926,16 +1172,18 @@ pvr_process_job_compute(struct pvr_device *pvr_dev,
 		goto out;
 	}
 
-	if (out_syncobj)
-		drm_syncobj_replace_fence(out_syncobj, job->done_fence);
+	err = pvr_sync_signal_array_update_fences(&signal_array, args->sync_ops.count, sync_ops,
+						  job->done_fence);
+	if (err)
+		goto out;
 
 	pvr_job_push(job);
+	pvr_sync_signal_array_push_fences(&signal_array);
 	err = 0;
 
 out:
-	if (out_syncobj)
-		drm_syncobj_put(out_syncobj);
-
+	pvr_sync_signal_array_cleanup(&signal_array);
+	kvfree(sync_ops);
 	pvr_job_put(job);
 	return err;
 }
@@ -959,9 +1207,10 @@ pvr_process_job_transfer(struct pvr_device *pvr_dev,
 {
 	struct rogue_fwif_cmd_transfer *cmd_transfer;
 	struct pvr_context_transfer *ctx_transfer;
-	struct drm_syncobj *out_syncobj = NULL;
+	struct drm_pvr_sync_op *sync_ops = NULL;
+	DEFINE_XARRAY_ALLOC(signal_array);
 	struct pvr_context_queue *queue;
-	struct pvr_job *job;
+	struct pvr_job *job = NULL;
 	int err;
 
 	if (transfer_args->flags & ~DRM_PVR_SUBMIT_JOB_TRANSFER_CMD_FLAGS_MASK)
@@ -974,6 +1223,19 @@ pvr_process_job_transfer(struct pvr_device *pvr_dev,
 	job = pvr_create_job(pvr_dev, PVR_JOB_TYPE_TRANSFER);
 	if (IS_ERR(job))
 		return PTR_ERR(job);
+
+	sync_ops = pvr_get_sync_op_array(&args->sync_ops);
+	if (IS_ERR(sync_ops)) {
+		err = PTR_ERR(sync_ops);
+		goto out;
+	}
+
+	err = pvr_sync_signal_array_collect_ops(&signal_array,
+						from_pvr_file(pvr_file),
+						args->sync_ops.count,
+						sync_ops);
+	if (err)
+		goto out;
 
 	err = pvr_fw_cmd_init(pvr_dev, job, &pvr_cmd_transfer_stream, transfer_args->cmd_stream,
 			      transfer_args->cmd_stream_len);
@@ -996,22 +1258,12 @@ pvr_process_job_transfer(struct pvr_device *pvr_dev,
 		goto out;
 	}
 
-	if (transfer_args->out_syncobj) {
-		out_syncobj = drm_syncobj_find(from_pvr_file(pvr_file),
-					       transfer_args->out_syncobj);
-		if (!out_syncobj) {
-			err = -ENOENT;
-			goto out;
-		}
-	}
-
 	/* Check if the job will ever fit in the CCCB. */
 	err = pvr_job_fits_in_cccb(job);
 	if (err == -E2BIG)
 		goto out;
 
-	err = pvr_job_add_deps(pvr_file, job, args->num_in_syncobj_handles,
-			       u64_to_user_ptr(args->in_syncobj_handles));
+	err = pvr_job_add_deps(pvr_file, job, args->sync_ops.count, sync_ops, &signal_array);
 	if (err)
 		goto out;
 
@@ -1028,47 +1280,20 @@ pvr_process_job_transfer(struct pvr_device *pvr_dev,
 		goto out;
 	}
 
-	if (out_syncobj)
-		drm_syncobj_replace_fence(out_syncobj, job->done_fence);
+	err = pvr_sync_signal_array_update_fences(&signal_array, args->sync_ops.count, sync_ops,
+						  job->done_fence);
+	if (err)
+		goto out;
 
 	pvr_job_push(job);
+	pvr_sync_signal_array_push_fences(&signal_array);
 	err = 0;
 
 out:
-	if (out_syncobj)
-		drm_syncobj_put(out_syncobj);
-
+	pvr_sync_signal_array_cleanup(&signal_array);
+	kvfree(sync_ops);
 	pvr_job_put(job);
 	return err;
-}
-
-static u32 *
-get_syncobj_handles(u32 num_in_syncobj_handles, u64 in_syncobj_handles_p)
-{
-	const void __user *uptr = u64_to_user_ptr(in_syncobj_handles_p);
-	u32 *in_syncobj_handles;
-	int err;
-
-	in_syncobj_handles = kcalloc(num_in_syncobj_handles, sizeof(*in_syncobj_handles),
-				     GFP_KERNEL);
-	if (!in_syncobj_handles) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-
-	if (copy_from_user(in_syncobj_handles, uptr,
-			   sizeof(*in_syncobj_handles) * num_in_syncobj_handles)) {
-		err = -EFAULT;
-		goto err_free_memory;
-	}
-
-	return in_syncobj_handles;
-
-err_free_memory:
-	kfree(in_syncobj_handles);
-
-err_out:
-	return ERR_PTR(err);
 }
 
 static int
@@ -1077,52 +1302,52 @@ pvr_process_job_null(struct pvr_device *pvr_dev,
 		     struct drm_pvr_ioctl_submit_job_args *args,
 		     struct drm_pvr_job_null_args *null_args)
 {
-	struct drm_syncobj *out_syncobj;
+	struct dma_fence_array *fence_array = NULL;
+	struct dma_fence **in_fence_array = NULL;
+	struct drm_pvr_sync_op *sync_ops = NULL;
+	struct dma_fence *out_fence = NULL;
+	DEFINE_XARRAY_ALLOC(signal_array);
+	struct dma_fence *fence;
 	struct xarray in_fences;
 	u32 num_in_fences = 0;
-	u32 *syncobj_handles = NULL;
-	struct dma_fence_array *fence_array;
-	struct dma_fence **in_fence_array;
-	struct dma_fence *fence;
-	unsigned long id;
 	u32 array_idx = 0;
+	unsigned long id;
 	int err;
-	u32 i;
 
 	if (null_args->flags & ~DRM_PVR_SUBMIT_JOB_NULL_CMD_FLAGS_MASK ||
-	    !null_args->out_syncobj || null_args->_padding_14 || args->context_handle) {
-		err = -EINVAL;
-		goto err_out;
-	}
-
-	out_syncobj = drm_syncobj_find(from_pvr_file(pvr_file),
-				       null_args->out_syncobj);
-	if (!out_syncobj) {
-		err = -ENOENT;
-		goto err_out;
-	}
-
-	if (args->num_in_syncobj_handles) {
-		syncobj_handles = get_syncobj_handles(args->num_in_syncobj_handles,
-						      args->in_syncobj_handles);
-
-		if (IS_ERR(syncobj_handles)) {
-			err = PTR_ERR(syncobj_handles);
-			goto err_put_syncobj;
-		}
-	}
+	    null_args->_padding_4 || args->context_handle)
+		return -EINVAL;
 
 	xa_init_flags(&in_fences, XA_FLAGS_ALLOC);
 
-	for (i = 0; i < args->num_in_syncobj_handles; i++) {
-		err = drm_syncobj_find_fence(from_pvr_file(pvr_file),
-					     syncobj_handles[i], 0, 0, &fence);
+	sync_ops = pvr_get_sync_op_array(&args->sync_ops);
+	if (IS_ERR(sync_ops))
+		return PTR_ERR(sync_ops);
+
+	err = pvr_sync_signal_array_collect_ops(&signal_array,
+						from_pvr_file(pvr_file),
+						args->sync_ops.count,
+						sync_ops);
+	if (err)
+		goto out;
+
+	for (u32 i = 0; i < args->sync_ops.count; i++) {
+		err = pvr_check_sync_op(&sync_ops[i]);
 		if (err)
-			goto err_release_in_fences;
+			goto out;
+
+		if (sync_ops[i].flags & DRM_PVR_SYNC_OP_FLAG_SIGNAL)
+			continue;
+
+		err = drm_syncobj_find_fence(from_pvr_file(pvr_file),
+					     sync_ops[i].handle, sync_ops[i].value,
+					     0, &fence);
+		if (err)
+			goto out;
 
 		err = fence_array_add(&in_fences, fence);
 		if (err)
-			goto err_release_in_fences;
+			goto out;
 	}
 
 	xa_for_each(&in_fences, id, fence) {
@@ -1135,25 +1360,21 @@ pvr_process_job_null(struct pvr_device *pvr_dev,
 
 	if (!num_in_fences) {
 		/* No input fences, just assign a stub fence. */
-		fence = dma_fence_allocate_private_stub();
-
-		if (IS_ERR(fence)) {
-			err = PTR_ERR(fence);
-			goto err_release_in_fences;
+		out_fence = dma_fence_allocate_private_stub();
+		if (IS_ERR(out_fence)) {
+			err = PTR_ERR(out_fence);
+			out_fence = NULL;
+			goto out;
 		}
 
-		drm_syncobj_replace_fence(out_syncobj, fence);
-		drm_syncobj_put(out_syncobj);
-
-		dma_fence_put(fence);
-
-		return 0;
+		err = 0;
+		goto out;
 	}
 
 	in_fence_array = kcalloc(num_in_fences, sizeof(*in_fence_array), GFP_KERNEL);
 	if (!in_fence_array) {
 		err = -ENOMEM;
-		goto err_release_in_fences;
+		goto out;
 	}
 
 	xa_for_each(&in_fences, id, fence) {
@@ -1171,31 +1392,31 @@ pvr_process_job_null(struct pvr_device *pvr_dev,
 					     false);
 	if (!fence_array) {
 		err = -ENOMEM;
-		goto err_free_in_fence_array;
+		goto out;
 	}
 
-	/* dma_fence_array now owns in_fence_array[] and the fence references within it. */
+	in_fence_array = NULL;
+	out_fence = &fence_array->base;
+	err = 0;
 
-	drm_syncobj_replace_fence(out_syncobj, &fence_array->base);
-	drm_syncobj_put(out_syncobj);
+out:
+	if (!err) {
+		err = pvr_sync_signal_array_update_fences(&signal_array, args->sync_ops.count,
+							  sync_ops, out_fence);
+		if (!err)
+			pvr_sync_signal_array_push_fences(&signal_array);
+	}
 
-	dma_fence_put(&fence_array->base);
+	if (in_fence_array) {
+		for (u32 i = 0; i < array_idx; i++)
+			dma_fence_put(in_fence_array[i]);
+		kfree(in_fence_array);
+	}
+
 	release_fences(&in_fences);
-
-	return 0;
-
-err_free_in_fence_array:
-	kfree(in_fence_array);
-
-err_release_in_fences:
-	release_fences(&in_fences);
-
-	kfree(syncobj_handles);
-
-err_put_syncobj:
-	drm_syncobj_put(out_syncobj);
-
-err_out:
+	dma_fence_put(out_fence);
+	pvr_sync_signal_array_cleanup(&signal_array);
+	kvfree(sync_ops);
 	return err;
 }
 

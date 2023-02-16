@@ -1097,31 +1097,8 @@ struct drm_pvr_job_render_args {
 	 */
 	__u32 frag_cmd_stream_len;
 
-	/**
-	 * @in_syncobj_handles_frag: [IN] Pointer to array of drm_syncobj handles for
-	 *                                input fences for fragment job.
-	 *
-	 * This array must be &num_in_syncobj_handles_frag entries large.
-	 *
-	 * drm_syncobj handles for the geometry job are contained in
-	 * &struct drm_pvr_ioctl_submit_job_args.in_syncobj_handles.
-	 */
-	__u64 in_syncobj_handles_frag;
-
-	/**
-	 * @num_in_syncobj_handles_frag: [IN] Number of input syncobj handles for fragment job.
-	 */
-	__u32 num_in_syncobj_handles_frag;
-
-	/**
-	 * @out_syncobj_geom: [OUT] drm_syncobj handle for geometry output fence
-	 */
-	__u32 out_syncobj_geom;
-
-	/**
-	 * @out_syncobj_frag: [OUT] drm_syncobj handle for fragment output fence
-	 */
-	__u32 out_syncobj_frag;
+	/** @frag_sync_ops: Fragment sync operations. */
+	struct drm_pvr_obj_array frag_sync_ops;
 
 	/**
 	 * @hwrt_data_set_handle: [IN] Handle for HWRT data set.
@@ -1144,9 +1121,6 @@ struct drm_pvr_job_render_args {
 	 * @flags: [IN] Flags for fragment command.
 	 */
 	__u32 frag_flags;
-
-	/** @_padding_54: Reserved. This field must be zeroed. */
-	__u32 _padding_54;
 };
 
 /**
@@ -1188,11 +1162,6 @@ struct drm_pvr_job_compute_args {
 	 * @flags: [IN] Flags for command.
 	 */
 	__u32 flags;
-
-	/**
-	 * @out_syncobj: [OUT] drm_syncobj handle for output fence
-	 */
-	__u32 out_syncobj;
 };
 
 /**
@@ -1229,11 +1198,6 @@ struct drm_pvr_job_transfer_args {
 	 * @flags: [IN] Flags for command.
 	 */
 	__u32 flags;
-
-	/**
-	 * @out_syncobj: [OUT] drm_syncobj handle for output fence
-	 */
-	__u32 out_syncobj;
 };
 
 /*
@@ -1250,13 +1214,8 @@ struct drm_pvr_job_null_args {
 	 */
 	__u32 flags;
 
-	/**
-	 * @out_syncobj: [OUT] drm_syncobj handle for output fence
-	 */
-	__u32 out_syncobj;
-
-	/** @_padding_14: Reserved. This field must be zeroed. */
-	__u32 _padding_14;
+	/** @_padding_4: Reserved. This field must be zeroed. */
+	__u32 _padding_4;
 };
 
 /**
@@ -1295,17 +1254,8 @@ struct drm_pvr_ioctl_submit_job_args {
 	/** @data: [IN] User pointer to job type specific arguments. */
 	__u64 data;
 
-	/**
-	 * @in_syncobj_handles: [IN] Pointer to array of drm_syncobj handles for input fences.
-	 *
-	 * This array must be &num_in_syncobj_handles entries large.
-	 */
-	__u64 in_syncobj_handles;
-
-	/**
-	 * @num_in_syncobj_handles: [IN] Number of input syncobj handles.
-	 */
-	__u32 num_in_syncobj_handles;
+	/** @sync_ops: Fragment sync operations. */
+	struct drm_pvr_obj_array sync_ops;
 };
 
 /* Definitions for coredump decoding in userspace. */
