@@ -24,58 +24,6 @@
 #include <linux/xarray.h>
 #include <uapi/drm/pvr_drm.h>
 
-static struct pvr_job *pvr_create_job(struct pvr_device *pvr_dev, enum pvr_job_type job_type)
-{
-	struct pvr_job *job = kzalloc(sizeof(*job), GFP_KERNEL);
-	int err;
-
-	if (!job) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-
-	job->pvr_dev = pvr_dev;
-	job->type = job_type;
-
-	switch (job_type) {
-	case PVR_JOB_TYPE_GEOMETRY:
-		job->fw_ccb_cmd_type = ROGUE_FWIF_CCB_CMD_TYPE_GEOM;
-		break;
-
-	case PVR_JOB_TYPE_FRAGMENT:
-		job->fw_ccb_cmd_type = ROGUE_FWIF_CCB_CMD_TYPE_FRAG;
-		break;
-
-	case PVR_JOB_TYPE_COMPUTE:
-		job->fw_ccb_cmd_type = ROGUE_FWIF_CCB_CMD_TYPE_CDM;
-		break;
-
-	case PVR_JOB_TYPE_TRANSFER:
-		job->fw_ccb_cmd_type = ROGUE_FWIF_CCB_CMD_TYPE_TQ_3D;
-		break;
-
-	default:
-		err = -EINVAL;
-		goto err_free;
-	}
-
-	xa_init_flags(&job->deps.non_native, XA_FLAGS_ALLOC);
-	xa_init_flags(&job->deps.native, XA_FLAGS_ALLOC);
-	kref_init(&job->ref_count);
-
-	err = xa_alloc(&pvr_dev->job_ids, &job->id, job, xa_limit_32b, GFP_KERNEL);
-	if (err)
-		goto err_free;
-
-	return job;
-
-err_free:
-	kfree(job);
-
-err_out:
-	return ERR_PTR(err);
-}
-
 static void release_fences(struct xarray *in_fences)
 {
 	struct dma_fence *fence;
@@ -222,16 +170,16 @@ struct pvr_cccb *
 get_cccb(struct pvr_job *job)
 {
 	switch (job->type) {
-	case PVR_JOB_TYPE_GEOMETRY:
+	case DRM_PVR_JOB_TYPE_GEOMETRY:
 		return &container_of(job->ctx, struct pvr_context_render, base)->ctx_geom.cccb;
 
-	case PVR_JOB_TYPE_FRAGMENT:
+	case DRM_PVR_JOB_TYPE_FRAGMENT:
 		return &container_of(job->ctx, struct pvr_context_render, base)->ctx_frag.cccb;
 
-	case PVR_JOB_TYPE_COMPUTE:
+	case DRM_PVR_JOB_TYPE_COMPUTE:
 		return &container_of(job->ctx, struct pvr_context_compute, base)->cccb;
 
-	case PVR_JOB_TYPE_TRANSFER:
+	case DRM_PVR_JOB_TYPE_TRANSFER_FRAG:
 		return &container_of(job->ctx, struct pvr_context_transfer, base)->cccb;
 
 	default:
@@ -243,16 +191,16 @@ struct pvr_context_queue *
 get_ctx_queue(struct pvr_job *job)
 {
 	switch (job->type) {
-	case PVR_JOB_TYPE_GEOMETRY:
+	case DRM_PVR_JOB_TYPE_GEOMETRY:
 		return &container_of(job->ctx, struct pvr_context_render, base)->ctx_geom.queue;
 
-	case PVR_JOB_TYPE_FRAGMENT:
+	case DRM_PVR_JOB_TYPE_FRAGMENT:
 		return &container_of(job->ctx, struct pvr_context_render, base)->ctx_frag.queue;
 
-	case PVR_JOB_TYPE_COMPUTE:
+	case DRM_PVR_JOB_TYPE_COMPUTE:
 		return &container_of(job->ctx, struct pvr_context_compute, base)->queue;
 
-	case PVR_JOB_TYPE_TRANSFER:
+	case DRM_PVR_JOB_TYPE_TRANSFER_FRAG:
 		return &container_of(job->ctx, struct pvr_context_transfer, base)->queue;
 
 	default:
@@ -266,16 +214,16 @@ static u32 get_ctx_fw_addr(struct pvr_job *job)
 	u32 ctx_fw_addr;
 
 	switch (job->type) {
-	case PVR_JOB_TYPE_GEOMETRY:
-	case PVR_JOB_TYPE_FRAGMENT:
+	case DRM_PVR_JOB_TYPE_GEOMETRY:
+	case DRM_PVR_JOB_TYPE_FRAGMENT:
 		ctx_fw_obj = container_of(job->ctx, struct pvr_context_render, base)->fw_obj;
 		break;
 
-	case PVR_JOB_TYPE_COMPUTE:
+	case DRM_PVR_JOB_TYPE_COMPUTE:
 		ctx_fw_obj = container_of(job->ctx, struct pvr_context_compute, base)->fw_obj;
 		break;
 
-	case PVR_JOB_TYPE_TRANSFER:
+	case DRM_PVR_JOB_TYPE_TRANSFER_FRAG:
 		ctx_fw_obj = container_of(job->ctx, struct pvr_context_transfer, base)->fw_obj;
 		break;
 
@@ -286,7 +234,7 @@ static u32 get_ctx_fw_addr(struct pvr_job *job)
 
 	pvr_gem_get_fw_addr(ctx_fw_obj, &ctx_fw_addr);
 
-	if (job->type == PVR_JOB_TYPE_FRAGMENT)
+	if (job->type == DRM_PVR_JOB_TYPE_FRAGMENT)
 		ctx_fw_addr += offsetof(struct rogue_fwif_fwrendercontext, frag_context);
 
 	return ctx_fw_addr;
@@ -831,250 +779,62 @@ convert_frag_flags(u32 in_flags)
 	return out_flags;
 }
 
-static struct pvr_job *
-pvr_create_geom_job(struct pvr_device *pvr_dev,
-		    struct pvr_file *pvr_file,
-		    struct pvr_hwrt_data *hwrt,
-		    struct pvr_context_render *ctx_render,
-		    struct drm_pvr_sync_op *sync_ops,
-		    struct drm_pvr_ioctl_submit_job_args *args,
-		    struct drm_pvr_job_render_args *render_args,
-		    struct xarray *signal_array)
+static int
+pvr_geom_job_fw_cmd_init(struct pvr_job *job,
+			 struct drm_pvr_job *args)
 {
-	struct rogue_fwif_cmd_geom *cmd_geom;
-	struct pvr_context_queue *queue;
-	struct pvr_job *job;
+	struct rogue_fwif_cmd_geom *cmd;
 	int err;
 
-	job = pvr_create_job(pvr_dev, PVR_JOB_TYPE_GEOMETRY);
-	if (IS_ERR(job))
-		return job;
+	if (args->flags & ~DRM_PVR_SUBMIT_JOB_GEOM_CMD_FLAGS_MASK)
+		return -EINVAL;
 
-	err = pvr_fw_cmd_init(pvr_dev, job, &pvr_cmd_geom_stream, render_args->geom_cmd_stream,
-			      render_args->geom_cmd_stream_len);
+	if (!to_pvr_context_render(job->ctx))
+		return -EINVAL;
+
+	if (!job->hwrt)
+		return -EINVAL;
+
+	job->fw_ccb_cmd_type = ROGUE_FWIF_CCB_CMD_TYPE_GEOM;
+	err = pvr_fw_cmd_init(job->pvr_dev, job, &pvr_cmd_geom_stream,
+			      args->cmd_stream, args->cmd_stream_len);
 	if (err)
-		goto err_put_job;
+		return err;
 
-	cmd_geom = job->cmd;
-	cmd_geom->cmd_shared.cmn.frame_num = 0;
-	cmd_geom->flags = convert_geom_flags(render_args->geom_flags);
-	pvr_gem_get_fw_addr(hwrt->fw_obj, &cmd_geom->cmd_shared.hwrt_data_fw_addr);
-
-	job->hwrt = pvr_hwrt_data_get(hwrt);
-	job->ctx = pvr_context_get(from_pvr_context_render(ctx_render));
-
-	/* Check if the job will ever fit in the CCCB. */
-	err = pvr_job_fits_in_cccb(job);
-	if (err == -E2BIG)
-		goto err_put_job;
-
-	err = pvr_job_add_deps(pvr_file, job, args->sync_ops.count, sync_ops, signal_array);
-	if (err)
-		goto err_put_job;
-
-	queue = get_ctx_queue(job);
-	if (!queue) {
-		err = -EINVAL;
-		goto err_put_job;
-	}
-
-	job->done_fence = pvr_context_queue_fence_create(queue);
-	if (IS_ERR(job->done_fence)) {
-		err = PTR_ERR(job->done_fence);
-		job->done_fence = NULL;
-		goto err_put_job;
-	}
-
-	return job;
-
-err_put_job:
-	pvr_job_put(job);
-	return ERR_PTR(err);
-}
-
-static struct pvr_job *
-pvr_create_frag_job(struct pvr_device *pvr_dev,
-		    struct pvr_file *pvr_file,
-		    struct pvr_hwrt_data *hwrt,
-		    struct pvr_context_render *ctx_render,
-		    struct drm_pvr_sync_op *sync_ops,
-		    struct drm_pvr_ioctl_submit_job_args *args,
-		    struct drm_pvr_job_render_args *render_args,
-		    struct dma_fence *geom_done_fence,
-		    struct xarray *signal_array)
-{
-	struct rogue_fwif_cmd_frag *cmd_frag;
-	struct pvr_context_queue *queue;
-	struct pvr_job *job;
-	int err;
-
-	job = pvr_create_job(pvr_dev, PVR_JOB_TYPE_FRAGMENT);
-	if (IS_ERR(job))
-		return job;
-
-	err = pvr_fw_cmd_init(pvr_dev, job, &pvr_cmd_frag_stream, render_args->frag_cmd_stream,
-			      render_args->frag_cmd_stream_len);
-	if (err)
-		goto err_put_job;
-
-	cmd_frag = job->cmd;
-	cmd_frag->cmd_shared.cmn.frame_num = 0;
-	cmd_frag->flags = convert_frag_flags(render_args->frag_flags);
-	pvr_gem_get_fw_addr(hwrt->fw_obj, &cmd_frag->cmd_shared.hwrt_data_fw_addr);
-
-	job->hwrt = pvr_hwrt_data_get(hwrt);
-	job->ctx = pvr_context_get(from_pvr_context_render(ctx_render));
-
-	/* Check if the job will ever fit in the CCCB. */
-	err = pvr_job_fits_in_cccb(job);
-	if (err == -E2BIG)
-		goto err_put_job;
-
-	err = pvr_job_add_deps(pvr_file, job, args->sync_ops.count, sync_ops, signal_array);
-	if (err)
-		goto err_put_job;
-
-	/* Add the geometry job done_fence to the native fence array. */
-	if (geom_done_fence &&
-	    !WARN_ON(!pvr_context_queue_fence_ctx_from_fence(geom_done_fence))) {
-		err = fence_array_add(&job->deps.native, dma_fence_get(geom_done_fence));
-	}
-
-	queue = get_ctx_queue(job);
-	if (!queue) {
-		err = -EINVAL;
-		goto err_put_job;
-	}
-
-	job->done_fence = pvr_context_queue_fence_create(queue);
-	if (IS_ERR(job->done_fence)) {
-		err = PTR_ERR(job->done_fence);
-		job->done_fence = NULL;
-		goto err_put_job;
-	}
-
-	return job;
-
-err_put_job:
-	pvr_job_put(job);
-	return ERR_PTR(err);
+	cmd = job->cmd;
+	cmd->cmd_shared.cmn.frame_num = 0;
+	cmd->flags = convert_geom_flags(args->flags);
+	pvr_gem_get_fw_addr(job->hwrt->fw_obj, &cmd->cmd_shared.hwrt_data_fw_addr);
+	return 0;
 }
 
 static int
-pvr_process_job_render(struct pvr_device *pvr_dev,
-		       struct pvr_file *pvr_file,
-		       struct drm_pvr_ioctl_submit_job_args *args,
-		       struct drm_pvr_job_render_args *render_args)
+pvr_frag_job_fw_cmd_init(struct pvr_job *job,
+			 struct drm_pvr_job *args)
 {
-	struct drm_pvr_sync_op *frag_sync_ops = NULL, *geom_sync_ops = NULL;
-	struct pvr_job *geom_job = NULL, *frag_job = NULL;
-	struct pvr_context_render *ctx_render;
-	DEFINE_XARRAY_ALLOC(signal_array);
-	struct pvr_hwrt_data *hwrt = NULL;
-	struct pvr_context *ctx = NULL;
+	struct rogue_fwif_cmd_frag *cmd;
 	int err;
 
-	/* Verify that at least one command is provided. */
-	if (!render_args->geom_cmd_stream && !render_args->frag_cmd_stream)
+	if (args->flags & ~DRM_PVR_SUBMIT_JOB_FRAG_CMD_FLAGS_MASK)
 		return -EINVAL;
 
-	if ((render_args->geom_flags & ~DRM_PVR_SUBMIT_JOB_GEOM_CMD_FLAGS_MASK) ||
-	    (render_args->frag_flags & ~DRM_PVR_SUBMIT_JOB_FRAG_CMD_FLAGS_MASK))
+	if (!to_pvr_context_render(job->ctx))
 		return -EINVAL;
 
-	geom_sync_ops = pvr_get_sync_op_array(&args->sync_ops);
-	if (IS_ERR(geom_sync_ops)) {
-		err = PTR_ERR(geom_sync_ops);
-		goto out;
-	}
+	if (!job->hwrt)
+		return -EINVAL;
 
-	err = pvr_sync_signal_array_collect_ops(&signal_array,
-						from_pvr_file(pvr_file),
-						args->sync_ops.count,
-						geom_sync_ops);
+	job->fw_ccb_cmd_type = ROGUE_FWIF_CCB_CMD_TYPE_FRAG;
+	err = pvr_fw_cmd_init(job->pvr_dev, job, &pvr_cmd_frag_stream,
+			      args->cmd_stream, args->cmd_stream_len);
 	if (err)
-		goto out;
+		return err;
 
-	frag_sync_ops = pvr_get_sync_op_array(&render_args->frag_sync_ops);
-	if (IS_ERR(frag_sync_ops))
-		return PTR_ERR(frag_sync_ops);
-
-	err = pvr_sync_signal_array_collect_ops(&signal_array,
-						from_pvr_file(pvr_file),
-						render_args->frag_sync_ops.count,
-						frag_sync_ops);
-	if (err)
-		goto out;
-
-	hwrt = pvr_hwrt_data_lookup(pvr_file, render_args->hwrt_data_set_handle,
-				    render_args->hwrt_data_index);
-	if (!hwrt)
-		return -EINVAL;
-
-	ctx = pvr_context_lookup(pvr_file, args->context_handle);
-	if (!ctx) {
-		err = -EINVAL;
-		goto out;
-	}
-
-	/* to_pvr_context_render() will validate the context type. */
-	ctx_render = to_pvr_context_render(ctx);
-	if (!ctx_render) {
-		err = -EINVAL;
-		goto out;
-	}
-
-	if (render_args->geom_cmd_stream) {
-		geom_job = pvr_create_geom_job(pvr_dev, pvr_file, hwrt, ctx_render, geom_sync_ops,
-					       args, render_args, &signal_array);
-		if (IS_ERR(geom_job)) {
-			err = PTR_ERR(geom_job);
-			geom_job = NULL;
-			goto out;
-		}
-
-		err = pvr_sync_signal_array_update_fences(&signal_array, args->sync_ops.count,
-							  geom_sync_ops, geom_job->done_fence);
-		if (err)
-			goto out;
-	}
-
-	if (render_args->frag_cmd_stream) {
-		frag_job = pvr_create_frag_job(pvr_dev, pvr_file, hwrt, ctx_render, frag_sync_ops,
-					       args, render_args,
-					       geom_job ? geom_job->done_fence : NULL,
-					       &signal_array);
-		if (IS_ERR(frag_job)) {
-			err = PTR_ERR(frag_job);
-			frag_job = NULL;
-			goto out;
-		}
-
-		err = pvr_sync_signal_array_update_fences(&signal_array,
-							  render_args->frag_sync_ops.count,
-							  frag_sync_ops, frag_job->done_fence);
-		if (err)
-			goto out;
-	}
-
-	if (geom_job)
-		pvr_job_push(geom_job);
-
-	if (frag_job)
-		pvr_job_push(frag_job);
-
-	pvr_sync_signal_array_push_fences(&signal_array);
-	err = 0;
-
-out:
-	pvr_job_put(geom_job);
-	pvr_job_put(frag_job);
-	pvr_context_put(ctx);
-	pvr_hwrt_data_put(hwrt);
-	pvr_sync_signal_array_cleanup(&signal_array);
-	kvfree(frag_sync_ops);
-	kvfree(geom_sync_ops);
-	return err;
+	cmd = job->cmd;
+	cmd->cmd_shared.cmn.frame_num = 0;
+	cmd->flags = convert_frag_flags(args->flags);
+	pvr_gem_get_fw_addr(job->hwrt->fw_obj, &cmd->cmd_shared.hwrt_data_fw_addr);
+	return 0;
 }
 
 static u32
@@ -1091,101 +851,28 @@ convert_compute_flags(u32 in_flags)
 }
 
 static int
-pvr_process_job_compute(struct pvr_device *pvr_dev,
-			struct pvr_file *pvr_file,
-			struct drm_pvr_ioctl_submit_job_args *args,
-			struct drm_pvr_job_compute_args *compute_args)
+pvr_compute_job_fw_cmd_init(struct pvr_job *job,
+			    struct drm_pvr_job *args)
 {
-	struct rogue_fwif_cmd_compute *cmd_compute;
-	struct pvr_context_compute *ctx_compute;
-	struct drm_pvr_sync_op *sync_ops = NULL;
-	DEFINE_XARRAY_ALLOC(signal_array);
-	struct pvr_context_queue *queue;
-	struct pvr_job *job = NULL;
+	struct rogue_fwif_cmd_compute *cmd;
 	int err;
 
-	if (compute_args->flags & ~DRM_PVR_SUBMIT_JOB_COMPUTE_CMD_FLAGS_MASK)
+	if (args->flags & ~DRM_PVR_SUBMIT_JOB_COMPUTE_CMD_FLAGS_MASK)
 		return -EINVAL;
 
-	/* Copy commands from userspace. */
-	if (!compute_args->cmd_stream)
+	if (!to_pvr_context_compute(job->ctx))
 		return -EINVAL;
 
-	job = pvr_create_job(pvr_dev, PVR_JOB_TYPE_COMPUTE);
-	if (IS_ERR(job))
-		return PTR_ERR(job);
-
-	sync_ops = pvr_get_sync_op_array(&args->sync_ops);
-	if (IS_ERR(sync_ops)) {
-		err = PTR_ERR(sync_ops);
-		goto out;
-	}
-
-	err = pvr_sync_signal_array_collect_ops(&signal_array,
-						from_pvr_file(pvr_file),
-						args->sync_ops.count,
-						sync_ops);
+	job->fw_ccb_cmd_type = ROGUE_FWIF_CCB_CMD_TYPE_CDM;
+	err = pvr_fw_cmd_init(job->pvr_dev, job, &pvr_cmd_compute_stream,
+			      args->cmd_stream, args->cmd_stream_len);
 	if (err)
-		goto out;
+		return err;
 
-	err = pvr_fw_cmd_init(pvr_dev, job, &pvr_cmd_compute_stream, compute_args->cmd_stream,
-			      compute_args->cmd_stream_len);
-	if (err)
-		goto out;
-
-	cmd_compute = job->cmd;
-	cmd_compute->common.frame_num = 0;
-	cmd_compute->flags = convert_compute_flags(compute_args->flags);
-
-	job->ctx = pvr_context_lookup(pvr_file, args->context_handle);
-	if (!job->ctx) {
-		err = -EINVAL;
-		goto out;
-	}
-
-	/* to_pvr_context_compute() will validate the context type. */
-	ctx_compute = to_pvr_context_compute(job->ctx);
-	if (!ctx_compute) {
-		err = -EINVAL;
-		goto out;
-	}
-
-	/* Check if the job will ever fit in the CCCB. */
-	err = pvr_job_fits_in_cccb(job);
-	if (err == -E2BIG)
-		goto out;
-
-	err = pvr_job_add_deps(pvr_file, job, args->sync_ops.count, sync_ops, &signal_array);
-	if (err)
-		goto out;
-
-	queue = get_ctx_queue(job);
-	if (!queue) {
-		err = -EINVAL;
-		goto out;
-	}
-
-	job->done_fence = pvr_context_queue_fence_create(queue);
-	if (IS_ERR(job->done_fence)) {
-		err = PTR_ERR(job->done_fence);
-		job->done_fence = NULL;
-		goto out;
-	}
-
-	err = pvr_sync_signal_array_update_fences(&signal_array, args->sync_ops.count, sync_ops,
-						  job->done_fence);
-	if (err)
-		goto out;
-
-	pvr_job_push(job);
-	pvr_sync_signal_array_push_fences(&signal_array);
-	err = 0;
-
-out:
-	pvr_sync_signal_array_cleanup(&signal_array);
-	kvfree(sync_ops);
-	pvr_job_put(job);
-	return err;
+	cmd = job->cmd;
+	cmd->common.frame_num = 0;
+	cmd->flags = convert_compute_flags(args->flags);
+	return 0;
 }
 
 static u32
@@ -1200,104 +887,154 @@ convert_transfer_flags(u32 in_flags)
 }
 
 static int
-pvr_process_job_transfer(struct pvr_device *pvr_dev,
-			 struct pvr_file *pvr_file,
-			 struct drm_pvr_ioctl_submit_job_args *args,
-			 struct drm_pvr_job_transfer_args *transfer_args)
+pvr_transfer_job_fw_cmd_init(struct pvr_job *job,
+			     struct drm_pvr_job *args)
 {
-	struct rogue_fwif_cmd_transfer *cmd_transfer;
-	struct pvr_context_transfer *ctx_transfer;
+	struct rogue_fwif_cmd_transfer *cmd;
+	int err;
+
+	if (args->flags & ~DRM_PVR_SUBMIT_JOB_TRANSFER_CMD_FLAGS_MASK)
+		return -EINVAL;
+
+	if (!to_pvr_context_transfer_frag(job->ctx))
+		return -EINVAL;
+
+	job->fw_ccb_cmd_type = ROGUE_FWIF_CCB_CMD_TYPE_TQ_3D;
+	err = pvr_fw_cmd_init(job->pvr_dev, job, &pvr_cmd_transfer_stream,
+			      args->cmd_stream, args->cmd_stream_len);
+	if (err)
+		return err;
+
+	cmd = job->cmd;
+	cmd->common.frame_num = 0;
+	cmd->flags = convert_transfer_flags(args->flags);
+	return 0;
+}
+
+static int
+pvr_job_fw_cmd_init(struct pvr_job *job,
+		    struct drm_pvr_job *args)
+{
+	switch (args->type) {
+	case DRM_PVR_JOB_TYPE_GEOMETRY:
+		return pvr_geom_job_fw_cmd_init(job, args);
+
+	case DRM_PVR_JOB_TYPE_FRAGMENT:
+		return pvr_frag_job_fw_cmd_init(job, args);
+
+	case DRM_PVR_JOB_TYPE_COMPUTE:
+		return pvr_compute_job_fw_cmd_init(job, args);
+
+	case DRM_PVR_JOB_TYPE_TRANSFER_FRAG:
+		return pvr_transfer_job_fw_cmd_init(job, args);
+
+	default:
+		return -EINVAL;
+	}
+}
+
+static struct pvr_job *
+pvr_create_job(struct pvr_device *pvr_dev,
+	       struct pvr_file *pvr_file,
+	       struct drm_pvr_job *args,
+	       struct xarray *signal_array)
+{
 	struct drm_pvr_sync_op *sync_ops = NULL;
-	DEFINE_XARRAY_ALLOC(signal_array);
 	struct pvr_context_queue *queue;
 	struct pvr_job *job = NULL;
 	int err;
 
-	if (transfer_args->flags & ~DRM_PVR_SUBMIT_JOB_TRANSFER_CMD_FLAGS_MASK)
-		return -EINVAL;
+	if (!args->cmd_stream || !args->cmd_stream_len)
+		return ERR_PTR(-EINVAL);
 
-	/* Copy commands from userspace. */
-	if (!transfer_args->cmd_stream)
-		return -EINVAL;
+	if (args->type != DRM_PVR_JOB_TYPE_GEOMETRY &&
+	    args->type != DRM_PVR_JOB_TYPE_FRAGMENT &&
+	    (args->hwrt.set_handle || args->hwrt.data_index))
+		return ERR_PTR(-EINVAL);
 
-	job = pvr_create_job(pvr_dev, PVR_JOB_TYPE_TRANSFER);
-	if (IS_ERR(job))
-		return PTR_ERR(job);
+	job = kzalloc(sizeof(*job), GFP_KERNEL);
+	if (!job)
+		return ERR_PTR(-ENOMEM);
+
+	xa_init_flags(&job->deps.non_native, XA_FLAGS_ALLOC);
+	xa_init_flags(&job->deps.native, XA_FLAGS_ALLOC);
+	kref_init(&job->ref_count);
+	job->pvr_dev = pvr_dev;
+	job->type = args->type;
+
+	err = xa_alloc(&pvr_dev->job_ids, &job->id, job, xa_limit_32b, GFP_KERNEL);
+	if (err)
+		goto err_put_job;
 
 	sync_ops = pvr_get_sync_op_array(&args->sync_ops);
 	if (IS_ERR(sync_ops)) {
 		err = PTR_ERR(sync_ops);
-		goto out;
+		goto err_put_job;
 	}
 
-	err = pvr_sync_signal_array_collect_ops(&signal_array,
-						from_pvr_file(pvr_file),
-						args->sync_ops.count,
-						sync_ops);
+	err = pvr_sync_signal_array_collect_ops(signal_array, from_pvr_file(pvr_file),
+						args->sync_ops.count, sync_ops);
 	if (err)
-		goto out;
-
-	err = pvr_fw_cmd_init(pvr_dev, job, &pvr_cmd_transfer_stream, transfer_args->cmd_stream,
-			      transfer_args->cmd_stream_len);
-	if (err)
-		goto out;
-
-	cmd_transfer = job->cmd;
-	cmd_transfer->common.frame_num = 0;
-	cmd_transfer->flags = convert_transfer_flags(transfer_args->flags);
+		goto err_put_job;
 
 	job->ctx = pvr_context_lookup(pvr_file, args->context_handle);
 	if (!job->ctx) {
 		err = -EINVAL;
-		goto out;
+		goto err_put_job;
 	}
 
-	ctx_transfer = to_pvr_context_transfer_frag(job->ctx);
-	if (!ctx_transfer) {
-		err = -EINVAL;
-		goto out;
+	if (args->hwrt.set_handle) {
+		job->hwrt = pvr_hwrt_data_lookup(pvr_file, args->hwrt.set_handle,
+						 args->hwrt.data_index);
+		if (!job->hwrt) {
+			err = -EINVAL;
+			goto err_put_job;
+		}
 	}
+
+	err = pvr_job_fw_cmd_init(job, args);
+	if (err)
+		goto err_put_job;
 
 	/* Check if the job will ever fit in the CCCB. */
 	err = pvr_job_fits_in_cccb(job);
 	if (err == -E2BIG)
-		goto out;
+		goto err_put_job;
 
-	err = pvr_job_add_deps(pvr_file, job, args->sync_ops.count, sync_ops, &signal_array);
+	err = pvr_job_add_deps(pvr_file, job, args->sync_ops.count, sync_ops, signal_array);
 	if (err)
-		goto out;
+		goto err_put_job;
 
 	queue = get_ctx_queue(job);
 	if (!queue) {
 		err = -EINVAL;
-		goto out;
+		goto err_put_job;
 	}
 
 	job->done_fence = pvr_context_queue_fence_create(queue);
 	if (IS_ERR(job->done_fence)) {
 		err = PTR_ERR(job->done_fence);
 		job->done_fence = NULL;
-		goto out;
+		goto err_put_job;
 	}
 
-	err = pvr_sync_signal_array_update_fences(&signal_array, args->sync_ops.count, sync_ops,
+	err = pvr_sync_signal_array_update_fences(signal_array,
+						  args->sync_ops.count, sync_ops,
 						  job->done_fence);
 	if (err)
-		goto out;
+		goto err_put_job;
 
-	pvr_job_push(job);
-	pvr_sync_signal_array_push_fences(&signal_array);
-	err = 0;
+	kvfree(sync_ops);
+	return job;
 
-out:
-	pvr_sync_signal_array_cleanup(&signal_array);
+err_put_job:
 	kvfree(sync_ops);
 	pvr_job_put(job);
-	return err;
+	return ERR_PTR(err);
 }
 
 /**
- * pvr_submit_job() - Submit a job to the GPU
+ * pvr_submit_jobs() - Submit jobs to the GPU
  * @pvr_dev: Target PowerVR device.
  * @pvr_file: Pointer to PowerVR file structure.
  * @args: IOCTL arguments.
@@ -1312,58 +1049,50 @@ out:
  *  * Any other error.
  */
 int
-pvr_submit_job(struct pvr_device *pvr_dev,
-	       struct pvr_file *pvr_file,
-	       struct drm_pvr_ioctl_submit_job_args *args)
+pvr_submit_jobs(struct pvr_device *pvr_dev,
+		struct pvr_file *pvr_file,
+		struct drm_pvr_ioctl_submit_jobs_args *args)
 {
+	struct drm_pvr_job *jobs_args = NULL;
+	DEFINE_XARRAY_ALLOC(signal_array);
+	struct pvr_job **jobs = NULL;
 	int err;
 
-	/* Process arguments based on job type */
-	switch (args->job_type) {
-	case DRM_PVR_JOB_TYPE_RENDER: {
-		struct drm_pvr_job_render_args render_args;
+	if (!args->jobs.count)
+		return -EINVAL;
 
-		if (copy_from_user(&render_args, u64_to_user_ptr(args->data),
-				   sizeof(render_args))) {
-			err = -EFAULT;
-			goto err_out;
+	jobs_args = pvr_get_job_array(&args->jobs);
+	if (IS_ERR(jobs_args))
+		return PTR_ERR(jobs_args);
+
+	jobs = kvmalloc_array(args->jobs.count, sizeof(*jobs), GFP_KERNEL | __GFP_ZERO);
+	if (!jobs) {
+		err = -ENOMEM;
+		goto out_free_jobs_args;
+	}
+
+	for (u32 i = 0; i < args->jobs.count; i++) {
+		jobs[i] = pvr_create_job(pvr_dev, pvr_file, &jobs_args[i], &signal_array);
+		if (IS_ERR(jobs[i])) {
+			err = PTR_ERR(jobs[i]);
+			jobs[i] = NULL;
+			goto out_free_jobs;
 		}
-
-		err = pvr_process_job_render(pvr_dev, pvr_file, args, &render_args);
-		break;
 	}
 
-	case DRM_PVR_JOB_TYPE_COMPUTE: {
-		struct drm_pvr_job_compute_args compute_args;
+	for (u32 i = 0; i < args->jobs.count; i++)
+		pvr_job_push(jobs[i]);
 
-		if (copy_from_user(&compute_args, u64_to_user_ptr(args->data),
-				   sizeof(compute_args))) {
-			err = -EFAULT;
-			goto err_out;
-		}
+	pvr_sync_signal_array_push_fences(&signal_array);
+	err = 0;
 
-		err = pvr_process_job_compute(pvr_dev, pvr_file, args, &compute_args);
-		break;
-	}
+out_free_jobs:
+	for (u32 i = 0; i < args->jobs.count; i++)
+		pvr_job_put(jobs[i]);
 
-	case DRM_PVR_JOB_TYPE_TRANSFER_FRAG: {
-		struct drm_pvr_job_transfer_args transfer_args;
+	kvfree(jobs);
 
-		if (copy_from_user(&transfer_args, u64_to_user_ptr(args->data),
-				   sizeof(transfer_args))) {
-			err = -EFAULT;
-			goto err_out;
-		}
-
-		err = pvr_process_job_transfer(pvr_dev, pvr_file, args, &transfer_args);
-		break;
-	}
-
-	default:
-		err = -EINVAL;
-		break;
-	}
-
-err_out:
+out_free_jobs_args:
+	pvr_sync_signal_array_cleanup(&signal_array);
 	return err;
 }

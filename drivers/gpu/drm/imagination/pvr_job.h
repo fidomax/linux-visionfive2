@@ -21,19 +21,12 @@ struct pvr_file;
 /* Forward declarations from "pvr_hwrt.h". */
 struct pvr_hwrt_data;
 
-enum pvr_job_type {
-	PVR_JOB_TYPE_GEOMETRY,
-	PVR_JOB_TYPE_FRAGMENT,
-	PVR_JOB_TYPE_COMPUTE,
-	PVR_JOB_TYPE_TRANSFER
-};
-
 struct pvr_job {
 	/** @ref_count: Refcount for job. */
 	struct kref ref_count;
 
 	/** @type: Type of job. */
-	enum pvr_job_type type;
+	enum drm_pvr_job_type type;
 
 	/** @id: Job ID number. */
 	u32 id;
@@ -117,7 +110,7 @@ int pvr_job_fits_in_cccb(struct pvr_job *job);
 
 void pvr_job_submit(struct pvr_job *job);
 
-int pvr_submit_job(struct pvr_device *pvr_dev, struct pvr_file *pvr_file,
-		   struct drm_pvr_ioctl_submit_job_args *args);
+int pvr_submit_jobs(struct pvr_device *pvr_dev, struct pvr_file *pvr_file,
+		    struct drm_pvr_ioctl_submit_jobs_args *args);
 
 #endif /* __PVR_JOB_H__ */

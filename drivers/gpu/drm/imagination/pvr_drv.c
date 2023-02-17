@@ -1039,14 +1039,14 @@ pvr_ioctl_vm_unmap(struct drm_device *drm_dev, void *raw_args,
  *  * -%EINVAL if arguments are invalid.
  */
 int
-pvr_ioctl_submit_job(struct drm_device *drm_dev, void *raw_args,
-		     struct drm_file *file)
+pvr_ioctl_submit_jobs(struct drm_device *drm_dev, void *raw_args,
+		      struct drm_file *file)
 {
-	struct drm_pvr_ioctl_submit_job_args *args = raw_args;
+	struct drm_pvr_ioctl_submit_jobs_args *args = raw_args;
 	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
 	struct pvr_file *pvr_file = to_pvr_file(file);
 
-	return pvr_submit_job(pvr_dev, pvr_file, args);
+	return pvr_submit_jobs(pvr_dev, pvr_file, args);
 }
 
 void *
@@ -1112,7 +1112,7 @@ static const struct drm_ioctl_desc pvr_drm_driver_ioctls[] = {
 	DRM_PVR_IOCTL(GET_HEAP_INFO, get_heap_info, DRM_RENDER_ALLOW),
 	DRM_PVR_IOCTL(VM_MAP, vm_map, DRM_RENDER_ALLOW),
 	DRM_PVR_IOCTL(VM_UNMAP, vm_unmap, DRM_RENDER_ALLOW),
-	DRM_PVR_IOCTL(SUBMIT_JOB, submit_job, DRM_RENDER_ALLOW),
+	DRM_PVR_IOCTL(SUBMIT_JOBS, submit_jobs, DRM_RENDER_ALLOW),
 };
 
 /* clang-format on */
