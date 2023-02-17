@@ -1200,24 +1200,6 @@ struct drm_pvr_job_transfer_args {
 	__u32 flags;
 };
 
-/*
- * DOC: Flags for SUBMIT_JOB ioctl null command.
- */
-#define DRM_PVR_SUBMIT_JOB_NULL_CMD_FLAGS_MASK 0
-
-/*
- * struct drm_pvr_job_null_args - Arguments for %DRM_PVR_JOB_TYPE_NULL
- */
-struct drm_pvr_job_null_args {
-	/**
-	 * @flags: [IN] Flags for command.
-	 */
-	__u32 flags;
-
-	/** @_padding_4: Reserved. This field must be zeroed. */
-	__u32 _padding_4;
-};
-
 /**
  * enum drm_pvr_job_type - Arguments for &drm_pvr_ioctl_submit_job_args.job_type
  */
@@ -1225,7 +1207,6 @@ enum drm_pvr_job_type {
 	DRM_PVR_JOB_TYPE_RENDER = 0,
 	DRM_PVR_JOB_TYPE_COMPUTE,
 	DRM_PVR_JOB_TYPE_TRANSFER_FRAG,
-	DRM_PVR_JOB_TYPE_NULL,
 };
 
 /**
