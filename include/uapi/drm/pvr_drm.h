@@ -1145,6 +1145,10 @@ struct drm_pvr_sync_op {
  *
  *    Indicates whether this render produces visibility results.
  *
+ * .. c:macro:: DRM_PVR_SUBMIT_JOB_FRAG_CMD_SCRATCHBUFFER
+ *
+ *    Indicates whether a scratch buffer is present.
+ *
  * .. c:macro:: DRM_PVR_SUBMIT_JOB_FRAG_CMD_FLAGS_MASK
  *
  *    Logical OR of all the fragment cmd flags.
@@ -1153,12 +1157,14 @@ struct drm_pvr_sync_op {
 #define DRM_PVR_SUBMIT_JOB_FRAG_CMD_DEPTHBUFFER _BITULL(1)
 #define DRM_PVR_SUBMIT_JOB_FRAG_CMD_STENCILBUFFER _BITULL(2)
 #define DRM_PVR_SUBMIT_JOB_FRAG_CMD_PREVENT_CDM_OVERLAP _BITULL(3)
+#define DRM_PVR_SUBMIT_JOB_FRAG_CMD_SCRATCHBUFFER _BITULL(4)
 #define DRM_PVR_SUBMIT_JOB_FRAG_CMD_GET_VIS_RESULTS _BITULL(5)
 #define DRM_PVR_SUBMIT_JOB_FRAG_CMD_FLAGS_MASK                                 \
 	(DRM_PVR_SUBMIT_JOB_FRAG_CMD_SINGLE_CORE |                             \
 	 DRM_PVR_SUBMIT_JOB_FRAG_CMD_DEPTHBUFFER |                             \
 	 DRM_PVR_SUBMIT_JOB_FRAG_CMD_STENCILBUFFER |                           \
 	 DRM_PVR_SUBMIT_JOB_FRAG_CMD_PREVENT_CDM_OVERLAP |                     \
+	 DRM_PVR_SUBMIT_JOB_FRAG_CMD_SCRATCHBUFFER |                           \
 	 DRM_PVR_SUBMIT_JOB_FRAG_CMD_GET_VIS_RESULTS)
 
 /**
