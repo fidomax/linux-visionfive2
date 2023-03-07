@@ -45,6 +45,11 @@ int pvr_set_uobj_array(const struct drm_pvr_obj_array *out, u32 min_stride, u32 
 #define PVR_UOBJ_MIN_SIZE(_obj_name) _Generic(_obj_name \
 	PVR_UOBJ_DECL(struct drm_pvr_job, hwrt) \
 	PVR_UOBJ_DECL(struct drm_pvr_sync_op, value) \
+	PVR_UOBJ_DECL(struct drm_pvr_dev_query_gpu_info, num_phantoms) \
+	PVR_UOBJ_DECL(struct drm_pvr_dev_query_runtime_info, cdm_max_local_mem_size_regs) \
+	PVR_UOBJ_DECL(struct drm_pvr_dev_query_hwrt_info, _padding_4) \
+	PVR_UOBJ_DECL(struct drm_pvr_dev_query_quirks, _padding_c) \
+	PVR_UOBJ_DECL(struct drm_pvr_dev_query_enhancements, _padding_c) \
 	)
 
 /** PVR_UOBJ_GET() - Copies from _src_usr_ptr to &_dest_obj. */

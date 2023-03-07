@@ -306,11 +306,11 @@ pvr_stream_create_musthave_masks(struct pvr_device *pvr_dev)
 {
 	memset(pvr_dev->stream_musthave_quirks, 0, sizeof(pvr_dev->stream_musthave_quirks));
 
-	if (pvr_device_has_uapi_quirk(pvr_dev, DRM_PVR_QUIRK_BRN47217))
+	if (pvr_device_has_uapi_quirk(pvr_dev, 47217))
 		pvr_dev->stream_musthave_quirks[PVR_STREAM_TYPE_FRAG][0] |=
 			PVR_STREAM_EXTHDR_FRAG0_BRN47217;
 
-	if (pvr_device_has_uapi_quirk(pvr_dev, DRM_PVR_QUIRK_BRN49927)) {
+	if (pvr_device_has_uapi_quirk(pvr_dev, 49927)) {
 		pvr_dev->stream_musthave_quirks[PVR_STREAM_TYPE_GEOM][0] |=
 			PVR_STREAM_EXTHDR_GEOM0_BRN49927;
 		pvr_dev->stream_musthave_quirks[PVR_STREAM_TYPE_FRAG][0] |=

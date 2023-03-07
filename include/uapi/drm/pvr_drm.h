@@ -51,9 +51,9 @@ extern "C" {
 #define PVR_IOCTL(_ioctl, _mode, _data) \
 	_mode(DRM_COMMAND_BASE + (_ioctl), struct drm_pvr_ioctl_##_data##_args)
 
-#define DRM_IOCTL_PVR_CREATE_BO PVR_IOCTL(0x00, DRM_IOWR, create_bo)
-#define DRM_IOCTL_PVR_GET_BO_MMAP_OFFSET PVR_IOCTL(0x01, DRM_IOWR, get_bo_mmap_offset)
-#define DRM_IOCTL_PVR_GET_PARAM PVR_IOCTL(0x02, DRM_IOWR, get_param)
+#define DRM_IOCTL_PVR_DEV_QUERY PVR_IOCTL(0x00, DRM_IOWR, dev_query)
+#define DRM_IOCTL_PVR_CREATE_BO PVR_IOCTL(0x01, DRM_IOWR, create_bo)
+#define DRM_IOCTL_PVR_GET_BO_MMAP_OFFSET PVR_IOCTL(0x02, DRM_IOWR, get_bo_mmap_offset)
 #define DRM_IOCTL_PVR_CREATE_CONTEXT PVR_IOCTL(0x03, DRM_IOWR, create_context)
 #define DRM_IOCTL_PVR_DESTROY_CONTEXT PVR_IOCTL(0x04, DRM_IOW, destroy_context)
 #define DRM_IOCTL_PVR_CREATE_FREE_LIST PVR_IOCTL(0x05, DRM_IOWR, create_free_list)
@@ -156,53 +156,9 @@ struct drm_pvr_ioctl_get_bo_mmap_offset_args {
 	__u64 offset;
 };
 
-/**
- * DOC: Quirks returned by %DRM_PVR_PARAM_QUIRKS0 and
- *      %DRM_PVR_PARAM_QUIRKS_MUSTHAVE0
- *
- * PowerVR quirks come in two classes. "Must-have" quirks have workarounds that
- * must be present to guarantee correct GPU function. If the client does not
- * handle any of the "must-have" quirks then it should fail initialisation.
- *
- * Other quirks are "opt-in" - the client does not have to handle them, and they
- * are disabled by default. The exact opt-in mechanism will vary depending on
- * the quirk, but generally the client will provide additional data during job
- * submission via the extension stream.
- *
- * Only quirks relevant to the UAPI will be included here.
- */
-#define DRM_PVR_QUIRK_BRN47217 0
-#define DRM_PVR_QUIRK_BRN48545 1
-#define DRM_PVR_QUIRK_BRN49927 2
-#define DRM_PVR_QUIRK_BRN51764 3
-#define DRM_PVR_QUIRK_BRN62269 4
-
-#define DRM_PVR_QUIRK_MASK(quirk) _BITULL((quirk) & 63)
-
-/**
- * DOC: Enhancements returned by %DRM_PVR_PARAM_ENHANCEMENTS0
- *
- * PowerVR enhancements are handled similarly to "opt-in" quirks. They are
- * disabled by default. The exact opt-in mechanism will vary depending on
- * the enhancement, but generally the client will provide additional data during
- * job submission via the extension stream.
- *
- * Only enhancements relevant to the UAPI will be included here.
- */
-#define DRM_PVR_ENHANCEMENT_ERN35421 0
-#define DRM_PVR_ENHANCEMENT_ERN42064 1
-
-#define DRM_PVR_ENHANCEMENT_MASK(enhancement) _BITULL((enhancement) & 63)
-
-/**
- * enum drm_pvr_param - Arguments for &drm_pvr_ioctl_get_param_args.param
- */
-enum drm_pvr_param {
-	/** @DRM_PVR_PARAM_INVALID: Invalid parameter. Do not use. */
-	DRM_PVR_PARAM_INVALID = 0,
-
+struct drm_pvr_dev_query_gpu_info {
 	/**
-	 * @DRM_PVR_PARAM_GPU_ID: GPU identifier.
+	 * @gpu_id: GPU identifier.
 	 *
 	 * For all currently supported GPUs this is the BVNC encoded as a 64-bit
 	 * value as follows:
@@ -213,134 +169,183 @@ enum drm_pvr_param {
 	 *    | B      | V      | N      | C     |
 	 *    +--------+--------+--------+-------+
 	 */
-	DRM_PVR_PARAM_GPU_ID,
+	__u64 gpu_id;
 
 	/**
-	 * @DRM_PVR_PARAM_HWRT_NUM_GEOMDATAS: Number of geom data arguments
+	 * @num_phantoms: Number of Phantoms present.
+	 */
+	__u32 num_phantoms;
+
+	/**
+	 * @num_heaps: Number of heaps exposed by %DRM_IOCTL_PVR_GET_HEAP_INFO
+	 * for this device.
+	 */
+	__u32 num_heaps;
+};
+
+struct drm_pvr_dev_query_runtime_info {
+	/*
+	 * @free_list_min_pages: Minimum allowed free list size,
+	 * in PM physical pages.
+	 */
+	__u64 free_list_min_pages;
+
+	/*
+	 * @free_list_max_pages: Maximum allowed free list size,
+	 * in PM physical pages.
+	 */
+	__u64 free_list_max_pages;
+
+	/*
+	 * @common_store_alloc_region_size: Size of the Allocation
+	 * Region within the Common Store used for coefficient and shared
+	 * registers, in dwords.
+	 */
+	__u32 common_store_alloc_region_size;
+
+	/**
+	 * @common_store_partition_space_size: Size of the
+	 * Partition Space within the Common Store for output buffers, in
+	 * dwords.
+	 */
+	__u32 common_store_partition_space_size;
+
+	/**
+	 * @max_coeffs: Maximum coefficients, in dwords.
+	 */
+	__u32 max_coeffs;
+
+	/**
+	 * @cdm_max_local_mem_size_regs: Maximum amount of local
+	 * memory available to a compute kernel, in dwords.
+	 */
+	__u32 cdm_max_local_mem_size_regs;
+};
+
+struct drm_pvr_dev_query_hwrt_info {
+	/**
+	 * @num_geomdatas: Number of geom data arguments
 	 * required when creating a HWRT dataset.
 	 */
-	DRM_PVR_PARAM_HWRT_NUM_GEOMDATAS,
+	__u8 num_geomdatas;
 
 	/**
-	 * @DRM_PVR_PARAM_HWRT_NUM_RTDATAS: Number of RT data arguments
+	 * @num_rtdatas: Number of RT data arguments
 	 * required when creating a HWRT dataset.
 	 */
-	DRM_PVR_PARAM_HWRT_NUM_RTDATAS,
+	__u8 num_rtdatas;
 
 	/**
-	 * @DRM_PVR_PARAM_HWRT_NUM_FREELISTS: Number of free list data
+	 * @num_freelists: Number of free list data
 	 * arguments required when creating a HWRT dataset.
 	 */
-	DRM_PVR_PARAM_HWRT_NUM_FREELISTS,
+	__u8 num_freelists;
 
-	/**
-	 * @DRM_PVR_PARAM_FW_VERSION: Version number of GPU firmware.
-	 *
-	 * This is encoded with the major version number in the upper 32 bits of
-	 * the output value, and the minor version number in the lower 32 bits.
-	 */
-	DRM_PVR_PARAM_FW_VERSION,
+	/** @_padding_3: Reserved - will be zeroed */
+	__u8 _padding_3;
 
-	/**
-	 * @DRM_PVR_PARAM_QUIRKS0: Hardware quirks 0.
-	 *
-	 * These quirks affect userspace and the kernel or firmware. They are
-	 * disabled by default and require userspace to opt-in. The opt-in
-	 * mechanism depends on the quirk.
-	 *
-	 * This is a bitmask of %DRM_PVR_QUIRKS0_HAS_*.
-	 */
-	DRM_PVR_PARAM_QUIRKS0,
+	/** @_padding_4: Reserved - will be zeroed */
+	__u32 _padding_4;
+};
 
+struct drm_pvr_dev_query_quirks {
 	/**
-	 * @DRM_PVR_PARAM_QUIRKS_MUSTHAVE0: "Must have" hardware quirks 0.
+	 * @quirks: A userspace address for the hardware quirks __u32 array.
 	 *
-	 * This describes a fixed list of quirks that the client must support
-	 * for this device. If userspace does not support all the quirks in this
-	 * parameter then functionality is not guaranteed and client
+	 * The first @musthave_count items in the list are quirks that the
+	 * client must support for this device. If userspace does not support
+	 * all these quirks then functionality is not guaranteed and client
 	 * initialisation must fail.
-	 *
-	 * This is a bitmask of %DRM_PVR_QUIRKS0_HAS_*.
+	 * The remaining quirks in the list affect userspace and the kernel or
+	 * firmware. They are disabled by default and require userspace to
+	 * opt-in. The opt-in mechanism depends on the quirk.
 	 */
-	DRM_PVR_PARAM_QUIRKS_MUSTHAVE0,
+	__u64 quirks;
+
+	/** @count: Length of @quirks (number of __u32). */
+	__u16 count;
 
 	/**
-	 * @DRM_PVR_PARAM_ENHANCEMENTS0: Hardware enhancements 0.
+	 * @musthave_count: The number of entries in @quirks that are
+	 * mandatory, starting at index 0.
+	 */
+	__u16 musthave_count;
+
+	/** @_padding_c: Reserved. This field must be zeroed. */
+	__u32 _padding_c;
+};
+
+struct drm_pvr_dev_query_enhancements {
+	/**
+	 * @enhancements: A userspace address for the hardware enhancements
+	 * __u32 array.
 	 *
 	 * These enhancements affect userspace and the kernel or firmware. They
 	 * are disabled by default and require userspace to opt-in. The opt-in
 	 * mechanism depends on the quirk.
-	 *
-	 * This is a bitmask of %DRM_PVR_ENHANCEMENTS0_HAS_*.
 	 */
-	DRM_PVR_PARAM_ENHANCEMENTS0,
+	__u64 enhancements;
 
-	/*
-	 * @DRM_PVR_PARAM_FREE_LIST_MIN_PAGES: Minimum allowed free list size,
-	 * in PM physical pages.
-	 */
-	DRM_PVR_PARAM_FREE_LIST_MIN_PAGES,
+	/** @count: Length of @enhancements (number of __u32). */
+	__u16 count;
 
-	/*
-	 * @DRM_PVR_PARAM_FREE_LIST_MAX_PAGES: Maximum allowed free list size,
-	 * in PM physical pages.
-	 */
-	DRM_PVR_PARAM_FREE_LIST_MAX_PAGES,
+	/** @_padding_a: Reserved. This field must be zeroed. */
+	__u16 _padding_a;
 
-	/*
-	 * @DRM_PVR_PARAM_COMMON_STORE_ALLOC_REGION_SIZE: Size of the Allocation
-	 * Region within the Common Store used for coefficient and shared
-	 * registers, in dwords.
-	 */
-	DRM_PVR_PARAM_COMMON_STORE_ALLOC_REGION_SIZE,
-
-	/**
-	 * @DRM_PVR_PARAM_COMMON_STORE_PARTITION_SPACE_SIZE: Size of the
-	 * Partition Space within the Common Store for output buffers, in
-	 * dwords.
-	 */
-	DRM_PVR_PARAM_COMMON_STORE_PARTITION_SPACE_SIZE,
-
-	/**
-	 * @DRM_PVR_PARAM_NUM_PHANTOMS: Number of Phantoms present.
-	 */
-	DRM_PVR_PARAM_NUM_PHANTOMS,
-
-	/**
-	 * @DRM_PVR_PARAM_MAX_COEFFS: Maximum coefficients, in dwords.
-	 */
-	DRM_PVR_PARAM_MAX_COEFFS,
-
-	/**
-	 * @DRM_PVR_PARAM_CDM_MAX_LOCAL_MEM_SIZE_REGS: Maximum amount of local
-	 * memory available to a kernel, in dwords.
-	 */
-	DRM_PVR_PARAM_CDM_MAX_LOCAL_MEM_SIZE_REGS,
-
-	/**
-	 * @DRM_PVR_PARAM_NUM_HEAPS: Number of heaps exposed by %DRM_IOCTL_PVR_GET_HEAP_INFO for
-	 * this device.
-	 */
-	DRM_PVR_PARAM_NUM_HEAPS,
+	/** @_padding_c: Reserved. This field must be zeroed. */
+	__u32 _padding_c;
 };
 
 /**
- * struct drm_pvr_ioctl_get_param_args - Arguments for %DRM_IOCTL_PVR_GET_PARAM
+ * enum drm_pvr_dev_query - Arguments for &drm_pvr_ioctl_dev_query_args.type
+ *
+ * Append only. Do not reorder.
  */
-struct drm_pvr_ioctl_get_param_args {
+enum drm_pvr_dev_query {
+	/* struct drm_pvr_dev_query_gpu_info */
+	DRM_PVR_DEV_QUERY_GPU_INFO_GET = 0,
+
+	/* struct drm_pvr_dev_query_runtime_info */
+	DRM_PVR_DEV_QUERY_RUNTIME_INFO_GET,
+
+	/* struct drm_pvr_dev_query_hwrt_info */
+	DRM_PVR_DEV_QUERY_HWRT_INFO_GET,
+
+	/* struct drm_pvr_dev_query_quirks */
+	DRM_PVR_DEV_QUERY_QUIRKS_GET,
+
+	/* struct drm_pvr_dev_query_enhancements */
+	DRM_PVR_DEV_QUERY_ENHANCEMENTS_GET,
+};
+
+/**
+ * struct drm_pvr_ioctl_dev_query_args - Arguments for %DRM_IOCTL_PVR_DEV_QUERY
+ */
+struct drm_pvr_ioctl_dev_query_args {
 	/**
-	 * @param: [IN] Parameter for which a value should be returned.
-	 *
-	 * This must be one of the values defined by &enum drm_pvr_param, with
-	 * the exception of %DRM_PVR_PARAM_INVALID.
+	 * @type: Type of query and output struct. See enum drm_pvr_dev_query.
 	 */
-	__u32 param;
+	__u32 type;
 
-	/** @_padding_4: Reserved. This field must be zeroed. */
-	__u32 _padding_4;
+	/**
+	 * @size: Size of the receiving struct, see @type.
+	 *
+	 * After a successful call this will be updated to the written byte
+	 * length.
+	 * Can also be used to get the minimum byte length (see @pointer).
+	 * This allows additional fields to be appended to the structs in
+	 * future.
+	 */
+	__u32 size;
 
-	/** @value: [OUT] Value for @param. */
-	__u64 value;
+	/**
+	 * @pointer: [OUT] Pointer to receiving struct @type.
+	 *
+	 * Must be large enough to contain @size bytes.
+	 * If pointer is NULL, the expected size will be returned in the @size
+	 * field, but no other data will be written.
+	 */
+	__u64 pointer;
 };
 
 /**
@@ -597,7 +602,7 @@ struct drm_pvr_ioctl_create_hwrt_dataset_args {
 	 * @free_list_args: [IN] Array of free list handles.
 	 *
 	 * free_list_handles[0] must have initial size of at least that reported
-	 * by %DRM_PVR_PARAM_FREE_LIST_MIN_PAGES.
+	 * by %DRM_PVR_DEV_QUERY_RUNTIME_INFO::free_list_min_pages.
 	 */
 	__u32 free_list_handles[2];
 
@@ -1139,8 +1144,8 @@ struct drm_pvr_job {
 	 *
 	 * When @job_type is %DRM_PVR_JOB_TYPE_RENDER, %DRM_PVR_JOB_TYPE_COMPUTE or
 	 * %DRM_PVR_JOB_TYPE_TRANSFER_FRAG, this must be a valid handle returned by
-	 * %DRM_IOCTL_PVR_CREATE_CONTEXT. The type of context must be compatible with the type of
-	 * job being submitted.
+	 * %DRM_IOCTL_PVR_CREATE_CONTEXT. The type of context must be compatible
+	 * with the type of job being submitted.
 	 *
 	 * When @job_type is %DRM_PVR_JOB_TYPE_NULL, this must be zero.
 	 */

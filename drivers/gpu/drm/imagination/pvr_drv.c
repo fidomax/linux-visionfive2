@@ -333,173 +333,354 @@ rogue_get_cdm_max_local_mem_size_regs(struct pvr_device *pvr_dev)
 }
 
 /**
- * pvr_get_quirks0() - Get first word of quirks mask for the current GPU & FW
- * @pvr_dev: Device pointer
+ * pvr_dev_query_gpu_info_get()
+ * @pvr_dev: Device pointer.
+ * @args: [IN] Device query arguments containing a pointer to a userspace
+ *        struct drm_pvr_dev_query_gpu_info.
+ *
+ * If the query object pointer is NULL, the size field is updated with the
+ * expected size of the query object.
  *
  * Returns:
- *  * Mask of quirks (combination of %DRM_PVR_QUIRKS0_HAS_BRN_*).
+ *  * 0 on success, or if size is requested using a NULL pointer, or
+ *  * -%E2BIG if the indicated length of the allocation is less than is
+ *    required to contain the copied data, or
+ *  * -%EFAULT if local memory could not be copied to userspace.
  */
-static __always_inline u64
-pvr_get_quirks0(struct pvr_device *pvr_dev)
+static int
+pvr_dev_query_gpu_info_get(struct pvr_device *pvr_dev,
+			   struct drm_pvr_ioctl_dev_query_args *args)
 {
-	u64 value = 0;
+	struct drm_pvr_dev_query_gpu_info gpu_info = {0};
+	int err;
 
-#define PVR_SET_QUIRKS0_FLAG(pvr_dev, quirk)                                        \
-	do {                                                                        \
-		if (pvr_device_has_uapi_quirk(pvr_dev, DRM_PVR_QUIRK_BRN ## quirk)) \
-			value |= DRM_PVR_QUIRK_MASK(DRM_PVR_QUIRK_BRN ## quirk);    \
-	} while (0)
+	if (!args->pointer) {
+		args->size = sizeof(struct drm_pvr_dev_query_gpu_info);
+		return 0;
+	}
 
-	PVR_SET_QUIRKS0_FLAG(pvr_dev, 47217);
-	PVR_SET_QUIRKS0_FLAG(pvr_dev, 48545);
-	PVR_SET_QUIRKS0_FLAG(pvr_dev, 49927);
-	PVR_SET_QUIRKS0_FLAG(pvr_dev, 51764);
-	PVR_SET_QUIRKS0_FLAG(pvr_dev, 62269);
+	gpu_info.gpu_id =
+		pvr_gpu_id_to_packed_bvnc(&pvr_dev->gpu_id);
+	gpu_info.num_phantoms = rogue_get_num_phantoms(pvr_dev);
+	gpu_info.num_heaps = pvr_get_num_heaps(pvr_dev);
 
-#undef PVR_SET_QUIRKS0_FLAG
+	err = PVR_UOBJ_SET(args->pointer, args->size, gpu_info);
+	if (err < 0)
+		return err;
 
-	return value;
+	if (args->size > sizeof(gpu_info))
+		args->size = sizeof(gpu_info);
+	return 0;
 }
 
 /**
- * pvr_get_enhancements0() - Get first word of enhancements mask for the current
- *                           GPU & FW
- * @pvr_dev: Device pointer
+ * pvr_dev_query_runtime_info_get()
+ * @pvr_dev: Device pointer.
+ * @args: [IN] Device query arguments containing a pointer to a userspace
+ *        struct drm_pvr_dev_query_runtime_info.
+ *
+ * If the query object pointer is NULL, the size field is updated with the
+ * expected size of the query object.
  *
  * Returns:
- *  * Mask of enhancements (combination of %DRM_PVR_ENHANCEMENTS0_HAS_ERN_*).
+ *  * 0 on success, or if size is requested using a NULL pointer, or
+ *  * -%E2BIG if the indicated length of the allocation is less than is
+ *    required to contain the copied data, or
+ *  * -%EFAULT if local memory could not be copied to userspace.
  */
-static __always_inline u64
-pvr_get_enhancements0(struct pvr_device *pvr_dev)
+static int
+pvr_dev_query_runtime_info_get(struct pvr_device *pvr_dev,
+			       struct drm_pvr_ioctl_dev_query_args *args)
 {
-	u64 value = 0;
+	struct drm_pvr_dev_query_runtime_info runtime_info = {0};
+	int err;
 
-#define PVR_SET_ENHANCEMENTS0_FLAG(pvr_dev, enhancement)                                              \
-	do {                                                                                          \
-		if (pvr_device_has_uapi_enhancement(pvr_dev, DRM_PVR_ENHANCEMENT_ERN ## enhancement)) \
-			value |= DRM_PVR_ENHANCEMENT_MASK(DRM_PVR_ENHANCEMENT_ERN ## enhancement);    \
-	} while (0)
+	if (!args->pointer) {
+		args->size = sizeof(struct drm_pvr_dev_query_runtime_info);
+		return 0;
+	}
 
-	PVR_SET_ENHANCEMENTS0_FLAG(pvr_dev, 35421);
-	PVR_SET_ENHANCEMENTS0_FLAG(pvr_dev, 42064);
+	runtime_info.free_list_min_pages =
+		pvr_get_free_list_min_pages(pvr_dev);
+	runtime_info.free_list_max_pages =
+		ROGUE_PM_MAX_FREELIST_SIZE / ROGUE_PM_PAGE_SIZE;
+	runtime_info.common_store_alloc_region_size =
+		rogue_get_common_store_alloc_region_size(pvr_dev);
+	runtime_info.common_store_partition_space_size =
+		rogue_get_common_store_partition_space_size(pvr_dev);
+	runtime_info.max_coeffs = rogue_get_max_coeffs(pvr_dev);
+	runtime_info.cdm_max_local_mem_size_regs =
+		rogue_get_cdm_max_local_mem_size_regs(pvr_dev);
 
-#undef PVR_SET_ENHANCEMENTS0_FLAG
+	err = PVR_UOBJ_SET(args->pointer, args->size, runtime_info);
+	if (err < 0)
+		return err;
 
-	return value;
+	if (args->size > sizeof(runtime_info))
+		args->size = sizeof(runtime_info);
+	return 0;
 }
 
 /**
- * pvr_get_quirks_musthave0() - Get first word of must have quirks mask for the current GPU & FW
- * @pvr_dev: Device pointer
+ * pvr_dev_query_hwrt_info_get()
+ * @pvr_dev: Device pointer.
+ * @args: [IN] Device query arguments containing a pointer to a userspace
+ *        struct drm_pvr_dev_query_hwrt_info.
+ *
+ * If the query object pointer is NULL, the size field is updated with the
+ * expected size of the query object.
  *
  * Returns:
- *  * Mask of must have quirks (combination of %DRM_PVR_QUIRKS0_HAS_BRN_*).
+ *  * 0 on success, or if size is requested using a NULL pointer, or
+ *  * -%E2BIG if the indicated length of the allocation is less than is
+ *    required to contain the copied data, or
+ *  * -%EFAULT if local memory could not be copied to userspace.
  */
-static __always_inline u64
-pvr_get_quirks_musthave0(struct pvr_device *pvr_dev)
+static int
+pvr_dev_query_hwrt_info_get(struct pvr_device *pvr_dev,
+			    struct drm_pvr_ioctl_dev_query_args *args)
 {
-	u64 value = 0;
+	struct drm_pvr_dev_query_hwrt_info hwrt_info = {0};
+	int err;
 
-#define PVR_SET_QUIRKS_MUSTHAVE0_FLAG(pvr_dev, quirk)                               \
-	do {                                                                        \
-		if (pvr_device_has_uapi_quirk(pvr_dev, DRM_PVR_QUIRK_BRN ## quirk)) \
-			value |= DRM_PVR_QUIRK_MASK(DRM_PVR_QUIRK_BRN ## quirk);    \
-	} while (0)
+	if (!args->pointer) {
+		args->size = sizeof(struct drm_pvr_dev_query_hwrt_info);
+		return 0;
+	}
 
-	PVR_SET_QUIRKS_MUSTHAVE0_FLAG(pvr_dev, 47217);
-	PVR_SET_QUIRKS_MUSTHAVE0_FLAG(pvr_dev, 49927);
-	PVR_SET_QUIRKS_MUSTHAVE0_FLAG(pvr_dev, 62269);
+	hwrt_info.num_geomdatas = ROGUE_FWIF_NUM_GEOMDATAS;
+	hwrt_info.num_rtdatas = ROGUE_FWIF_NUM_RTDATAS;
+	hwrt_info.num_freelists = ROGUE_FWIF_NUM_RTDATA_FREELISTS;
 
-#undef PVR_SET_QUIRKS_MUSTHAVE0_FLAG
+	err = PVR_UOBJ_SET(args->pointer, args->size, hwrt_info);
+	if (err < 0)
+		return err;
 
-	return value;
+	if (args->size > sizeof(hwrt_info))
+		args->size = sizeof(hwrt_info);
+	return 0;
 }
 
 /**
- * pvr_ioctl_get_param() - IOCTL to get information about a device
+ * pvr_dev_query_quirks_get() - Unpack array of quirks at the address given
+ * in a struct drm_pvr_dev_query_quirks, or gets the amount of space required
+ * for it.
+ * @pvr_dev: Device pointer.
+ * @args: [IN] Device query arguments containing a pointer to a userspace
+ *        struct drm_pvr_dev_query_query_quirks.
+ *
+ * If the query object pointer is NULL, the size field is updated with the
+ * expected size of the query object.
+ * If the userspace pointer in the query object is NULL, or the count is
+ * short, no data is copied.
+ * The count field will be updated to that copied, or if either pointer is
+ * NULL, that which would have been copied.
+ * The size field in the query object will be updated to the size copied.
+ *
+ * Returns:
+ *  * 0 on success, or if size/count is requested using a NULL pointer, or
+ *  * -%EINVAL if args contained non-zero reserved fields, or
+ *  * -%E2BIG if the indicated length of the allocation is less than is
+ *    required to contain the copied data, or
+ *  * -%EFAULT if local memory could not be copied to userspace.
+ */
+static int
+pvr_dev_query_quirks_get(struct pvr_device *pvr_dev,
+			 struct drm_pvr_ioctl_dev_query_args *args)
+{
+	/*
+	 * @FIXME - hardcoding of numbers here is intended as an
+	 * intermediate step so the UAPI can be fixed, but requires a
+	 * a refactor in the future to store them in a more appropriate
+	 * location
+	 */
+	static const u32 umd_quirks_musthave[] = {
+		47217,
+		49927,
+		62269,
+	};
+	static const u32 umd_quirks[] = {
+		48545,
+		51764,
+	};
+	struct drm_pvr_dev_query_quirks query;
+	u32 out[ARRAY_SIZE(umd_quirks_musthave) + ARRAY_SIZE(umd_quirks)];
+	size_t out_musthave_count = 0;
+	size_t out_count = 0;
+	int err;
+
+	if (!args->pointer) {
+		args->size = sizeof(struct drm_pvr_dev_query_quirks);
+		return 0;
+	}
+
+	err = PVR_UOBJ_GET(query, args->size, args->pointer);
+
+	if (err < 0)
+		return err;
+	if (query._padding_c)
+		return -EINVAL;
+
+	for (int i = 0; i < ARRAY_SIZE(umd_quirks_musthave); i++) {
+		if (pvr_device_has_uapi_quirk(pvr_dev, umd_quirks_musthave[i])) {
+			out[out_count++] = umd_quirks_musthave[i];
+			out_musthave_count++;
+		}
+	}
+
+	for (int i = 0; i < ARRAY_SIZE(umd_quirks); i++) {
+		if (pvr_device_has_uapi_quirk(pvr_dev, umd_quirks[i]))
+			out[out_count++] = umd_quirks[i];
+	}
+
+	if (!query.quirks)
+		goto copy_out;
+	if (query.count < out_count)
+		return -E2BIG;
+
+	if (copy_to_user(u64_to_user_ptr(query.quirks), out,
+			 out_count * sizeof(u32))) {
+		return -EFAULT;
+	}
+
+	query.musthave_count = out_musthave_count;
+
+copy_out:
+	query.count = out_count;
+	err = PVR_UOBJ_SET(args->pointer, args->size, query);
+	if (err < 0)
+		return err;
+
+	args->size = sizeof(query);
+	return 0;
+}
+
+/**
+ * pvr_dev_query_enhancements_get() - Unpack array of enhancements at the
+ * address given in a struct drm_pvr_dev_query_enhancements, or gets the amount
+ * of space required for it.
+ * @pvr_dev: Device pointer.
+ * @args: [IN] Device query arguments containing a pointer to a userspace
+ *        struct drm_pvr_dev_query_enhancements.
+ *
+ * If the query object pointer is NULL, the size field is updated with the
+ * expected size of the query object.
+ * If the userspace pointer in the query object is NULL, or the count is
+ * short, no data is copied.
+ * The count field will be updated to that copied, or if either pointer is
+ * NULL, that which would have been copied.
+ * The size field in the query object will be updated to the size copied.
+ *
+ * Returns:
+ *  * 0 on success, or if size/count is requested using a NULL pointer, or
+ *  * -%EINVAL if args contained non-zero reserved fields, or
+ *  * -%E2BIG if the indicated length of the allocation is less than is
+ *    required to contain the copied data, or
+ *  * -%EFAULT if local memory could not be copied to userspace.
+ */
+static int
+pvr_dev_query_enhancements_get(struct pvr_device *pvr_dev,
+			       struct drm_pvr_ioctl_dev_query_args *args)
+{
+	/*
+	 * @FIXME - hardcoding of numbers here is intended as an
+	 * intermediate step so the UAPI can be fixed, but requires a
+	 * a refactor in the future to store them in a more appropriate
+	 * location
+	 */
+	const u32 umd_enhancements[] = {
+		35421,
+		42064,
+	};
+	struct drm_pvr_dev_query_enhancements query;
+	u32 out[ARRAY_SIZE(umd_enhancements)];
+	size_t out_idx = 0;
+	int err;
+
+	if (!args->pointer) {
+		args->size = sizeof(struct drm_pvr_dev_query_enhancements);
+		return 0;
+	}
+
+	err = PVR_UOBJ_GET(query, args->size, args->pointer);
+
+	if (err < 0)
+		return err;
+	if (query._padding_a)
+		return -EINVAL;
+	if (query._padding_c)
+		return -EINVAL;
+
+	for (int i = 0; i < ARRAY_SIZE(umd_enhancements); i++) {
+		if (pvr_device_has_uapi_enhancement(pvr_dev, umd_enhancements[i]))
+			out[out_idx++] = umd_enhancements[i];
+	}
+
+	if (!query.enhancements)
+		goto copy_out;
+	if (query.count < out_idx)
+		return -E2BIG;
+
+	if (copy_to_user(u64_to_user_ptr(query.enhancements), out,
+			 out_idx * sizeof(u32))) {
+		return -EFAULT;
+	}
+
+copy_out:
+	query.count = out_idx;
+	err = PVR_UOBJ_SET(args->pointer, args->size, query);
+	if (err < 0)
+		return err;
+
+	args->size = sizeof(query);
+	return 0;
+}
+
+/**
+ * pvr_ioctl_dev_query() - IOCTL to copy information about a device
  * @drm_dev: [IN] DRM device.
  * @raw_args: [IN/OUT] Arguments passed to this IOCTL. This must be of type
- *                     &struct drm_pvr_ioctl_get_param_args.
+ *                     &struct drm_pvr_ioctl_dev_query_args.
  * @file: [IN] DRM file private data.
  *
- * Called from userspace with %DRM_IOCTL_PVR_GET_PARAM.
+ * Called from userspace with %DRM_IOCTL_PVR_DEV_QUERY.
+ * If the given receiving struct pointer is NULL, or the indicated size is too
+ * small, the expected size of the struct type will be returned in the size
+ * argument field.
  *
  * Return:
- *  * 0 on success,
- *  * -%EINVAL if the value of &struct drm_pvr_ioctl_get_param_args.param is
- *    not one of those in &enum drm_pvr_param or is %DRM_PVR_PARAM_INVALID, or
- *  * -%EINVAL if any padding fields in &struct drm_pvr_ioctl_get_param_args
- *    are not zero.
+ *  * 0 on success or when fetching the size with args->pointer == NULL, or
+ *  * -%E2BIG if the indicated size of the receiving struct is less than is
+ *    required to contain the copied data, or
+ *  * -%EINVAL if the indicated struct type is unknown, or
+ *  * -%ENOMEM if local memory could not be allocated, or
+ *  * -%EFAULT if local memory could not be copied to userspace.
  */
 int
-pvr_ioctl_get_param(struct drm_device *drm_dev, void *raw_args,
+pvr_ioctl_dev_query(struct drm_device *drm_dev, void *raw_args,
 		    struct drm_file *file)
 {
 	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
-	struct drm_pvr_ioctl_get_param_args *args = raw_args;
-	u64 value;
+	struct drm_pvr_ioctl_dev_query_args *args = raw_args;
 
-	/* All padding fields must be zeroed. */
-	if (args->_padding_4 != 0)
-		return -EINVAL;
+	switch (args->type) {
+	case DRM_PVR_DEV_QUERY_GPU_INFO_GET:
+		return pvr_dev_query_gpu_info_get(pvr_dev, args);
 
-	switch (args->param) {
-	case DRM_PVR_PARAM_GPU_ID:
-		value = pvr_gpu_id_to_packed_bvnc(&pvr_dev->gpu_id);
-		break;
-	case DRM_PVR_PARAM_HWRT_NUM_GEOMDATAS:
-		value = ROGUE_FWIF_NUM_GEOMDATAS;
-		break;
-	case DRM_PVR_PARAM_HWRT_NUM_RTDATAS:
-		value = ROGUE_FWIF_NUM_RTDATAS;
-		break;
-	case DRM_PVR_PARAM_HWRT_NUM_FREELISTS:
-		value = ROGUE_FWIF_NUM_RTDATA_FREELISTS;
-		break;
-	case DRM_PVR_PARAM_FW_VERSION:
-		value = pvr_fw_version_packed(pvr_dev->fw_version.major, pvr_dev->fw_version.minor);
-		break;
-	case DRM_PVR_PARAM_QUIRKS0:
-		value = pvr_get_quirks0(pvr_dev);
-		break;
-	case DRM_PVR_PARAM_QUIRKS_MUSTHAVE0:
-		value = pvr_get_quirks_musthave0(pvr_dev);
-		break;
-	case DRM_PVR_PARAM_ENHANCEMENTS0:
-		value = pvr_get_enhancements0(pvr_dev);
-		break;
-	case DRM_PVR_PARAM_FREE_LIST_MIN_PAGES:
-		value = pvr_get_free_list_min_pages(pvr_dev);
-		break;
-	case DRM_PVR_PARAM_FREE_LIST_MAX_PAGES:
-		value = ROGUE_PM_MAX_FREELIST_SIZE / ROGUE_PM_PAGE_SIZE;
-		break;
-	case DRM_PVR_PARAM_COMMON_STORE_ALLOC_REGION_SIZE:
-		value = rogue_get_common_store_alloc_region_size(pvr_dev);
-		break;
-	case DRM_PVR_PARAM_COMMON_STORE_PARTITION_SPACE_SIZE:
-		value = rogue_get_common_store_partition_space_size(pvr_dev);
-		break;
-	case DRM_PVR_PARAM_NUM_PHANTOMS:
-		value = rogue_get_num_phantoms(pvr_dev);
-		break;
-	case DRM_PVR_PARAM_MAX_COEFFS:
-		value = rogue_get_max_coeffs(pvr_dev);
-		break;
-	case DRM_PVR_PARAM_CDM_MAX_LOCAL_MEM_SIZE_REGS:
-		value = rogue_get_cdm_max_local_mem_size_regs(pvr_dev);
-		break;
-	case DRM_PVR_PARAM_NUM_HEAPS:
-		value = pvr_get_num_heaps(pvr_dev);
-		break;
-	case DRM_PVR_PARAM_INVALID:
-	default:
-		return -EINVAL;
+	case DRM_PVR_DEV_QUERY_RUNTIME_INFO_GET:
+		return pvr_dev_query_runtime_info_get(pvr_dev, args);
+
+	case DRM_PVR_DEV_QUERY_HWRT_INFO_GET:
+		return pvr_dev_query_hwrt_info_get(pvr_dev, args);
+
+	case DRM_PVR_DEV_QUERY_QUIRKS_GET:
+		return pvr_dev_query_quirks_get(pvr_dev, args);
+
+	case DRM_PVR_DEV_QUERY_ENHANCEMENTS_GET:
+		return pvr_dev_query_enhancements_get(pvr_dev, args);
 	}
 
-	args->value = value;
-
-	return 0;
+	return -EINVAL;
 }
 
 /**
@@ -1159,9 +1340,9 @@ pvr_set_uobj_array(const struct drm_pvr_obj_array *out, u32 min_stride, u32 obj_
 /* clang-format off */
 
 static const struct drm_ioctl_desc pvr_drm_driver_ioctls[] = {
+	DRM_PVR_IOCTL(DEV_QUERY, dev_query, DRM_RENDER_ALLOW),
 	DRM_PVR_IOCTL(CREATE_BO, create_bo, DRM_RENDER_ALLOW),
 	DRM_PVR_IOCTL(GET_BO_MMAP_OFFSET, get_bo_mmap_offset, DRM_RENDER_ALLOW),
-	DRM_PVR_IOCTL(GET_PARAM, get_param, DRM_RENDER_ALLOW),
 	DRM_PVR_IOCTL(CREATE_CONTEXT, create_context, DRM_RENDER_ALLOW),
 	DRM_PVR_IOCTL(DESTROY_CONTEXT, destroy_context, DRM_RENDER_ALLOW),
 	DRM_PVR_IOCTL(CREATE_FREE_LIST, create_free_list, DRM_RENDER_ALLOW),

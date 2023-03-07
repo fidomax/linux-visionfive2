@@ -69,7 +69,7 @@ static const struct pvr_stream_ext_def cmd_geom_ext_streams_0[] = {
 		.stream = rogue_fwif_cmd_geom_stream_brn49927,
 		.stream_len = ARRAY_SIZE(rogue_fwif_cmd_geom_stream_brn49927),
 		.header_mask = PVR_STREAM_EXTHDR_GEOM0_BRN49927,
-		.quirk = DRM_PVR_QUIRK_BRN49927,
+		.quirk = 49927,
 	},
 };
 
@@ -144,13 +144,13 @@ static const struct pvr_stream_ext_def cmd_frag_ext_streams_0[] = {
 		.stream = rogue_fwif_cmd_frag_stream_brn47217,
 		.stream_len = ARRAY_SIZE(rogue_fwif_cmd_frag_stream_brn47217),
 		.header_mask = PVR_STREAM_EXTHDR_FRAG0_BRN47217,
-		.quirk = DRM_PVR_QUIRK_BRN47217,
+		.quirk = 47217,
 	},
 	{
 		.stream = rogue_fwif_cmd_frag_stream_brn49927,
 		.stream_len = ARRAY_SIZE(rogue_fwif_cmd_frag_stream_brn49927),
 		.header_mask = PVR_STREAM_EXTHDR_FRAG0_BRN49927,
-		.quirk = DRM_PVR_QUIRK_BRN49927,
+		.quirk = 49927,
 	},
 };
 
@@ -207,7 +207,7 @@ static const struct pvr_stream_ext_def cmd_compute_ext_streams_0[] = {
 		.stream = rogue_fwif_cmd_compute_stream_brn49927,
 		.stream_len = ARRAY_SIZE(rogue_fwif_cmd_compute_stream_brn49927),
 		.header_mask = PVR_STREAM_EXTHDR_COMPUTE0_BRN49927,
-		.quirk = DRM_PVR_QUIRK_BRN49927,
+		.quirk = 49927,
 	},
 };
 

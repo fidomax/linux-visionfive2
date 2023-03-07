@@ -664,17 +664,16 @@ bool
 pvr_device_has_uapi_quirk(struct pvr_device *pvr_dev, u32 quirk)
 {
 	switch (quirk) {
-	case DRM_PVR_QUIRK_BRN47217:
+	case 47217:
 		return PVR_HAS_QUIRK(pvr_dev, 47217);
-	case DRM_PVR_QUIRK_BRN48545:
+	case 48545:
 		return PVR_HAS_QUIRK(pvr_dev, 48545);
-	case DRM_PVR_QUIRK_BRN49927:
+	case 49927:
 		return PVR_HAS_QUIRK(pvr_dev, 49927);
-	case DRM_PVR_QUIRK_BRN51764:
+	case 51764:
 		return PVR_HAS_QUIRK(pvr_dev, 51764);
-	case DRM_PVR_QUIRK_BRN62269:
+	case 62269:
 		return PVR_HAS_QUIRK(pvr_dev, 62269);
-
 	default:
 		return false;
 	};
@@ -684,11 +683,10 @@ bool
 pvr_device_has_uapi_enhancement(struct pvr_device *pvr_dev, u32 enhancement)
 {
 	switch (enhancement) {
-	case DRM_PVR_ENHANCEMENT_ERN35421:
+	case 35421:
 		return PVR_HAS_ENHANCEMENT(pvr_dev, 35421);
-	case DRM_PVR_ENHANCEMENT_ERN42064:
+	case 42064:
 		return PVR_HAS_ENHANCEMENT(pvr_dev, 42064);
-
 	default:
 		return false;
 	};
