@@ -521,8 +521,8 @@ void
 pvr_free_list_reconstruct(struct pvr_device *pvr_dev, u32 freelist_id)
 {
 	struct pvr_free_list *free_list = pvr_free_list_lookup_id(pvr_dev, freelist_id);
-	struct rogue_fwif_freelist *fw_data = free_list->fw_data;
 	struct pvr_free_list_node *free_list_node;
+	struct rogue_fwif_freelist *fw_data;
 	struct pvr_hwrt_data *hwrt_data;
 
 	if (!free_list)
