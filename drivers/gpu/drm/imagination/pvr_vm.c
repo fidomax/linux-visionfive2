@@ -2792,7 +2792,7 @@ pvr_vm_context_map_sgl(struct pvr_vm_context *vm_ctx,
 	dma_addr_t dma_addr = sg_dma_address(sgl);
 	unsigned int dma_len = sg_dma_len(sgl);
 
-	if (offset + size > dma_len || offset > dma_len)
+	if (size > dma_len || offset > dma_len - size)
 		return -EINVAL;
 
 	return pvr_vm_context_map_direct(vm_ctx, dma_addr + offset, size, ptr,
