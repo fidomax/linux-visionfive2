@@ -105,11 +105,9 @@ bool pvr_device_addr_and_size_are_valid(u64 device_addr, u64 size);
 struct pvr_vm_context *pvr_vm_create_context(struct pvr_device *pvr_dev,
 					     bool is_userspace_context);
 
-int pvr_vm_map(struct pvr_vm_context *vm_ctx, struct pvr_gem_object *pvr_obj,
-	       u64 device_addr);
-int pvr_vm_map_partial(struct pvr_vm_context *vm_ctx,
-		       struct pvr_gem_object *pvr_obj, u64 pvr_obj_offset,
-		       u64 device_addr, u64 size);
+int pvr_vm_map(struct pvr_vm_context *vm_ctx,
+	       struct pvr_gem_object *pvr_obj, u64 pvr_obj_offset,
+	       u64 device_addr, u64 size);
 int pvr_vm_unmap(struct pvr_vm_context *vm_ctx, u64 device_addr);
 
 dma_addr_t pvr_vm_get_page_table_root_addr(struct pvr_vm_context *vm_ctx);

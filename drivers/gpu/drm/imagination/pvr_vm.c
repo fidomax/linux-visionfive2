@@ -2761,8 +2761,8 @@ err_fini_ptr_copy:
 }
 
 /**
- * pvr_vm_context_map_partial_sgl() - Map part of a scatter-gather table entry
- *                                    to device-virtual memory.
+ * pvr_vm_context_map_sgl() - Map part of a scatter-gather table entry to device-virtual memory.
+ *
  * @vm_ctx: Target VM context.
  * @sgl: Target scatter-gather table entry.
  * @offset: Offset into @sgl to map from. Must result in a starting address
@@ -2784,10 +2784,10 @@ err_fini_ptr_copy:
  *  * Any error returned by pvr_vm_context_map_direct().
  */
 static int
-pvr_vm_context_map_partial_sgl(struct pvr_vm_context *vm_ctx,
-			       struct scatterlist *sgl, u64 offset, u64 size,
-			       struct pvr_page_table_ptr *ptr,
-			       struct pvr_page_flags_raw page_flags)
+pvr_vm_context_map_sgl(struct pvr_vm_context *vm_ctx,
+		       struct scatterlist *sgl, u64 offset, u64 size,
+		       struct pvr_page_table_ptr *ptr,
+		       struct pvr_page_flags_raw page_flags)
 {
 	dma_addr_t dma_addr = sg_dma_address(sgl);
 	unsigned int dma_len = sg_dma_len(sgl);
@@ -2800,139 +2800,7 @@ pvr_vm_context_map_partial_sgl(struct pvr_vm_context *vm_ctx,
 }
 
 /**
- * pvr_vm_context_map_sgl() - Map an entire scatter-gather table entry to
- *                            device-virtual memory.
- * @vm_ctx: Target VM context.
- * @sgl: Target scatter-gather table entry.
- * @ptr: Page table pointer which points to the first page that should be
- *       mapped to. This will point to the last page mapped to on return.
- * @page_flags: Page options to be applied to every device-virtual memory page
- *              in the created mapping.
- *
- * If you only need to map part of @sgl, use pvr_vm_context_map_sgl_partial()
- * instead.
- *
- * Return:
- *  * 0 on success,
- *  * Any error returned by pvr_vm_context_map_direct().
- */
-static int
-pvr_vm_context_map_sgl(struct pvr_vm_context *vm_ctx, struct scatterlist *sgl,
-		       struct pvr_page_table_ptr *ptr,
-		       struct pvr_page_flags_raw page_flags)
-{
-	dma_addr_t dma_addr = sg_dma_address(sgl);
-	unsigned int dma_len = sg_dma_len(sgl);
-
-	return pvr_vm_context_map_direct(vm_ctx, dma_addr, dma_len, ptr,
-					 page_flags);
-}
-
-/**
- * pvr_vm_context_map_sgt() - Map an entire scatter-gather table into
- *                            device-virtual memory.
- * @vm_ctx: Target VM context.
- * @sgt: Target scatter-gather table.
- * @device_addr: Virtual device address to map to. Must be device page-aligned.
- * @page_flags: Page options to be applied to every device-virtual memory page
- * in the created mapping.
- *
- * Return:
- *  * 0 on success,
- *  * -%EINVAL if any of the entries in @sgt are not correctly aligned to the
- *    device page size,
- *  * ...
- */
-static int
-pvr_vm_context_map_sgt(struct pvr_vm_context *vm_ctx, struct sg_table *sgt,
-		       u64 device_addr, struct pvr_page_flags_raw page_flags)
-{
-	struct pvr_page_table_ptr ptr;
-	struct pvr_page_table_ptr ptr_copy;
-
-	struct scatterlist *sgl;
-	unsigned int sgt_idx;
-
-	u64 accumulated_size = 0;
-	u64 created_size;
-
-	int err;
-
-	/*
-	 * Ensure that every sg table entry has a DMA address and length that
-	 * is a multiple of the device page size.
-	 */
-	/* clang-format off */
-	for_each_sgtable_dma_sg(sgt, sgl, sgt_idx) {
-		accumulated_size += sg_dma_len(sgl);
-
-		if (sg_dma_address(sgl) & ~PVR_DEVICE_PAGE_MASK ||
-		    sg_dma_len(sgl) & ~PVR_DEVICE_PAGE_MASK) {
-			err = -EINVAL;
-			goto err_out;
-		}
-	}
-	/* clang-format on */
-
-	err = pvr_page_table_ptr_init(&ptr, vm_ctx->pvr_dev,
-				      &vm_ctx->root_table, device_addr, true);
-	if (err) {
-		err = -EINVAL;
-		goto err_out;
-	}
-
-	/*
-	 * Before progressing, save a copy of the start pointer, so we can use
-	 * it again if we enter an error state and have to destroy pages.
-	 */
-	pvr_page_table_ptr_copy(&ptr_copy, &ptr);
-
-	/*
-	 * Map the first sg table entry outside the loop, as it doesn't
-	 * require a pointer increment beforehand. We know &sgl is valid here
-	 * because an sg table must contain at least one entry.
-	 */
-	sgl = sgt->sgl;
-	err = pvr_vm_context_map_sgl(vm_ctx, sgl, &ptr, page_flags);
-	if (err)
-		goto err_fini_ptr;
-
-	created_size = sg_dma_len(sgl);
-
-	while ((sgl = sg_next(sgl))) {
-		err = pvr_page_table_ptr_next_page(&ptr, true);
-		if (err) {
-			err = -EINVAL;
-			goto err_unmap;
-		}
-
-		err = pvr_vm_context_map_sgl(vm_ctx, sgl, &ptr, page_flags);
-		if (err)
-			goto err_unmap;
-
-		created_size += sg_dma_len(sgl);
-	}
-
-	err = 0;
-	goto err_fini_ptr_and_ptr_copy;
-
-err_unmap:
-	pvr_vm_context_unmap_from_ptr(&ptr_copy,
-				      created_size >> PVR_DEVICE_PAGE_SHIFT);
-
-err_fini_ptr_and_ptr_copy:
-	pvr_page_table_ptr_fini(&ptr_copy);
-
-err_fini_ptr:
-	pvr_page_table_ptr_fini(&ptr);
-
-err_out:
-	return err;
-}
-
-/**
- * pvr_vm_context_map_partial_sgt() - Map part of a scatter-gather table into
- *                                    device-virtual memory.
+ * pvr_vm_context_map_sgt() - Map part of a scatter-gather table into device-virtual memory.
  * @vm_ctx: Target VM context.
  * @sgt: Target scatter-gather table.
  * @sgt_offset: Offset into @sgt to map from. Must result in a starting
@@ -2948,10 +2816,10 @@ err_out:
  *  * ...
  */
 static int
-pvr_vm_context_map_partial_sgt(struct pvr_vm_context *vm_ctx,
-			       struct sg_table *sgt, u64 sgt_offset,
-			       u64 device_addr, u64 size,
-			       struct pvr_page_flags_raw page_flags)
+pvr_vm_context_map_sgt(struct pvr_vm_context *vm_ctx,
+		       struct sg_table *sgt, u64 sgt_offset,
+		       u64 device_addr, u64 size,
+		       struct pvr_page_flags_raw page_flags)
 {
 	struct pvr_page_table_ptr ptr;
 	struct pvr_page_table_ptr ptr_copy;
@@ -3193,16 +3061,6 @@ err_out:
 /**
  * DOC: Memory mappings
  */
-/**
- * DOC: Memory mappings (constants)
- *
- * .. c:macro:: PVR_VM_MAPPING_COMPLETE
- *
- *    This is a "magic" value which, when assigned to the
- *    &pvr_vm_mapping->pvr_obj_offset member of a &struct pvr_vm_mapping,
- *    indicates that it maps the entire associated &struct pvr_gem_object.
- */
-#define PVR_VM_MAPPING_COMPLETE ((unsigned int)(UINT_MAX))
 
 /**
  * struct pvr_vm_mapping - Represents a mapping between a DMA address and a
@@ -3309,8 +3167,7 @@ pvr_vm_mapping_tree_remove(struct pvr_vm_mapping_tree *tree,
  * @mapping: Target memory mapping.
  *
  * Return:
- * A raw page flags instance for use with pvr_vm_context_map_sgt() or
- * pvr_vm_context_map_partial_sgt().
+ * A raw page flags instance for use with pvr_vm_context_map_sgt().
  */
 static struct pvr_page_flags_raw
 pvr_vm_mapping_page_flags_raw(struct pvr_vm_mapping *mapping)
@@ -3324,8 +3181,7 @@ pvr_vm_mapping_page_flags_raw(struct pvr_vm_mapping *mapping)
 }
 
 /**
- * pvr_vm_mapping_init_partial() - Setup a partial mapping with the specified
- *                                 parameters.
+ * pvr_vm_mapping_init() - Setup a mapping with the specified parameters.
  * @mapping: Target memory mapping.
  * @device_addr: Device-virtual address at the start of the mapping.
  * @size: Size of the desired mapping.
@@ -3356,9 +3212,9 @@ pvr_vm_mapping_page_flags_raw(struct pvr_vm_mapping *mapping)
  * doing so).
  */
 static void
-pvr_vm_mapping_init_partial(struct pvr_vm_mapping *mapping, u64 device_addr,
-			    u64 size, struct pvr_gem_object *pvr_obj,
-			    u64 pvr_obj_offset)
+pvr_vm_mapping_init(struct pvr_vm_mapping *mapping, u64 device_addr,
+		    u64 size, struct pvr_gem_object *pvr_obj,
+		    u64 pvr_obj_offset)
 {
 	u64 flags = pvr_obj->flags;
 
@@ -3375,30 +3231,6 @@ pvr_vm_mapping_init_partial(struct pvr_vm_mapping *mapping, u64 device_addr,
 	mapping->pm_fw_protect = flags & DRM_PVR_BO_DEVICE_PM_FW_PROTECT;
 
 	pvr_vm_mapping_tree_node_init(&mapping->node, device_addr, size);
-}
-
-/**
- * pvr_vm_mapping_init() - Setup a complete mapping with the specified
- *                         parameters.
- * @mapping: Target memory mapping.
- * @device_addr: Device-virtual address at the start of the mapping.
- * @pvr_obj: Target PowerVR memory object.
- *
- * Internally, this function just calls pvr_vm_mapping_init_partial() with the
- * extra arguments &size and &pvr_obj_offset populated with the size of
- * @pvr_obj and the "magic" constant %PVR_VM_MAPPING_COMPLETE respectively. As
- * such, many of the constraints specified on that function also apply here.
- *
- * If you only need to map part of @pvr_obj, use pvr_vm_mapping_init_partial()
- * instead.
- */
-static __always_inline void
-pvr_vm_mapping_init(struct pvr_vm_mapping *mapping, u64 device_addr,
-		    struct pvr_gem_object *pvr_obj)
-{
-	pvr_vm_mapping_init_partial(mapping, device_addr,
-				    pvr_gem_object_size(pvr_obj), pvr_obj,
-				    PVR_VM_MAPPING_COMPLETE);
 }
 
 /**
@@ -3427,8 +3259,7 @@ pvr_vm_mapping_fini(struct pvr_vm_mapping *mapping)
  *  * -%EEXIST if @mapping overlaps with an existing mapping in @vm_ctx,
  *  * Any error encountered while attempting to obtain a reference to the
  *    buffer bound to @mapping (see pvr_gem_object_get_pages()), or
- *  * Any error returned by exactly one of pvr_vm_context_map_sgt() or
- *    pvr_vm_context_map_partial_sgt().
+ *  * Any error returned by pvr_vm_context_map_sgt().
  */
 static int
 pvr_vm_mapping_map(struct pvr_vm_context *vm_ctx,
@@ -3439,21 +3270,14 @@ pvr_vm_mapping_map(struct pvr_vm_context *vm_ctx,
 	if (!pvr_gem_object_is_imported(mapping->pvr_obj)) {
 		err = pvr_gem_object_get_pages(mapping->pvr_obj);
 		if (err)
-			goto err_out;
+			return err;
 	}
 
-	if (mapping->pvr_obj_offset == PVR_VM_MAPPING_COMPLETE) {
-		err = pvr_vm_context_map_sgt(vm_ctx, mapping->pvr_obj->sgt,
-					     pvr_vm_mapping_start(mapping),
-					     pvr_vm_mapping_page_flags_raw(mapping));
-	} else {
-		err = pvr_vm_context_map_partial_sgt(vm_ctx, mapping->pvr_obj->sgt,
-						     mapping->pvr_obj_offset,
-						     pvr_vm_mapping_start(mapping),
-						     pvr_vm_mapping_size(mapping),
-						     pvr_vm_mapping_page_flags_raw(mapping));
-	}
-
+	err = pvr_vm_context_map_sgt(vm_ctx, mapping->pvr_obj->sgt,
+				     mapping->pvr_obj_offset,
+				     pvr_vm_mapping_start(mapping),
+				     pvr_vm_mapping_size(mapping),
+				     pvr_vm_mapping_page_flags_raw(mapping));
 	if (err)
 		goto err_put_pages;
 
@@ -3465,7 +3289,6 @@ err_put_pages:
 	if (!pvr_gem_object_is_imported(mapping->pvr_obj))
 		pvr_gem_object_put_pages(mapping->pvr_obj);
 
-err_out:
 	return err;
 }
 
@@ -3730,77 +3553,7 @@ err_out:
 }
 
 /**
- * pvr_vm_map() - Map a section of physical memory into a section of
- *                device-virtual memory.
- * @vm_ctx: Target VM context.
- * @pvr_obj: Target PowerVR memory object.
- * @device_addr: Virtual device address at the start of the requested mapping.
- *
- * If you only need to map part of @pvr_obj, use pvr_vm_map_partial() instead.
- *
- * No handle is returned to represent the mapping. Instead, callers should
- * remember @device_addr and use that as a handle.
- *
- * Return:
- *  * 0 on success,
- *  * -%EINVAL if @device_addr is not a valid page-aligned device-virtual
- *    address or any part of @pvr_obj is not device-virtual page-aligned,
- *  * -%EEXIST if the requested mapping overlaps with an existing mapping,
- *  * -%ENOMEM if allocation of internally required CPU memory fails, or
- *  * Any error encountered while performing internal operations required to
- *    create the mapping.
- */
-int
-pvr_vm_map(struct pvr_vm_context *vm_ctx, struct pvr_gem_object *pvr_obj,
-	   u64 device_addr)
-{
-	size_t size = pvr_gem_object_size(pvr_obj);
-
-	struct pvr_vm_mapping *mapping;
-	int err;
-
-	/*
-	 * Our validation function only checks against the device page size;
-	 * for a mapping to succeed we also need the size to align to the CPU
-	 * page size.
-	 */
-	if (!pvr_device_addr_and_size_are_valid(device_addr, size) ||
-	    size & ~PAGE_MASK) {
-		err = -EINVAL;
-		goto err_out;
-	}
-
-	mapping = kzalloc(sizeof(*mapping), GFP_KERNEL);
-	if (!mapping) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-
-	mutex_lock(&vm_ctx->lock);
-
-	pvr_vm_mapping_init(mapping, device_addr, pvr_obj);
-
-	err = pvr_vm_map_mapping_locked(vm_ctx, mapping);
-	if (err)
-		goto err_fini_mapping;
-
-	err = 0;
-	goto err_unlock;
-
-err_fini_mapping:
-	pvr_vm_mapping_fini(mapping);
-	kfree(mapping);
-
-err_unlock:
-	mutex_unlock(&vm_ctx->lock);
-
-err_out:
-	return err;
-}
-
-/**
- * pvr_vm_map_partial() - Map a section of physical memory into a section of
- *                        device-virtual memory.
+ * pvr_vm_map() - Map a section of physical memory into a section of device-virtual memory.
  * @vm_ctx: Target VM context.
  * @pvr_obj: Target PowerVR memory object.
  * @pvr_obj_offset: Offset into @pvr_obj to map from.
@@ -3824,9 +3577,9 @@ err_out:
  *    create the mapping.
  */
 int
-pvr_vm_map_partial(struct pvr_vm_context *vm_ctx,
-		   struct pvr_gem_object *pvr_obj, u64 pvr_obj_offset,
-		   u64 device_addr, u64 size)
+pvr_vm_map(struct pvr_vm_context *vm_ctx,
+	   struct pvr_gem_object *pvr_obj, u64 pvr_obj_offset,
+	   u64 device_addr, u64 size)
 {
 	size_t pvr_obj_size = pvr_gem_object_size(pvr_obj);
 
@@ -3849,8 +3602,7 @@ pvr_vm_map_partial(struct pvr_vm_context *vm_ctx,
 
 	mutex_lock(&vm_ctx->lock);
 
-	pvr_vm_mapping_init_partial(mapping, device_addr, size, pvr_obj,
-				    pvr_obj_offset);
+	pvr_vm_mapping_init(mapping, device_addr, size, pvr_obj, pvr_obj_offset);
 
 	err = pvr_vm_map_mapping_locked(vm_ctx, mapping);
 	if (err)

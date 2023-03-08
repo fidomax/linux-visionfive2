@@ -555,7 +555,8 @@ pvr_meta_vm_map(struct pvr_device *pvr_dev, struct pvr_fw_object *fw_obj)
 {
 	struct pvr_gem_object *pvr_obj = from_pvr_fw_object(fw_obj);
 
-	return pvr_vm_map(pvr_dev->kernel_vm_ctx, pvr_obj, fw_obj->fw_mm_node.start);
+	return pvr_vm_map(pvr_dev->kernel_vm_ctx, pvr_obj, 0, fw_obj->fw_mm_node.start,
+			  pvr_gem_object_size(pvr_obj));
 }
 
 static void

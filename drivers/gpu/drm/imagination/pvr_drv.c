@@ -962,16 +962,8 @@ pvr_ioctl_vm_map(struct drm_device *drm_dev, void *raw_args,
 		goto err_put_pvr_object;
 	}
 
-	/*
-	 * If the caller has specified that the entire object should be mapped,
-	 * use the more efficient pvr_vm_map().
-	 */
-	if (args->offset == 0 && args->size == pvr_obj_size) {
-		err = pvr_vm_map(vm_ctx, pvr_obj, args->device_addr);
-	} else {
-		err = pvr_vm_map_partial(vm_ctx, pvr_obj, args->offset,
-					 args->device_addr, args->size);
-	}
+	err = pvr_vm_map(vm_ctx, pvr_obj, args->offset,
+			 args->device_addr, args->size);
 	if (err)
 		goto err_put_pvr_object;
 
