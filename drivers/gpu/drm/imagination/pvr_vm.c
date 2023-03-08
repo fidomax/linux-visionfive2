@@ -2821,101 +2821,44 @@ pvr_vm_context_map_sgt(struct pvr_vm_context *vm_ctx,
 		       u64 device_addr, u64 size,
 		       struct pvr_page_flags_raw page_flags)
 {
-	struct pvr_page_table_ptr ptr;
-	struct pvr_page_table_ptr ptr_copy;
-
+	struct pvr_page_table_ptr ptr, ptr_copy;
 	struct scatterlist *sgl;
-
-	struct scatterlist *first_sgl;
-	struct scatterlist *last_sgl;
-
-	/*
-	 * For these three (four) values:
-	 *  * "offset" refers to the position in the given sgl to start mapping
-	 *    from, and
-	 *  * "size" refers to the amount of that sgl to map.
-	 *
-	 * For &first_sgl, "size" is the distance between "offset" and the
-	 * total size of the sgl.
-	 *
-	 * For &last_sgl, "offset" is always zero because it is contiguous with
-	 * the previous sgl. The only case it would be non-zero is when the
-	 * first and last sgls are the same, but this case is handled
-	 * specially.
-	 */
-	u64 first_sgl_offset;
-	/* There is no last_sgl_offset (see above). */
-	u64 first_sgl_size;
-	u64 last_sgl_size;
-
-	u64 accumulated_size = 0;
-	u64 created_size;
-
+	u64 mapped_size = 0;
+	unsigned int count;
 	int err;
+
+	if (!size)
+		return 0;
+
+	if ((sgt_offset | size) & ~PVR_DEVICE_PAGE_MASK)
+		return -EINVAL;
 
 	err = pvr_page_table_ptr_init(&ptr, vm_ctx->pvr_dev,
 				      &vm_ctx->root_table, device_addr, true);
-	if (err) {
-		err = -EINVAL;
-		goto err_out;
-	}
+	if (err)
+		return -EINVAL;
 
-	/* @sgt must contain at least one entry. */
-	if (!sgt->sgl) {
-		err = -EINVAL;
-		goto err_fini_ptr;
-	}
+	pvr_page_table_ptr_copy(&ptr_copy, &ptr);
 
-	/*
-	 * First, skip through the sg table until we hit an entry which
-	 * contains sgt_offset.
-	 */
-	sgl = sgt->sgl;
-	do {
-		accumulated_size += sg_dma_len(sgl);
+	for_each_sgtable_dma_sg(sgt, sgl, count) {
+		size_t sgl_len = sg_dma_len(sgl);
+		u64 sgl_offset, map_sgl_len;
 
-		if (accumulated_size > sgt_offset)
-			goto found_first_sgl;
-	} while ((sgl = sg_next(sgl)) != NULL);
+		if (sgl_len <= sgt_offset) {
+			sgt_offset -= sgl_len;
+			continue;
+		}
 
-	/*
-	 * If we fall out of the loop above, we've reached the end of @sgt
-	 * without finding the start of the requested range.
-	 */
-	err = -EINVAL;
-	goto err_fini_ptr;
+		sgl_offset = sgt_offset;
+		map_sgl_len = min_t(u64, sgl_len - sgl_offset, size);
 
-found_first_sgl:
-	/* Record the entry discovered in the loop above. */
-	first_sgl = sgl;
-	first_sgl_size = accumulated_size - sgt_offset;
-	first_sgl_offset = sg_dma_len(first_sgl) - first_sgl_size;
-
-	/*
-	 * Ensure that sgt_offset is within the bounds of the sg table; that
-	 * the DMA address given by the offset into the first sg table entry
-	 * is aligned to the device page size, and that the part of the first
-	 * sg table entry past the offset is a multiple of the device page
-	 * size.
-	 */
-	if (accumulated_size < sgt_offset ||
-	    (sg_dma_address(sgl) + first_sgl_offset) & ~PVR_DEVICE_PAGE_MASK ||
-	    first_sgl_size & ~PVR_DEVICE_PAGE_MASK) {
-		err = -EINVAL;
-		goto err_fini_ptr;
-	}
-
-	/*
-	 * If we only need to look at a single sg table entry, do that now so
-	 * we can apply both first_sgt_offset and last_sgt_size to it.
-	 */
-	if (accumulated_size >= sgt_offset + size) {
-		err = pvr_vm_context_map_partial_sgl(vm_ctx, first_sgl,
-						     first_sgl_offset,
-						     size, &ptr,
-						     page_flags);
+		err = pvr_vm_context_map_sgl(vm_ctx, sgl,
+					     sgl_offset,
+					     map_sgl_len, &ptr,
+					     page_flags);
 		if (err)
-			goto err_fini_ptr;
+			break;
+
 
 		/*
 		 * Flag the L0 page table as requiring a flush when the page
@@ -2923,138 +2866,24 @@ found_first_sgl:
 		 */
 		pvr_page_table_ptr_require_sync(&ptr, 0);
 
-		goto out;
-	}
+		sgt_offset = 0;
+		mapped_size += map_sgl_len;
 
-	/*
-	 * Resume iterating through the sg table until we hit an entry which
-	 * contains (sgt_offset + size). Use do-while here because the first
-	 * and last entries could be the same.
-	 */
-	while ((sgl = sg_next(sgl)) != NULL) {
-		u32 len = sg_dma_len(sgl);
+		if (mapped_size >= size)
+			break;
 
-		if ((accumulated_size + len) >= sgt_offset + size)
-			goto found_last_sgl;
-
-		accumulated_size += len;
-
-		/*
-		 * This check should technically be at the top of this loop.
-		 * However, we've already performed it above for the first
-		 * iteration, so we move it to the bottom to prevent evaluating
-		 * it again. It will still be performed before every break
-		 * conditional.
-		 */
-		if (sg_dma_address(sgl) & ~PVR_DEVICE_PAGE_MASK ||
-		    sg_dma_len(sgl) & ~PVR_DEVICE_PAGE_MASK) {
-			err = -EINVAL;
-			goto err_fini_ptr;
-		}
-	}
-
-	/*
-	 * If we fall out of the loop above, we've reached the end of @sgt
-	 * without finding the end of the requested range.
-	 */
-	err = -EINVAL;
-	goto err_fini_ptr;
-
-found_last_sgl:
-	/* Record the entry discovered in the loop above. */
-	last_sgl = sgl;
-	last_sgl_size = (sgt_offset + size) - accumulated_size;
-
-	accumulated_size += sg_dma_len(last_sgl);
-
-	/*
-	 * Ensure (sgt_offset + size) is within the bounds of the sg table and
-	 * that the part of the last sg table entry up to size is a
-	 * multiple of the page size.
-	 */
-	if (accumulated_size < sgt_offset + size ||
-	    last_sgl_size & ~PVR_DEVICE_PAGE_MASK ||
-	    sg_dma_address(last_sgl) & ~PVR_DEVICE_PAGE_MASK) {
-		err = -EINVAL;
-		goto err_fini_ptr;
-	}
-
-	/*
-	 * Before progressing, save a copy of the start pointer so we can use
-	 * it again if we enter an error state and have to destroy pages.
-	 * This is not needed for the case covered above since there is no
-	 * route to err_unmap from there.
-	 */
-	pvr_page_table_ptr_copy(&ptr_copy, &ptr);
-
-	/*
-	 * When multiple sgls are mapped, we do so in three stages. Stages one
-	 * and three take care of the first and last sgls respectively. Each of
-	 * these use the associated values "offset" and "size" described above.
-	 *
-	 * The remaining "middle" sgls are mapped in their entirety by stage
-	 * two which does not need to care about those values.
-	 *
-	 * If the first and last sgls are adjacent (i.e. there are exactly two
-	 * sgls to map), stage two is skipped.
-	 */
-
-	/* [1/3] Map first page. */
-	err = pvr_vm_context_map_partial_sgl(vm_ctx, first_sgl,
-					     first_sgl_offset, first_sgl_size,
-					     &ptr, page_flags);
-	if (err)
-		goto err_fini_ptr_and_ptr_copy;
-
-	created_size = first_sgl_size;
-
-	/* [2/3] Map middle pages (if any). */
-	for (sgl = sg_next(first_sgl); sgl != last_sgl; sgl = sg_next(sgl)) {
 		err = pvr_page_table_ptr_next_page(&ptr, true);
-		if (err) {
-			err = -EINVAL;
-			goto err_unmap;
-		}
-
-		err = pvr_vm_context_map_sgl(vm_ctx, sgl, &ptr, page_flags);
 		if (err)
-			goto err_unmap;
-
-		created_size += sg_dma_len(sgl);
+			break;
 	}
 
-	/* [3/3] Map last page. */
-	err = pvr_page_table_ptr_next_page(&ptr, true);
-	if (err) {
-		err = -EINVAL;
-		goto err_unmap;
+	if (err && mapped_size) {
+		pvr_vm_context_unmap_from_ptr(&ptr_copy,
+					      mapped_size >> PVR_DEVICE_PAGE_SHIFT);
 	}
 
-	err = pvr_vm_context_map_partial_sgl(vm_ctx, last_sgl, 0, last_sgl_size,
-					     &ptr, page_flags);
-	if (err)
-		goto err_unmap;
-
-	/*
-	 * No need to update &created_size here as there are no more routes
-	 * to err_unmap past this point.
-	 */
-
-out:
-	err = 0;
-	goto err_fini_ptr_and_ptr_copy;
-
-err_unmap:
-	pvr_vm_context_unmap_from_ptr(&ptr_copy,
-				      created_size >> PVR_DEVICE_PAGE_SHIFT);
-
-err_fini_ptr_and_ptr_copy:
 	pvr_page_table_ptr_fini(&ptr_copy);
-
-err_fini_ptr:
 	pvr_page_table_ptr_fini(&ptr);
-
-err_out:
 	return err;
 }
 
