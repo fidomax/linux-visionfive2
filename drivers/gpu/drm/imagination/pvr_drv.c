@@ -1052,7 +1052,6 @@ pvr_ioctl_submit_jobs(struct drm_device *drm_dev, void *raw_args,
 void *
 pvr_get_obj_array(struct drm_pvr_obj_array *in, u32 min_stride, u32 obj_size)
 {
-	u32 cpy_elem_size = min_t(u32, in->stride, obj_size);
 	int ret = 0;
 	void *out;
 
@@ -1062,7 +1061,7 @@ pvr_get_obj_array(struct drm_pvr_obj_array *in, u32 min_stride, u32 obj_size)
 	if (!in->count)
 		return NULL;
 
-	out = kvmalloc_array(in->count, obj_size, GFP_KERNEL | __GFP_ZERO);
+	out = kvmalloc_array(in->count, obj_size, GFP_KERNEL);
 	if (!out)
 		return ERR_PTR(-ENOMEM);
 
@@ -1074,10 +1073,9 @@ pvr_get_obj_array(struct drm_pvr_obj_array *in, u32 min_stride, u32 obj_size)
 		void *out_ptr = out;
 
 		for (u32 i = 0; i < in->count; i++) {
-			if (copy_from_user(out_ptr, in_ptr, cpy_elem_size)) {
-				ret = -EFAULT;
+			ret = copy_struct_from_user(out_ptr, obj_size, in_ptr, in->stride);
+			if (ret)
 				break;
-			}
 
 			out_ptr += obj_size;
 			in_ptr += in->stride;
