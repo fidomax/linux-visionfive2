@@ -1049,8 +1049,32 @@ pvr_ioctl_submit_jobs(struct drm_device *drm_dev, void *raw_args,
 	return pvr_submit_jobs(pvr_dev, pvr_file, args);
 }
 
+int
+pvr_get_uobj(u64 usr_ptr, u32 usr_stride, u32 min_stride, u32 obj_size, void *out)
+{
+	if (usr_stride < min_stride)
+		return -EINVAL;
+
+	return copy_struct_from_user(out, obj_size, u64_to_user_ptr(usr_ptr), usr_stride);
+}
+
+int
+pvr_set_uobj(u64 usr_ptr, u32 usr_stride, u32 min_stride, u32 obj_size, const void *in)
+{
+	if (usr_stride < min_stride)
+		return -EINVAL;
+
+	if (clear_user(u64_to_user_ptr(usr_ptr), usr_stride))
+		return -EFAULT;
+
+	if (copy_to_user(u64_to_user_ptr(usr_ptr), in, min_t(u32, usr_stride, obj_size)))
+		return -EFAULT;
+
+	return 0;
+}
+
 void *
-pvr_get_obj_array(struct drm_pvr_obj_array *in, u32 min_stride, u32 obj_size)
+pvr_get_uobj_array(struct drm_pvr_obj_array *in, u32 min_stride, u32 obj_size)
 {
 	int ret = 0;
 	void *out;
@@ -1088,6 +1112,39 @@ pvr_get_obj_array(struct drm_pvr_obj_array *in, u32 min_stride, u32 obj_size)
 	}
 
 	return out;
+}
+
+int
+pvr_set_uobj_array(const struct drm_pvr_obj_array *out, u32 min_stride, u32 obj_size,
+		   const void *in)
+{
+	if (out->stride < min_stride)
+		return -EINVAL;
+
+	if (!out->count)
+		return 0;
+
+	if (clear_user(u64_to_user_ptr(out->array), obj_size * out->count))
+		return -EFAULT;
+
+	if (obj_size == out->stride) {
+		if (copy_to_user(u64_to_user_ptr(out->array), in, obj_size * out->count))
+			return -EFAULT;
+	} else {
+		u32 cpy_elem_size = min_t(u32, out->stride, obj_size);
+		void __user *out_ptr = u64_to_user_ptr(out->array);
+		void *in_ptr = in;
+
+		for (u32 i = 0; i < out->count; i++) {
+			if (copy_to_user(out_ptr, in_ptr, cpy_elem_size))
+				return -EFAULT;
+
+			out_ptr += obj_size;
+			in_ptr += out->stride;
+		}
+	}
+
+	return 0;
 }
 
 #define DRM_PVR_IOCTL(_name, _func, _flags) \
