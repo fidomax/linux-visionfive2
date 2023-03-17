@@ -54,107 +54,19 @@ extern "C" {
 #define DRM_IOCTL_PVR_DEV_QUERY PVR_IOCTL(0x00, DRM_IOWR, dev_query)
 #define DRM_IOCTL_PVR_CREATE_BO PVR_IOCTL(0x01, DRM_IOWR, create_bo)
 #define DRM_IOCTL_PVR_GET_BO_MMAP_OFFSET PVR_IOCTL(0x02, DRM_IOWR, get_bo_mmap_offset)
-#define DRM_IOCTL_PVR_CREATE_CONTEXT PVR_IOCTL(0x03, DRM_IOWR, create_context)
-#define DRM_IOCTL_PVR_DESTROY_CONTEXT PVR_IOCTL(0x04, DRM_IOW, destroy_context)
-#define DRM_IOCTL_PVR_CREATE_FREE_LIST PVR_IOCTL(0x05, DRM_IOWR, create_free_list)
-#define DRM_IOCTL_PVR_DESTROY_FREE_LIST PVR_IOCTL(0x06, DRM_IOW, destroy_free_list)
-#define DRM_IOCTL_PVR_CREATE_HWRT_DATASET PVR_IOCTL(0x07, DRM_IOWR, create_hwrt_dataset)
-#define DRM_IOCTL_PVR_DESTROY_HWRT_DATASET PVR_IOCTL(0x08, DRM_IOW, destroy_hwrt_dataset)
-#define DRM_IOCTL_PVR_CREATE_VM_CONTEXT PVR_IOCTL(0x09, DRM_IOWR, create_vm_context)
-#define DRM_IOCTL_PVR_DESTROY_VM_CONTEXT PVR_IOCTL(0x0a, DRM_IOW, destroy_vm_context)
-#define DRM_IOCTL_PVR_GET_HEAP_INFO PVR_IOCTL(0x0b, DRM_IOWR, get_heap_info)
-#define DRM_IOCTL_PVR_VM_MAP PVR_IOCTL(0x0c, DRM_IOW, vm_map)
-#define DRM_IOCTL_PVR_VM_UNMAP PVR_IOCTL(0x0d, DRM_IOW, vm_unmap)
-#define DRM_IOCTL_PVR_SUBMIT_JOBS PVR_IOCTL(0x0e, DRM_IOW, submit_jobs)
+#define DRM_IOCTL_PVR_CREATE_VM_CONTEXT PVR_IOCTL(0x03, DRM_IOWR, create_vm_context)
+#define DRM_IOCTL_PVR_DESTROY_VM_CONTEXT PVR_IOCTL(0x04, DRM_IOW, destroy_vm_context)
+#define DRM_IOCTL_PVR_VM_MAP PVR_IOCTL(0x05, DRM_IOW, vm_map)
+#define DRM_IOCTL_PVR_VM_UNMAP PVR_IOCTL(0x06, DRM_IOW, vm_unmap)
+#define DRM_IOCTL_PVR_CREATE_CONTEXT PVR_IOCTL(0x07, DRM_IOWR, create_context)
+#define DRM_IOCTL_PVR_DESTROY_CONTEXT PVR_IOCTL(0x08, DRM_IOW, destroy_context)
+#define DRM_IOCTL_PVR_CREATE_FREE_LIST PVR_IOCTL(0x09, DRM_IOWR, create_free_list)
+#define DRM_IOCTL_PVR_DESTROY_FREE_LIST PVR_IOCTL(0x0a, DRM_IOW, destroy_free_list)
+#define DRM_IOCTL_PVR_CREATE_HWRT_DATASET PVR_IOCTL(0x0b, DRM_IOWR, create_hwrt_dataset)
+#define DRM_IOCTL_PVR_DESTROY_HWRT_DATASET PVR_IOCTL(0x0c, DRM_IOW, destroy_hwrt_dataset)
+#define DRM_IOCTL_PVR_SUBMIT_JOBS PVR_IOCTL(0x0d, DRM_IOW, submit_jobs)
+#define DRM_IOCTL_PVR_GET_HEAP_INFO PVR_IOCTL(0x0e, DRM_IOWR, get_heap_info)
 /* clang-format on */
-
-/**
- * DOC: Flags for CREATE_BO
- *
- * The &drm_pvr_ioctl_create_bo_args.flags field is 64 bits wide and consists
- * of three groups of flags: creation, device mapping and CPU mapping.
- *
- * We use "device" to refer to the GPU here because of the ambiguity between
- * CPU and GPU in some fonts.
- *
- * Creation options
- *    These use the prefix ``DRM_PVR_BO_CREATE_``.
- *
- *    :ZEROED: Require the allocated buffer to be zeroed before returning. Note
- *      that this is an active operation, and is never zero cost. Unless it is
- *      explicitly required, this option should not be set.
- *
- * Device mapping options
- *    These use the prefix ``DRM_PVR_BO_DEVICE_``.
- *
- *    :BYPASS_CACHE: There are very few situations where this flag is useful.
- *       By default, the device flushes its memory caches after every job.
- *    :PM_FW_PROTECT: Specify that only the Parameter Manager (PM) and/or
- *       firmware processor should be allowed to access this memory when mapped
- *       to the device. It is not valid to specify this flag with
- *       CPU_ALLOW_USERSPACE_ACCESS.
- *
- * CPU mapping options
- *    These use the prefix ``DRM_PVR_BO_CPU_``.
- *
- *    :ALLOW_USERSPACE_ACCESS: Allow userspace to map and access the contents
- *       of this memory. It is not valid to specify this flag with
- *       DEVICE_PM_FW_PROTECT.
- */
-#define DRM_PVR_BO_DEVICE_BYPASS_CACHE _BITULL(0)
-#define DRM_PVR_BO_DEVICE_PM_FW_PROTECT _BITULL(1)
-#define DRM_PVR_BO_CPU_ALLOW_USERSPACE_ACCESS _BITULL(2)
-#define DRM_PVR_BO_CREATE_ZEROED _BITULL(3)
-/* Bits 4..63 are reserved. */
-
-/**
- * struct drm_pvr_ioctl_create_bo_args - Arguments for %DRM_IOCTL_PVR_CREATE_BO
- */
-struct drm_pvr_ioctl_create_bo_args {
-	/**
-	 * @size: [IN/OUT] Unaligned size of buffer object to create. On
-	 * return, this will be populated with the actual aligned size of the
-	 * new buffer.
-	 */
-	__u64 size;
-
-	/**
-	 * @handle: [OUT] GEM handle of the new buffer object for use in
-	 * userspace.
-	 */
-	__u32 handle;
-
-	/** @_padding_c: Reserved. This field must be zeroed. */
-	__u32 _padding_c;
-
-	/**
-	 * @flags: [IN] Options which will affect the behaviour of this
-	 * creation operation and future mapping operations on the created
-	 * object. This field must be a valid combination of DRM_PVR_BO_*
-	 * values, with all bits marked as reserved set to zero.
-	 */
-	__u64 flags;
-};
-
-/**
- * struct drm_pvr_ioctl_get_bo_mmap_offset_args - Arguments for
- * %DRM_IOCTL_PVR_GET_BO_MMAP_OFFSET
- *
- * Like other DRM drivers, the "mmap" IOCTL doesn't actually map any memory.
- * Instead, it allocates a fake offset which refers to the specified buffer
- * object. This offset can be used with a real mmap call on the DRM device
- * itself.
- */
-struct drm_pvr_ioctl_get_bo_mmap_offset_args {
-	/** @handle: [IN] GEM handle of the buffer object to be mapped. */
-	__u32 handle;
-
-	/** @_padding_4: Reserved. This field must be zeroed. */
-	__u32 _padding_4;
-
-	/** @offset: [OUT] Fake offset to use in the real mmap call. */
-	__u64 offset;
-};
 
 struct drm_pvr_dev_query_gpu_info {
 	/**
@@ -346,6 +258,205 @@ struct drm_pvr_ioctl_dev_query_args {
 	 * field, but no other data will be written.
 	 */
 	__u64 pointer;
+};
+
+/**
+ * DOC: Flags for CREATE_BO
+ *
+ * The &drm_pvr_ioctl_create_bo_args.flags field is 64 bits wide and consists
+ * of three groups of flags: creation, device mapping and CPU mapping.
+ *
+ * We use "device" to refer to the GPU here because of the ambiguity between
+ * CPU and GPU in some fonts.
+ *
+ * Creation options
+ *    These use the prefix ``DRM_PVR_BO_CREATE_``.
+ *
+ *    :ZEROED: Require the allocated buffer to be zeroed before returning. Note
+ *      that this is an active operation, and is never zero cost. Unless it is
+ *      explicitly required, this option should not be set.
+ *
+ * Device mapping options
+ *    These use the prefix ``DRM_PVR_BO_DEVICE_``.
+ *
+ *    :BYPASS_CACHE: There are very few situations where this flag is useful.
+ *       By default, the device flushes its memory caches after every job.
+ *    :PM_FW_PROTECT: Specify that only the Parameter Manager (PM) and/or
+ *       firmware processor should be allowed to access this memory when mapped
+ *       to the device. It is not valid to specify this flag with
+ *       CPU_ALLOW_USERSPACE_ACCESS.
+ *
+ * CPU mapping options
+ *    These use the prefix ``DRM_PVR_BO_CPU_``.
+ *
+ *    :ALLOW_USERSPACE_ACCESS: Allow userspace to map and access the contents
+ *       of this memory. It is not valid to specify this flag with
+ *       DEVICE_PM_FW_PROTECT.
+ */
+#define DRM_PVR_BO_DEVICE_BYPASS_CACHE _BITULL(0)
+#define DRM_PVR_BO_DEVICE_PM_FW_PROTECT _BITULL(1)
+#define DRM_PVR_BO_CPU_ALLOW_USERSPACE_ACCESS _BITULL(2)
+#define DRM_PVR_BO_CREATE_ZEROED _BITULL(3)
+/* Bits 4..63 are reserved. */
+
+/**
+ * struct drm_pvr_ioctl_create_bo_args - Arguments for %DRM_IOCTL_PVR_CREATE_BO
+ */
+struct drm_pvr_ioctl_create_bo_args {
+	/**
+	 * @size: [IN/OUT] Unaligned size of buffer object to create. On
+	 * return, this will be populated with the actual aligned size of the
+	 * new buffer.
+	 */
+	__u64 size;
+
+	/**
+	 * @handle: [OUT] GEM handle of the new buffer object for use in
+	 * userspace.
+	 */
+	__u32 handle;
+
+	/** @_padding_c: Reserved. This field must be zeroed. */
+	__u32 _padding_c;
+
+	/**
+	 * @flags: [IN] Options which will affect the behaviour of this
+	 * creation operation and future mapping operations on the created
+	 * object. This field must be a valid combination of DRM_PVR_BO_*
+	 * values, with all bits marked as reserved set to zero.
+	 */
+	__u64 flags;
+};
+
+/**
+ * struct drm_pvr_ioctl_get_bo_mmap_offset_args - Arguments for
+ * %DRM_IOCTL_PVR_GET_BO_MMAP_OFFSET
+ *
+ * Like other DRM drivers, the "mmap" IOCTL doesn't actually map any memory.
+ * Instead, it allocates a fake offset which refers to the specified buffer
+ * object. This offset can be used with a real mmap call on the DRM device
+ * itself.
+ */
+struct drm_pvr_ioctl_get_bo_mmap_offset_args {
+	/** @handle: [IN] GEM handle of the buffer object to be mapped. */
+	__u32 handle;
+
+	/** @_padding_4: Reserved. This field must be zeroed. */
+	__u32 _padding_4;
+
+	/** @offset: [OUT] Fake offset to use in the real mmap call. */
+	__u64 offset;
+};
+
+/**
+ * struct drm_pvr_ioctl_create_vm_context_args - Arguments for
+ * %DRM_IOCTL_PVR_CREATE_VM_CONTEXT
+ */
+struct drm_pvr_ioctl_create_vm_context_args {
+	/** @handle: [OUT] Handle for new VM context. */
+	__u32 handle;
+
+	/** @_padding_4: Reserved. This field must be zeroed. */
+	__u32 _padding_4;
+};
+
+/**
+ * struct drm_pvr_ioctl_destroy_vm_context_args - Arguments for
+ * %DRM_IOCTL_PVR_DESTROY_VM_CONTEXT
+ */
+struct drm_pvr_ioctl_destroy_vm_context_args {
+	/**
+	 * @handle: [IN] Handle for VM context to be destroyed.
+	 */
+	__u32 handle;
+
+	/** @_padding_4: Reserved. This field must be zeroed. */
+	__u32 _padding_4;
+};
+
+/**
+ * DOC: VM UAPI
+ *
+ * The VM UAPI allows userspace to create buffer object mappings in GPU virtual address space.
+ *
+ * The client is responsible for managing GPU address space. It should allocate mappings within
+ * the heaps returned by %DRM_IOCTL_PVR_GET_HEAP_INFO.
+ *
+ * %DRM_IOCTL_PVR_VM_MAP creates a new mapping. The client provides the target virtual address for
+ * the mapping. Size and offset within the mapped buffer object can be specified, so the client can
+ * partially map a buffer.
+ *
+ * %DRM_IOCTL_PVR_VM_UNMAP removes a mapping. The entire mapping will be removed from GPU address
+ * space. For this reason only the start address is provided by the client.
+ */
+
+/**
+ * struct drm_pvr_ioctl_vm_map_args - Arguments for %DRM_IOCTL_PVR_VM_MAP.
+ */
+struct drm_pvr_ioctl_vm_map_args {
+	/**
+	 * @vm_context_handle: [IN] Handle for VM context for this mapping to
+	 *                          exist in.
+	 */
+	__u32 vm_context_handle;
+
+	/** @flags: [IN] Flags which affect this mapping. Currently always 0. */
+	__u32 flags;
+
+	/**
+	 * @device_addr: [IN] Requested device-virtual address for the mapping.
+	 * This must be non-zero and aligned to the device page size for the
+	 * heap containing the requested address. It is an error to specify an
+	 * address which is not contained within one of the heaps returned by
+	 * %DRM_IOCTL_PVR_GET_HEAP_INFO.
+	 */
+	__u64 device_addr;
+
+	/**
+	 * @handle: [IN] Handle of the target buffer object. This must be a
+	 * valid handle returned by %DRM_IOCTL_PVR_CREATE_BO.
+	 */
+	__u32 handle;
+
+	/** @_padding_14: Reserved. This field must be zeroed. */
+	__u32 _padding_14;
+
+	/**
+	 * @offset: [IN] Offset into the target bo from which to begin the
+	 * mapping.
+	 */
+	__u64 offset;
+
+	/**
+	 * @size: [IN] Size of the requested mapping. Must be aligned to
+	 * the device page size for the heap containing the requested address,
+	 * as well as the host page size. When added to @device_addr, the
+	 * result must not overflow the heap which contains @device_addr (i.e.
+	 * the range specified by @device_addr and @size must be completely
+	 * contained within a single heap specified by
+	 * %DRM_IOCTL_PVR_GET_HEAP_INFO).
+	 */
+	__u64 size;
+};
+
+/**
+ * struct drm_pvr_ioctl_vm_unmap_args - Arguments for %DRM_IOCTL_PVR_VM_UNMAP.
+ */
+struct drm_pvr_ioctl_vm_unmap_args {
+	/**
+	 * @vm_context_handle: [IN] Handle for VM context that this mapping
+	 *                          exists in.
+	 */
+	__u32 vm_context_handle;
+
+	/** @_padding_4: Reserved. This field must be zeroed. */
+	__u32 _padding_4;
+
+	/**
+	 * @device_addr: [IN] Device-virtual address at the start of the target
+	 * mapping. This must be non-zero.
+	 */
+	__u64 device_addr;
 };
 
 /**
@@ -667,32 +778,6 @@ struct drm_pvr_ioctl_destroy_hwrt_dataset_args {
 };
 
 /**
- * struct drm_pvr_ioctl_create_vm_context_args - Arguments for
- * %DRM_IOCTL_PVR_CREATE_VM_CONTEXT
- */
-struct drm_pvr_ioctl_create_vm_context_args {
-	/** @handle: [OUT] Handle for new VM context. */
-	__u32 handle;
-
-	/** @_padding_4: Reserved. This field must be zeroed. */
-	__u32 _padding_4;
-};
-
-/**
- * struct drm_pvr_ioctl_destroy_vm_context_args - Arguments for
- * %DRM_IOCTL_PVR_DESTROY_VM_CONTEXT
- */
-struct drm_pvr_ioctl_destroy_vm_context_args {
-	/**
-	 * @handle: [IN] Handle for VM context to be destroyed.
-	 */
-	__u32 handle;
-
-	/** @_padding_4: Reserved. This field must be zeroed. */
-	__u32 _padding_4;
-};
-
-/**
  * DOC: Heap UAPI
  *
  * The PowerVR address space is pre-divided into a number of heaps. The exact
@@ -865,91 +950,6 @@ struct drm_pvr_ioctl_get_heap_info_args {
 
 	/** @heap_nr: [IN] Number of heap to get information for. */
 	__u32 heap_nr;
-};
-
-/**
- * DOC: VM UAPI
- *
- * The VM UAPI allows userspace to create buffer object mappings in GPU virtual address space.
- *
- * The client is responsible for managing GPU address space. It should allocate mappings within
- * the heaps returned by %DRM_IOCTL_PVR_GET_HEAP_INFO.
- *
- * %DRM_IOCTL_PVR_VM_MAP creates a new mapping. The client provides the target virtual address for
- * the mapping. Size and offset within the mapped buffer object can be specified, so the client can
- * partially map a buffer.
- *
- * %DRM_IOCTL_PVR_VM_UNMAP removes a mapping. The entire mapping will be removed from GPU address
- * space. For this reason only the start address is provided by the client.
- */
-
-/**
- * struct drm_pvr_ioctl_vm_map_args - Arguments for %DRM_IOCTL_PVR_VM_MAP.
- */
-struct drm_pvr_ioctl_vm_map_args {
-	/**
-	 * @vm_context_handle: [IN] Handle for VM context for this mapping to
-	 *                          exist in.
-	 */
-	__u32 vm_context_handle;
-
-	/** @flags: [IN] Flags which affect this mapping. Currently always 0. */
-	__u32 flags;
-
-	/**
-	 * @device_addr: [IN] Requested device-virtual address for the mapping.
-	 * This must be non-zero and aligned to the device page size for the
-	 * heap containing the requested address. It is an error to specify an
-	 * address which is not contained within one of the heaps returned by
-	 * %DRM_IOCTL_PVR_GET_HEAP_INFO.
-	 */
-	__u64 device_addr;
-
-	/**
-	 * @handle: [IN] Handle of the target buffer object. This must be a
-	 * valid handle returned by %DRM_IOCTL_PVR_CREATE_BO.
-	 */
-	__u32 handle;
-
-	/** @_padding_14: Reserved. This field must be zeroed. */
-	__u32 _padding_14;
-
-	/**
-	 * @offset: [IN] Offset into the target bo from which to begin the
-	 * mapping.
-	 */
-	__u64 offset;
-
-	/**
-	 * @size: [IN] Size of the requested mapping. Must be aligned to
-	 * the device page size for the heap containing the requested address,
-	 * as well as the host page size. When added to @device_addr, the
-	 * result must not overflow the heap which contains @device_addr (i.e.
-	 * the range specified by @device_addr and @size must be completely
-	 * contained within a single heap specified by
-	 * %DRM_IOCTL_PVR_GET_HEAP_INFO).
-	 */
-	__u64 size;
-};
-
-/**
- * struct drm_pvr_ioctl_vm_unmap_args - Arguments for %DRM_IOCTL_PVR_VM_UNMAP.
- */
-struct drm_pvr_ioctl_vm_unmap_args {
-	/**
-	 * @vm_context_handle: [IN] Handle for VM context that this mapping
-	 *                          exists in.
-	 */
-	__u32 vm_context_handle;
-
-	/** @_padding_4: Reserved. This field must be zeroed. */
-	__u32 _padding_4;
-
-	/**
-	 * @device_addr: [IN] Device-virtual address at the start of the target
-	 * mapping. This must be non-zero.
-	 */
-	__u64 device_addr;
 };
 
 /**
