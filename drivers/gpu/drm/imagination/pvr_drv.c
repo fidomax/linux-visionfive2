@@ -1074,7 +1074,7 @@ pvr_set_uobj(u64 usr_ptr, u32 usr_stride, u32 min_stride, u32 obj_size, const vo
 }
 
 void *
-pvr_get_uobj_array(struct drm_pvr_obj_array *in, u32 min_stride, u32 obj_size)
+pvr_get_uobj_array(const struct drm_pvr_obj_array *in, u32 min_stride, u32 obj_size)
 {
 	int ret = 0;
 	void *out;
@@ -1133,7 +1133,7 @@ pvr_set_uobj_array(const struct drm_pvr_obj_array *out, u32 min_stride, u32 obj_
 	} else {
 		u32 cpy_elem_size = min_t(u32, out->stride, obj_size);
 		void __user *out_ptr = u64_to_user_ptr(out->array);
-		void *in_ptr = in;
+		const void *in_ptr = in;
 
 		for (u32 i = 0; i < out->count; i++) {
 			if (copy_to_user(out_ptr, in_ptr, cpy_elem_size))

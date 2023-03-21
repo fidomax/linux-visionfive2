@@ -20,7 +20,7 @@
 
 int pvr_get_uobj(u64 usr_ptr, u32 usr_size, u32 min_size, u32 obj_size, void *out);
 int pvr_set_uobj(u64 usr_ptr, u32 usr_size, u32 min_size, u32 obj_size, const void *in);
-void *pvr_get_uobj_array(struct drm_pvr_obj_array *in, u32 min_stride, u32 obj_size);
+void *pvr_get_uobj_array(const struct drm_pvr_obj_array *in, u32 min_stride, u32 obj_size);
 int pvr_set_uobj_array(const struct drm_pvr_obj_array *out, u32 min_stride, u32 obj_size,
 		       const void *in);
 
