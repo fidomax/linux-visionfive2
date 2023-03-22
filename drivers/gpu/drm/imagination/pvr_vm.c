@@ -3,7 +3,10 @@
 
 #include "pvr_vm.h"
 
+#include "drm/pvr_drm.h"
+#include "linux/gfp_types.h"
 #include "pvr_device.h"
+#include "pvr_drv.h"
 #include "pvr_gem.h"
 #include "pvr_rogue_heap_config.h"
 #include "pvr_rogue_mmu_defs.h"
@@ -3513,35 +3516,34 @@ err_out:
  * When adding a new static data area you will also need to update the reserved_size field for the
  * heap in pvr_heaps[].
  */
-static const struct drm_pvr_static_data_area general_static_data_areas[] = {
+static const struct drm_pvr_static_data_area static_data_areas[] = {
 	{
-		.id = DRM_PVR_STATIC_DATA_AREA_FENCE,
+		.area_usage = DRM_PVR_STATIC_DATA_AREA_FENCE,
+		.location_heap_id = DRM_PVR_HEAP_GENERAL,
 		.offset = 0,
 		.size = 128,
 	},
 	{
-		.id = DRM_PVR_STATIC_DATA_AREA_YUV_CSC,
+		.area_usage = DRM_PVR_STATIC_DATA_AREA_YUV_CSC,
+		.location_heap_id = DRM_PVR_HEAP_GENERAL,
 		.offset = 128,
 		.size = 1024,
 	},
-};
-
-static const struct drm_pvr_static_data_area pds_static_data_areas[] = {
 	{
-		.id = DRM_PVR_STATIC_DATA_AREA_VDM_SYNC,
+		.area_usage = DRM_PVR_STATIC_DATA_AREA_VDM_SYNC,
+		.location_heap_id = DRM_PVR_HEAP_PDS_CODE_DATA,
 		.offset = 0,
 		.size = 128,
 	},
 	{
-		.id = DRM_PVR_STATIC_DATA_AREA_EOT,
+		.area_usage = DRM_PVR_STATIC_DATA_AREA_EOT,
+		.location_heap_id = DRM_PVR_HEAP_PDS_CODE_DATA,
 		.offset = 128,
 		.size = 128,
 	},
-};
-
-static const struct drm_pvr_static_data_area usc_static_data_areas[] = {
 	{
-		.id = DRM_PVR_STATIC_DATA_AREA_VDM_SYNC,
+		.area_usage = DRM_PVR_STATIC_DATA_AREA_VDM_SYNC,
+		.location_heap_id = DRM_PVR_HEAP_USC_CODE,
 		.offset = 0,
 		.size = 128,
 	},
@@ -3553,154 +3555,131 @@ static const struct drm_pvr_static_data_area usc_static_data_areas[] = {
  * The values given to GET_RESERVED_SIZE() are taken from the last entry in the corresponding
  * static data area for each heap.
  */
-static const struct pvr_heap pvr_heaps[] = {
-	{
-		.id = DRM_PVR_HEAP_GENERAL,
-		.flags = 0,
+static const struct drm_pvr_heap pvr_heaps[] = {
+	[DRM_PVR_HEAP_GENERAL] = {
 		.base = ROGUE_GENERAL_HEAP_BASE,
 		.size = ROGUE_GENERAL_HEAP_SIZE,
-		.static_data_carveout_base = ROGUE_GENERAL_HEAP_BASE,
-		.static_data_carveout_size = GET_RESERVED_SIZE(128, 1024),
-		.page_size_log2 = PVR_DEVICE_PAGE_SHIFT,
-		.static_data_areas = general_static_data_areas,
-		.nr_static_data_areas = ARRAY_SIZE(general_static_data_areas),
-	},
-	{
-		.id = DRM_PVR_HEAP_PDS_CODE_DATA,
 		.flags = 0,
+		.page_size_log2 = PVR_DEVICE_PAGE_SHIFT,
+	},
+	[DRM_PVR_HEAP_PDS_CODE_DATA] = {
 		.base = ROGUE_PDSCODEDATA_HEAP_BASE,
 		.size = ROGUE_PDSCODEDATA_HEAP_SIZE,
-		.static_data_carveout_base = ROGUE_PDSCODEDATA_HEAP_BASE,
-		.static_data_carveout_size = GET_RESERVED_SIZE(128, 128),
-		.page_size_log2 = PVR_DEVICE_PAGE_SHIFT,
-		.static_data_areas = pds_static_data_areas,
-		.nr_static_data_areas = ARRAY_SIZE(pds_static_data_areas),
-	},
-	{
-		.id = DRM_PVR_HEAP_USC_CODE,
 		.flags = 0,
+		.page_size_log2 = PVR_DEVICE_PAGE_SHIFT,
+	},
+	[DRM_PVR_HEAP_USC_CODE] = {
 		.base = ROGUE_USCCODE_HEAP_BASE,
 		.size = ROGUE_USCCODE_HEAP_SIZE,
-		.static_data_carveout_base = ROGUE_USCCODE_HEAP_BASE,
-		.static_data_carveout_size = GET_RESERVED_SIZE(0, 128),
-		.page_size_log2 = PVR_DEVICE_PAGE_SHIFT,
-		.static_data_areas = usc_static_data_areas,
-		.nr_static_data_areas = ARRAY_SIZE(usc_static_data_areas),
-	},
-	{
-		.id = DRM_PVR_HEAP_VIS_TEST,
 		.flags = 0,
+		.page_size_log2 = PVR_DEVICE_PAGE_SHIFT,
+	},
+	[DRM_PVR_HEAP_RGNHDR] = {
+		.base = ROGUE_RGNHDR_HEAP_BASE,
+		.size = ROGUE_RGNHDR_HEAP_SIZE,
+		.flags = 0,
+		.page_size_log2 = PVR_DEVICE_PAGE_SHIFT,
+	},
+	[DRM_PVR_HEAP_VIS_TEST] = {
 		.base = ROGUE_VISTEST_HEAP_BASE,
 		.size = ROGUE_VISTEST_HEAP_SIZE,
-		.static_data_carveout_base = 0,
-		.static_data_carveout_size = 0,
-		.page_size_log2 = PVR_DEVICE_PAGE_SHIFT,
-		.static_data_areas = NULL,
-		.nr_static_data_areas = 0,
-	},
-	{
-		.id = DRM_PVR_HEAP_TRANSFER_FRAG,
 		.flags = 0,
+		.page_size_log2 = PVR_DEVICE_PAGE_SHIFT,
+	},
+	[DRM_PVR_HEAP_TRANSFER_FRAG] = {
 		.base = ROGUE_TRANSFER_FRAG_HEAP_BASE,
 		.size = ROGUE_TRANSFER_FRAG_HEAP_SIZE,
-		.static_data_carveout_base = 0,
-		.static_data_carveout_size = 0,
+		.flags = 0,
 		.page_size_log2 = PVR_DEVICE_PAGE_SHIFT,
-		.static_data_areas = NULL,
-		.nr_static_data_areas = 0,
 	},
 };
 
-static const struct pvr_heap rgnhdr_heap = {
-	.id = DRM_PVR_HEAP_RGNHDR,
-	.flags = 0,
-	.base = ROGUE_RGNHDR_HEAP_BASE,
-	.size = ROGUE_RGNHDR_HEAP_SIZE,
-	.static_data_carveout_base = 0,
-	.static_data_carveout_size = 0,
-	.page_size_log2 = PVR_DEVICE_PAGE_SHIFT,
-};
-
-u32
-pvr_get_num_heaps(struct pvr_device *pvr_dev)
+int
+pvr_static_data_areas_get(const struct pvr_device *pvr_dev,
+			  struct drm_pvr_ioctl_dev_query_args *args)
 {
-	u32 heaps = ARRAY_SIZE(pvr_heaps);
+	struct drm_pvr_dev_query_static_data_areas query = {0};
+	int err;
 
-	/* Region header heap is only present if BRN63142 is present. */
-	if (PVR_HAS_QUIRK(pvr_dev, 63142))
-		heaps++;
+	if (!args->pointer) {
+		args->size = sizeof(struct drm_pvr_dev_query_static_data_areas);
+		return 0;
+	}
 
-	return heaps;
+	err = PVR_UOBJ_GET(query, args->size, args->pointer);
+	if (err < 0)
+		return err;
+
+	if (!query.static_data_areas.array) {
+		query.static_data_areas.count = ARRAY_SIZE(static_data_areas);
+		query.static_data_areas.stride = sizeof(struct drm_pvr_static_data_area);
+		goto copy_out;
+	}
+
+	if (query.static_data_areas.count > ARRAY_SIZE(static_data_areas))
+		query.static_data_areas.count = ARRAY_SIZE(static_data_areas);
+
+	err = PVR_UOBJ_SET_ARRAY(&query.static_data_areas, static_data_areas);
+	if (err < 0)
+		return err;
+
+copy_out:
+	err = PVR_UOBJ_SET(args->pointer, args->size, query);
+	if (err < 0)
+		return err;
+
+	args->size = sizeof(query);
+	return 0;
 }
 
 int
-pvr_get_heap_info(struct pvr_device *pvr_dev, struct drm_pvr_ioctl_get_heap_info_args *args)
+pvr_heap_info_get(const struct pvr_device *pvr_dev,
+		  struct drm_pvr_ioctl_dev_query_args *args)
 {
-	const struct pvr_heap *pvr_heap;
+	struct drm_pvr_dev_query_heap_info query = {0};
+	u64 dest;
 	int err;
 
-	if (!args->data) {
-		err = -EINVAL;
-		goto err_out;
+	if (!args->pointer) {
+		args->size = sizeof(struct drm_pvr_dev_query_heap_info);
+		return 0;
 	}
 
-	if (args->heap_nr < ARRAY_SIZE(pvr_heaps)) {
-		pvr_heap = &pvr_heaps[args->heap_nr];
-	} else if (args->heap_nr == ARRAY_SIZE(pvr_heaps) &&
-		PVR_HAS_QUIRK(pvr_dev, 63142)) {
-		/* Region header heap is only present if BRN63142 is present. */
-		pvr_heap = &rgnhdr_heap;
-	} else  {
-		err = -EINVAL;
-		goto err_out;
+	err = PVR_UOBJ_GET(query, args->size, args->pointer);
+	if (err < 0)
+		return err;
+
+	if (!query.heaps.array) {
+		query.heaps.count = ARRAY_SIZE(pvr_heaps);
+		query.heaps.stride = sizeof(struct drm_pvr_heap);
+		goto copy_out;
 	}
 
-	switch (args->op) {
-	case DRM_PVR_HEAP_OP_GET_HEAP_INFO: {
-		struct drm_pvr_heap heap_out;
+	if (query.heaps.count > ARRAY_SIZE(pvr_heaps))
+		query.heaps.count = ARRAY_SIZE(pvr_heaps);
 
-		heap_out.id = pvr_heap->id;
-		heap_out.flags = pvr_heap->flags;
-		heap_out.base = pvr_heap->base;
-		heap_out.size = pvr_heap->size;
-		heap_out.static_data_carveout_base = pvr_heap->static_data_carveout_base;
-		heap_out.static_data_carveout_size = pvr_heap->static_data_carveout_size;
-		heap_out.page_size_log2 = pvr_heap->page_size_log2;
-		heap_out.nr_static_data_areas = pvr_heap->nr_static_data_areas;
+	/* Region header heap is only present if BRN63142 is present. */
+	dest = query.heaps.array;
+	for (size_t i = 0; i < query.heaps.count; i++) {
+		struct drm_pvr_heap heap = pvr_heaps[i];
 
-		if (copy_to_user(u64_to_user_ptr(args->data), &heap_out,
-				 sizeof(heap_out))) {
-			err = -EFAULT;
-			goto err_out;
-		}
-		break;
+		if (i == DRM_PVR_HEAP_RGNHDR && !PVR_HAS_QUIRK(pvr_dev, 63142))
+			heap.size = 0;
+
+		err = PVR_UOBJ_SET(dest, query.heaps.stride, heap);
+		if (err < 0)
+			return err;
+
+		dest += query.heaps.stride;
 	}
 
-	case DRM_PVR_HEAP_OP_GET_STATIC_DATA_AREAS: {
-		if (!pvr_heap->nr_static_data_areas) {
-			err = -EINVAL;
-			goto err_out;
-		}
+copy_out:
+	err = PVR_UOBJ_SET(args->pointer, args->size, query);
+	if (err < 0)
+		return err;
 
-		if (copy_to_user(u64_to_user_ptr(args->data),
-				 pvr_heap->static_data_areas,
-				 pvr_heap->nr_static_data_areas *
-				 sizeof(struct drm_pvr_static_data_area))) {
-			err = -EFAULT;
-			goto err_out;
-		}
-		break;
-	}
-
-	default:
-		err = -EINVAL;
-		goto err_out;
-	}
-
+	args->size = sizeof(query);
 	return 0;
-
-err_out:
-	return err;
 }
 
 /**
@@ -3714,7 +3693,7 @@ err_out:
  * not satisfy the condition @start <= @end.
  */
 static __always_inline bool
-pvr_heap_contains_range(const struct pvr_heap *pvr_heap, u64 start, u64 end)
+pvr_heap_contains_range(const struct drm_pvr_heap *pvr_heap, u64 start, u64 end)
 {
 	return pvr_heap->base <= start && end < pvr_heap->base + pvr_heap->size;
 }
@@ -3732,36 +3711,30 @@ pvr_heap_contains_range(const struct pvr_heap *pvr_heap, u64 start, u64 end)
  *    success, or
  *  * %NULL if no such heap exists.
  */
-const struct pvr_heap *
+const struct drm_pvr_heap *
 pvr_find_heap_containing(struct pvr_device *pvr_dev, u64 start, u64 size)
 {
-	u32 heap_id;
 	u64 end;
 
 	if (check_add_overflow(start, size - 1, &end))
 		return NULL;
 
 	/*
-	 * There are no optimizations to be made here, since there are no
-	 * guarantees about the order of &pvr_heaps. Iterate over the entire
-	 * array.
+	 * There are no guarantees about the order of address ranges in
+	 * &pvr_heaps, so iterate over the entire array for a heap whose
+	 * range completely encompasses the given range.
 	 */
-	for (heap_id = 0; heap_id < ARRAY_SIZE(pvr_heaps); ++heap_id) {
-		/*
-		 * If the target range is completely within this heap, break
-		 * out and return the heap.
-		 */
+	for (u32 heap_id = 0; heap_id < ARRAY_SIZE(pvr_heaps); heap_id++) {
+		/* Filter heaps that present only with an associated quirk */
+		if (heap_id == DRM_PVR_HEAP_RGNHDR &&
+		    !PVR_HAS_QUIRK(pvr_dev, 63142)) {
+			continue;
+		}
+
 		if (pvr_heap_contains_range(&pvr_heaps[heap_id], start, end))
 			return &pvr_heaps[heap_id];
 	}
 
-	/* Search quirky heaps only if the associated quirk is present. */
-	if (PVR_HAS_QUIRK(pvr_dev, 63142) &&
-	    pvr_heap_contains_range(&rgnhdr_heap, start, end)) {
-		return &rgnhdr_heap;
-	}
-
-	/* If we make it this far, we've exhausted all possible heaps. */
 	return NULL;
 }
 

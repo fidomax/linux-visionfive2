@@ -13,6 +13,7 @@
 #include "pvr_power.h"
 #include "pvr_rogue_fwif_client.h"
 #include "pvr_rogue_fwif_shared.h"
+#include "pvr_vm.h"
 
 #include <uapi/drm/pvr_drm.h>
 
@@ -362,7 +363,6 @@ pvr_dev_query_gpu_info_get(struct pvr_device *pvr_dev,
 	gpu_info.gpu_id =
 		pvr_gpu_id_to_packed_bvnc(&pvr_dev->gpu_id);
 	gpu_info.num_phantoms = rogue_get_num_phantoms(pvr_dev);
-	gpu_info.num_heaps = pvr_get_num_heaps(pvr_dev);
 
 	err = PVR_UOBJ_SET(args->pointer, args->size, gpu_info);
 	if (err < 0)
@@ -663,7 +663,7 @@ pvr_ioctl_dev_query(struct drm_device *drm_dev, void *raw_args,
 	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
 	struct drm_pvr_ioctl_dev_query_args *args = raw_args;
 
-	switch (args->type) {
+	switch ((enum drm_pvr_dev_query)args->type) {
 	case DRM_PVR_DEV_QUERY_GPU_INFO_GET:
 		return pvr_dev_query_gpu_info_get(pvr_dev, args);
 
@@ -678,6 +678,12 @@ pvr_ioctl_dev_query(struct drm_device *drm_dev, void *raw_args,
 
 	case DRM_PVR_DEV_QUERY_ENHANCEMENTS_GET:
 		return pvr_dev_query_enhancements_get(pvr_dev, args);
+
+	case DRM_PVR_DEV_QUERY_HEAP_INFO_GET:
+		return pvr_heap_info_get(pvr_dev, args);
+
+	case DRM_PVR_DEV_QUERY_STATIC_DATA_AREAS_GET:
+		return pvr_static_data_areas_get(pvr_dev, args);
 	}
 
 	return -EINVAL;
@@ -1050,31 +1056,6 @@ pvr_ioctl_destroy_vm_context(struct drm_device *drm_dev, void *raw_args,
 }
 
 /**
- * pvr_ioctl_get_heap_info() - IOCTL to get information on device heaps
- * @drm_dev: [IN] DRM device.
- * @raw_args: [IN] Arguments passed to this IOCTL. This must be of type
- *                 &struct drm_pvr_ioctl_get_heap_info.
- * @file: [IN] DRM file private data.
- *
- * Called from userspace with %DRM_IOCTL_PVR_GET_HEAP_INFO.
- *
- * Return:
- *  * 0 on success, or
- *  * -%EFAULT on failure to write to user buffer.
- */
-int
-pvr_ioctl_get_heap_info(struct drm_device *drm_dev, void *raw_args,
-			struct drm_file *file)
-{
-	struct drm_pvr_ioctl_get_heap_info_args *args = raw_args;
-
-	if (args->_padding_4 != 0)
-		return -EINVAL;
-
-	return pvr_get_heap_info(to_pvr_device(drm_dev), args);
-}
-
-/**
  * pvr_ioctl_vm_map() - IOCTL to map buffer to GPU address space.
  * @drm_dev: [IN] DRM device.
  * @raw_args: [IN] Arguments passed to this IOCTL. This must be of type
@@ -1354,7 +1335,6 @@ static const struct drm_ioctl_desc pvr_drm_driver_ioctls[] = {
 	DRM_PVR_IOCTL(CREATE_HWRT_DATASET, create_hwrt_dataset, DRM_RENDER_ALLOW),
 	DRM_PVR_IOCTL(DESTROY_HWRT_DATASET, destroy_hwrt_dataset, DRM_RENDER_ALLOW),
 	DRM_PVR_IOCTL(SUBMIT_JOBS, submit_jobs, DRM_RENDER_ALLOW),
-	DRM_PVR_IOCTL(GET_HEAP_INFO, get_heap_info, DRM_RENDER_ALLOW),
 };
 
 /* clang-format on */

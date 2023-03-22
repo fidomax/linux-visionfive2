@@ -35,6 +35,15 @@ DEV_QUERY
                  drm_pvr_dev_query_runtime_info_ext
                  drm_pvr_dev_query_quirks
                  drm_pvr_dev_query_enhancements
+                 drm_pvr_heap_id
+                 drm_pvr_heap
+                 drm_pvr_dev_query_heap_info
+                 drm_pvr_static_data_area_usage
+                 drm_pvr_static_data_area
+                 drm_pvr_dev_query_static_data_areas
+
+.. kernel-doc:: include/uapi/drm/pvr_drm.h
+   :doc: Flags for DRM_PVR_DEV_QUERY_HEAP_INFO_GET.
 
 CREATE_BO
 ---------
@@ -173,18 +182,6 @@ SUBMIT_JOB
                  drm_pvr_job_type
                  drm_pvr_hwrt_data_ref
                  drm_pvr_job
-
-GET_HEAP_INFO
--------------
-.. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :doc: IOCTL GET_HEAP_INFO
-
-.. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :identifiers: drm_pvr_ioctl_get_heap_info_args
-
-.. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :identifiers: drm_pvr_heap_id
-
 
 Internal notes
 ==============

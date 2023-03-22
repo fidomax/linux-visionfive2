@@ -65,7 +65,36 @@ extern "C" {
 #define DRM_IOCTL_PVR_CREATE_HWRT_DATASET PVR_IOCTL(0x0b, DRM_IOWR, create_hwrt_dataset)
 #define DRM_IOCTL_PVR_DESTROY_HWRT_DATASET PVR_IOCTL(0x0c, DRM_IOW, destroy_hwrt_dataset)
 #define DRM_IOCTL_PVR_SUBMIT_JOBS PVR_IOCTL(0x0d, DRM_IOW, submit_jobs)
-#define DRM_IOCTL_PVR_GET_HEAP_INFO PVR_IOCTL(0x0e, DRM_IOWR, get_heap_info)
+
+/**
+ * struct drm_pvr_obj_array - Container used to pass arrays of objects
+ *
+ * It is not unusual to have to extend objects to pass new parameters, and the DRM
+ * ioctl infrastructure is supporting that by padding ioctl arguments with zeros
+ * when the data passed by userspace is smaller than the struct defined in the
+ * drm_ioctl_desc, thus keeping things backward compatible. This drm_pvr_obj_array
+ * is just applying the same concepts to indirect objects passed through arrays
+ * referenced from the main ioctl arguments structure: the stride basically defines
+ * the size of the object passed by userspace, which allows the kernel driver to
+ * pad things with zeros when it's smaller than the size of the object it expects.
+ *
+ * Use DRM_PVR_OBJ_ARRAY() to fill object array fields, unless you have a very
+ * good reason not to.
+ */
+struct drm_pvr_obj_array {
+	/** @stride: Stride of object struct. Used for versioning. */
+	__u32 stride;
+
+	/** @count: Number of objects in the array. */
+	__u32 count;
+
+	/** @array: User pointer to an array of objects. */
+	__u64 array;
+};
+
+#define DRM_PVR_OBJ_ARRAY(cnt, ptr) \
+	{ .stride = sizeof((ptr)[0]), .count = (cnt), .array = (__u64)(uintptr_t)(ptr) }
+
 /* clang-format on */
 
 struct drm_pvr_dev_query_gpu_info {
@@ -87,12 +116,6 @@ struct drm_pvr_dev_query_gpu_info {
 	 * @num_phantoms: Number of Phantoms present.
 	 */
 	__u32 num_phantoms;
-
-	/**
-	 * @num_heaps: Number of heaps exposed by %DRM_IOCTL_PVR_GET_HEAP_INFO
-	 * for this device.
-	 */
-	__u32 num_heaps;
 };
 
 struct drm_pvr_dev_query_runtime_info {
@@ -209,6 +232,160 @@ struct drm_pvr_dev_query_enhancements {
 };
 
 /**
+ * enum drm_pvr_heap_id - Array index for heap info data returned by
+ * DRM_PVR_DEV_QUERY_HEAP_INFO_GET.
+ */
+enum drm_pvr_heap_id {
+	/** @DRM_PVR_HEAP_GENERAL: General purpose heap. */
+	DRM_PVR_HEAP_GENERAL = 0,
+	/** @DRM_PVR_HEAP_PDS_CODE_DATA: PDS code & data heap. */
+	DRM_PVR_HEAP_PDS_CODE_DATA,
+	/** @DRM_PVR_HEAP_USC_CODE: USC code heap. */
+	DRM_PVR_HEAP_USC_CODE,
+	/** @DRM_PVR_HEAP_RGNHDR: Region header heap. Only used if GPU has BRN63142. */
+	DRM_PVR_HEAP_RGNHDR,
+	/** @DRM_PVR_HEAP_VIS_TEST: Visibility test heap. */
+	DRM_PVR_HEAP_VIS_TEST,
+	/** @DRM_PVR_HEAP_TRANSFER_FRAG: Transfer fragment heap. */
+	DRM_PVR_HEAP_TRANSFER_FRAG,
+
+	/**
+	 * @DRM_PVR_HEAP_COUNT: The number of heaps returned by
+	 * DRM_PVR_DEV_QUERY_HEAP_INFO_GET. More heaps may be added, so this
+	 * also serves as the copy limit when sent by the caller.
+	 */
+	DRM_PVR_HEAP_COUNT
+	/* Please only add additional heaps above DRM_PVR_HEAP_COUNT! */
+};
+
+/*
+ * DOC: Flags for DRM_PVR_DEV_QUERY_HEAP_INFO_GET.
+ *
+ * .. c:macro:: DRM_PVR_HEAP_FLAG_STATIC_CARVEOUT_AT_END
+ *
+ *    The static data area is at the end of the heap memory area, rather than
+ *    at the beginning.
+ *    The base address will be:
+ *        drm_pvr_heap::base +
+ *            (drm_pvr_heap::size - drm_pvr_heap::static_data_carveout_size)
+ */
+#define DRM_PVR_HEAP_FLAG_STATIC_CARVEOUT_AT_END _BITUL(0)
+
+struct drm_pvr_heap {
+	/** @base: Base address of heap. */
+	__u64 base;
+
+	/**
+	 * @size: Size of heap, in bytes. Will be 0 if the heap is not present.
+	 */
+	__u64 size;
+
+	/** @flags: Flags for this heap. See &enum drm_pvr_heap_flags. */
+	__u32 flags;
+
+	/** @page_size_log2: Log2 of page size. */
+	__u32 page_size_log2;
+};
+
+/**
+ * struct drm_pvr_dev_query_heap_info_args - Arguments for
+ * %DRM_PVR_DEV_QUERY_HEAP_INFO_GET
+ */
+struct drm_pvr_dev_query_heap_info {
+	/**
+	 * @heaps: Array of struct drm_pvr_heap. If pointer is NULL, the count
+	 * and stride will be updated with those known to the driver version, to
+	 * facilitate allocation by the caller.
+	 */
+	struct drm_pvr_obj_array heaps;
+};
+
+enum drm_pvr_static_data_area_usage {
+	/**
+	 * @DRM_PVR_STATIC_DATA_AREA_EOT: End of Tile USC program.
+	 *
+	 * The End of Tile task runs at completion of a tile, and is responsible for emitting the
+	 * tile to the Pixel Back End.
+	 */
+	DRM_PVR_STATIC_DATA_AREA_EOT = 0,
+
+	/**
+	 * @DRM_PVR_STATIC_DATA_AREA_FENCE: MCU fence area, used during cache flush and
+	 * invalidation.
+	 *
+	 * This must point to valid physical memory but the contents otherwise are not used.
+	 */
+	DRM_PVR_STATIC_DATA_AREA_FENCE,
+
+	/** @DRM_PVR_STATIC_DATA_AREA_VDM_SYNC: VDM sync program.
+	 *
+	 * The VDM sync program is used to synchronise multiple areas of the GPU hardware.
+	 */
+	DRM_PVR_STATIC_DATA_AREA_VDM_SYNC,
+
+	/**
+	 * @DRM_PVR_STATIC_DATA_AREA_YUV_CSC: YUV coefficients.
+	 *
+	 * Area contains up to 16 slots with stride of 64 bytes. Each is a 3x4 matrix of u16 fixed
+	 * point numbers, with 1 sign bit, 2 integer bits and 13 fractional bits.
+	 *
+	 * The slots are :
+	 * 0 = VK_SAMPLER_YCBCR_MODEL_CONVERSION_RGB_IDENTITY_KHR
+	 * 1 = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_IDENTITY_KHR (full range)
+	 * 2 = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_IDENTITY_KHR (conformant range)
+	 * 3 = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_709_KHR (full range)
+	 * 4 = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_709_KHR (conformant range)
+	 * 5 = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_601_KHR (full range)
+	 * 6 = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_601_KHR (conformant range)
+	 * 7 = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_2020_KHR (full range)
+	 * 8 = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_2020_KHR (conformant range)
+	 * 9 = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_601_KHR (conformant range, 10 bit)
+	 * 10 = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_709_KHR (conformant range, 10 bit)
+	 * 11 = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_2020_KHR (conformant range, 10 bit)
+	 * 14 = Identity (biased)
+	 * 15 = Identity
+	 */
+	DRM_PVR_STATIC_DATA_AREA_YUV_CSC,
+};
+
+struct drm_pvr_static_data_area {
+	/**
+	 * @id: Usage of static data area.
+	 * See &enum drm_pvr_static_data_area_usage.
+	 */
+	__u16 area_usage;
+
+	/**
+	 * @location_heap_id: Array index of heap where this of static data
+	 * area is located. This array is fetched using
+	 * %DRM_PVR_DEV_QUERY_HEAP_INFO_GET.
+	 */
+	__u16 location_heap_id;
+
+	/** @size: Size of static data area. */
+	__u32 size;
+
+	/**
+	 * @offset: Offset of static data area from start of static data
+	 * carveout.
+	 */
+	__u64 offset;
+};
+
+/**
+ * struct drm_pvr_dev_query_static_data_areas_args - Arguments for
+ * %DRM_PVR_DEV_QUERY_STATIC_DATA_AREAS_GET
+ */
+struct drm_pvr_dev_query_static_data_areas {
+	/**
+	 * @static_data_areas: Array of struct drm_pvr_static_data_area. If
+	 * pointer is NULL, the count and stride will be updated with those
+	 * known to the driver version, to facilitate allocation by the caller.
+	 */
+	struct drm_pvr_obj_array static_data_areas;
+};
+
+/**
  * enum drm_pvr_dev_query - Arguments for &drm_pvr_ioctl_dev_query_args.type
  *
  * Append only. Do not reorder.
@@ -228,6 +405,12 @@ enum drm_pvr_dev_query {
 
 	/* struct drm_pvr_dev_query_enhancements */
 	DRM_PVR_DEV_QUERY_ENHANCEMENTS_GET,
+
+	/* struct drm_pvr_dev_query_heap_info */
+	DRM_PVR_DEV_QUERY_HEAP_INFO_GET,
+
+	/* struct drm_pvr_dev_query_static_data_areas */
+	DRM_PVR_DEV_QUERY_STATIC_DATA_AREAS_GET,
 };
 
 /**
@@ -380,7 +563,7 @@ struct drm_pvr_ioctl_destroy_vm_context_args {
  * The VM UAPI allows userspace to create buffer object mappings in GPU virtual address space.
  *
  * The client is responsible for managing GPU address space. It should allocate mappings within
- * the heaps returned by %DRM_IOCTL_PVR_GET_HEAP_INFO.
+ * the heaps returned by %DRM_PVR_DEV_QUERY_HEAP_INFO_GET.
  *
  * %DRM_IOCTL_PVR_VM_MAP creates a new mapping. The client provides the target virtual address for
  * the mapping. Size and offset within the mapped buffer object can be specified, so the client can
@@ -408,7 +591,7 @@ struct drm_pvr_ioctl_vm_map_args {
 	 * This must be non-zero and aligned to the device page size for the
 	 * heap containing the requested address. It is an error to specify an
 	 * address which is not contained within one of the heaps returned by
-	 * %DRM_IOCTL_PVR_GET_HEAP_INFO.
+	 * %DRM_PVR_DEV_QUERY_HEAP_INFO_GET.
 	 */
 	__u64 device_addr;
 
@@ -434,7 +617,7 @@ struct drm_pvr_ioctl_vm_map_args {
 	 * result must not overflow the heap which contains @device_addr (i.e.
 	 * the range specified by @device_addr and @size must be completely
 	 * contained within a single heap specified by
-	 * %DRM_IOCTL_PVR_GET_HEAP_INFO).
+	 * %DRM_PVR_DEV_QUERY_HEAP_INFO_GET).
 	 */
 	__u64 size;
 };
@@ -495,35 +678,6 @@ enum drm_pvr_ctx_type {
 	 */
 	DRM_PVR_CTX_TYPE_TRANSFER_FRAG,
 };
-
-/**
- * struct drm_pvr_obj_array - Container used to pass arrays of objects
- *
- * It is not unusual to have to extend objects to pass new parameters, and the DRM
- * ioctl infrastructure is supporting that by padding ioctl arguments with zeros
- * when the data passed by userspace is smaller than the struct defined in the
- * drm_ioctl_desc, thus keeping things backward compatible. This drm_pvr_obj_array
- * is just applying the same concepts to indirect objects passed through arrays
- * referenced from the main ioctl arguments structure: the stride basically defines
- * the size of the object passed by userspace, which allows the kernel driver to
- * pad things with zeros when it's smaller than the size of the object it expects.
- *
- * Use DRM_PVR_OBJ_ARRAY() to fill object array fields, unless you have a very
- * good reason not to.
- */
-struct drm_pvr_obj_array {
-	/** @stride: Stride of object struct. Used for versioning. */
-	__u32 stride;
-
-	/** @count: Number of objects in the array. */
-	__u32 count;
-
-	/** @array: User pointer to an array of objects. */
-	__u64 array;
-};
-
-#define DRM_PVR_OBJ_ARRAY(cnt, ptr) \
-	{ .stride = sizeof((ptr)[0]), .count = (cnt), .array = (__u64)(uintptr_t)(ptr) }
 
 /* clang-format on */
 
@@ -775,181 +929,6 @@ struct drm_pvr_ioctl_destroy_hwrt_dataset_args {
 
 	/** @_padding_4: Reserved. This field must be zeroed. */
 	__u32 _padding_4;
-};
-
-/**
- * DOC: Heap UAPI
- *
- * The PowerVR address space is pre-divided into a number of heaps. The exact
- * number and layout of heaps may vary depending on the exact GPU being used.
- *
- * Heaps have the following properties:
- * - ID: Defines the type of heap. In addition to the general heap, there are a
- *   number of special purpose heaps.
- * - Base & size: Defines the heap address range.
- * - Page size: Defined by the GPU device. This may not be constant across all
- *   heaps.
- * - Static data carveout base & size: Defines the static data carveout region
- *   of the heap address range. If the heap does not have a carveout region then
- *   base & size will be zero.
- * - Static data areas: Pre-allocated data areas within the carveout region.
- */
-
-enum drm_pvr_get_heap_info_op {
-	/** @DRM_PVR_HEAP_OP_GET_HEAP_INFO: Get &struct drm_pvr_heap for the requested heap. */
-	DRM_PVR_HEAP_OP_GET_HEAP_INFO = 0,
-	/**
-	 * @DRM_PVR_HEAP_OP_GET_STATIC_DATA_AREAS: Get array of &struct drm_pvr_static_data_area
-	 * for the requested heap.
-	 */
-	DRM_PVR_HEAP_OP_GET_STATIC_DATA_AREAS = 1,
-};
-
-/**
- * enum drm_pvr_heap_id - Valid heap IDs returned by %DRM_IOCTL_PVR_GET_HEAP_INFO
- */
-enum drm_pvr_heap_id {
-	/** @DRM_PVR_HEAP_GENERAL: General purpose heap. */
-	DRM_PVR_HEAP_GENERAL = 0,
-	/** @DRM_PVR_HEAP_PDS_CODE_DATA: PDS code & data heap. */
-	DRM_PVR_HEAP_PDS_CODE_DATA,
-	/** @DRM_PVR_HEAP_USC_CODE: USC code heap. */
-	DRM_PVR_HEAP_USC_CODE,
-	/** @DRM_PVR_HEAP_RGNHDR: Region header heap. Only used if GPU has BRN63142. */
-	DRM_PVR_HEAP_RGNHDR,
-	/** @DRM_PVR_HEAP_VIS_TEST: Visibility test heap. */
-	DRM_PVR_HEAP_VIS_TEST,
-	/** @DRM_PVR_HEAP_TRANSFER_FRAG: Transfer fragment heap. */
-	DRM_PVR_HEAP_TRANSFER_FRAG,
-};
-
-/*
- * DOC: Flags for heaps returned by GET_HEAP_INFO ioctl command.
- */
-#define DRM_PVR_HEAP_FLAGS_VALID_MASK 0
-
-struct drm_pvr_heap {
-	/** @id: Heap ID. This must be one of the values defined by &enum drm_pvr_heap_id. */
-	__u32 id;
-
-	/** @flags: Flags for this heap. Currently always 0. */
-	__u32 flags;
-
-	/** @base: Base address of heap. */
-	__u64 base;
-
-	/** @size: Size of heap, in bytes. */
-	__u64 size;
-
-	/**
-	 * @static_data_carveout_base: Base address of static data carveout.
-	 *
-	 * The static data carveout must be located at the beginning or end of the heap. Any other
-	 * location is invalid and should be rejected by the caller.
-	 */
-	__u64 static_data_carveout_base;
-
-	/**
-	 * @static_data_carveout_size: Size of static data carveout, in bytes. May be 0 if this
-	 *                             heap has no carveout.
-	 */
-	__u64 static_data_carveout_size;
-
-	/** @page_size_log2: Log2 of page size. */
-	__u32 page_size_log2;
-
-	/**
-	 * @nr_static_data_areas: Number of &struct drm_pvr_static_data_areas
-	 *                        returned for this heap by
-	 *                        %DRM_PVR_HEAP_OP_GET_STATIC_DATA_AREAS.
-	 */
-	__u32 nr_static_data_areas;
-};
-
-enum drm_pvr_static_data_area_id {
-	/**
-	 * @DRM_PVR_STATIC_DATA_AREA_EOT: End of Tile USC program.
-	 *
-	 * The End of Tile task runs at completion of a tile, and is responsible for emitting the
-	 * tile to the Pixel Back End.
-	 */
-	DRM_PVR_STATIC_DATA_AREA_EOT = 0,
-
-	/**
-	 * @DRM_PVR_STATIC_DATA_AREA_FENCE: MCU fence area, used during cache flush and
-	 * invalidation.
-	 *
-	 * This must point to valid physical memory but the contents otherwise are not used.
-	 */
-	DRM_PVR_STATIC_DATA_AREA_FENCE,
-
-	/** @DRM_PVR_STATIC_DATA_AREA_VDM_SYNC: VDM sync program.
-	 *
-	 * The VDM sync program is used to synchronise multiple areas of the GPU hardware.
-	 */
-	DRM_PVR_STATIC_DATA_AREA_VDM_SYNC,
-
-	/**
-	 * @DRM_PVR_STATIC_DATA_AREA_YUV_CSC: YUV coefficients.
-	 *
-	 * Area contains up to 16 slots with stride of 64 bytes. Each is a 3x4 matrix of u16 fixed
-	 * point numbers, with 1 sign bit, 2 integer bits and 13 fractional bits.
-	 *
-	 * The slots are :
-	 * 0 = VK_SAMPLER_YCBCR_MODEL_CONVERSION_RGB_IDENTITY_KHR
-	 * 1 = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_IDENTITY_KHR (full range)
-	 * 2 = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_IDENTITY_KHR (conformant range)
-	 * 3 = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_709_KHR (full range)
-	 * 4 = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_709_KHR (conformant range)
-	 * 5 = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_601_KHR (full range)
-	 * 6 = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_601_KHR (conformant range)
-	 * 7 = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_2020_KHR (full range)
-	 * 8 = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_2020_KHR (conformant range)
-	 * 9 = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_601_KHR (conformant range, 10 bit)
-	 * 10 = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_709_KHR (conformant range, 10 bit)
-	 * 11 = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_2020_KHR (conformant range, 10 bit)
-	 * 14 = Identity (biased)
-	 * 15 = Identity
-	 */
-	DRM_PVR_STATIC_DATA_AREA_YUV_CSC,
-};
-
-struct drm_pvr_static_data_area {
-	/** @id: ID of static data area. */
-	__u32 id;
-
-	/** @size: Size of static data area. */
-	__u32 size;
-
-	/** @offset: Offset of static data area from start of static data carveout. */
-	__u64 offset;
-};
-
-/**
- * struct drm_pvr_ioctl_get_heap_info_args - Arguments for
- * %DRM_IOCTL_PVR_GET_HEAP_INFO
- */
-struct drm_pvr_ioctl_get_heap_info_args {
-	/**
-	 * @op: [IN] Operation to perform for this ioctl. Must be one of
-	 *           &enum drm_pvr_get_heap_info_op.
-	 */
-	__u32 op;
-
-	/** @_padding_4: Reserved. This field must be zeroed. */
-	__u32 _padding_4;
-
-	/**
-	 * @data: [IN] User pointer to memory that this ioctl writes to. This should point to
-	 *             &struct drm_pvr_heap when &op == %DRM_PVR_HEAP_OP_GET_HEAP_INFO, or an
-	 *             array of &struct drm_pvr_static_data_area, of size
-	 *             %drm_pvr_heap.nr_static_data_areas elements, when &op ==
-	 *             %DRM_PVR_HEAP_OP_GET_STATIC_DATA_AREAS.
-	 */
-	__u64 data;
-
-	/** @heap_nr: [IN] Number of heap to get information for. */
-	__u32 heap_nr;
 };
 
 /**

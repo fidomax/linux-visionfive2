@@ -50,6 +50,10 @@ int pvr_set_uobj_array(const struct drm_pvr_obj_array *out, u32 min_stride, u32 
 	PVR_UOBJ_DECL(struct drm_pvr_dev_query_hwrt_info, _padding_4) \
 	PVR_UOBJ_DECL(struct drm_pvr_dev_query_quirks, _padding_c) \
 	PVR_UOBJ_DECL(struct drm_pvr_dev_query_enhancements, _padding_c) \
+	PVR_UOBJ_DECL(struct drm_pvr_heap, page_size_log2) \
+	PVR_UOBJ_DECL(struct drm_pvr_dev_query_heap_info, heaps) \
+	PVR_UOBJ_DECL(struct drm_pvr_static_data_area, offset) \
+	PVR_UOBJ_DECL(struct drm_pvr_dev_query_static_data_areas, static_data_areas) \
 	)
 
 /** PVR_UOBJ_GET() - Copies from _src_usr_ptr to &_dest_obj. */
