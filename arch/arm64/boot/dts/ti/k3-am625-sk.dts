@@ -270,3 +270,11 @@
 &tlv320aic3106 {
 	DVDD-supply = <&vcc_1v8>;
 };
+
+&gpu {
+	status = "okay";
+};
+
+&dss {
+	status = "okay";
+};
