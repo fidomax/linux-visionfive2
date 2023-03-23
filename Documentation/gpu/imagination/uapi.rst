@@ -6,6 +6,11 @@ The sources associated with this section can be found in ``pvr_drm.h``.
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
    :doc: PowerVR UAPI
 
+.. kernel-doc:: include/uapi/drm/pvr_drm.h
+   :identifiers: drm_pvr_obj_array
+
+.. kernel-doc:: include/uapi/drm/pvr_drm.h
+   :identifiers: DRM_PVR_OBJ_ARRAY
 
 IOCTLS
 ======
@@ -14,6 +19,22 @@ IOCTLS
 
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
    :identifiers: PVR_IOCTL
+
+DEV_QUERY
+---------
+.. kernel-doc:: include/uapi/drm/pvr_drm.h
+   :doc: IOCTL DEV_QUERY
+
+.. kernel-doc:: include/uapi/drm/pvr_drm.h
+   :identifiers: drm_pvr_ioctl_dev_query_args
+
+.. kernel-doc:: include/uapi/drm/pvr_drm.h
+   :identifiers: drm_pvr_dev_query
+                 drm_pvr_dev_query_gpu_info
+                 drm_pvr_dev_query_runtime_info
+                 drm_pvr_dev_query_runtime_info_ext
+                 drm_pvr_dev_query_quirks
+                 drm_pvr_dev_query_enhancements
 
 CREATE_BO
 ---------
@@ -34,16 +55,38 @@ GET_BO_MMAP_OFFSET
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
    :identifiers: drm_pvr_ioctl_get_bo_mmap_offset_args
 
-GET_PARAM
----------
+CREATE_VM_CONTEXT
+-----------------
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :doc: IOCTL GET_PARAM
+   :doc: IOCTL CREATE_VM_CONTEXT
 
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :identifiers: drm_pvr_ioctl_get_param_args
+   :identifiers: drm_pvr_ioctl_create_vm_context_args
+
+DESTROY_VM_CONTEXT
+------------------
+.. kernel-doc:: include/uapi/drm/pvr_drm.h
+   :doc: IOCTL DESTROY_VM_CONTEXT
 
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :identifiers: drm_pvr_param
+   :identifiers: drm_pvr_ioctl_destroy_vm_context_args
+
+VM UAPI
+-------
+.. kernel-doc:: include/uapi/drm/pvr_drm.h
+   :doc: VM UAPI
+
+.. kernel-doc:: include/uapi/drm/pvr_drm.h
+   :doc: IOCTL VM_MAP
+
+.. kernel-doc:: include/uapi/drm/pvr_drm.h
+   :identifiers: drm_pvr_ioctl_vm_map_args
+
+.. kernel-doc:: include/uapi/drm/pvr_drm.h
+   :doc: IOCTL VM_UNMAP
+
+.. kernel-doc:: include/uapi/drm/pvr_drm.h
+   :identifiers: drm_pvr_ioctl_vm_unmap_args
 
 CREATE_CONTEXT
 --------------
@@ -69,29 +112,67 @@ DESTROY_CONTEXT
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
    :identifiers: drm_pvr_ioctl_destroy_context_args
 
-CREATE_OBJECT
--------------
+CREATE_FREE_LIST
+-------------------
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :doc: IOCTL CREATE_OBJECT
+   :doc: IOCTL CREATE_FREE_LIST
 
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :identifiers: drm_pvr_ioctl_create_object_args
+   :identifiers: drm_pvr_ioctl_create_free_list_args
+
+DESTROY_FREE_LIST
+-------------------
+.. kernel-doc:: include/uapi/drm/pvr_drm.h
+   :doc: IOCTL DESTROY_FREE_LIST
 
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :identifiers: drm_pvr_object_type
-                 drm_pvr_ioctl_create_free_list_args
-                 create_hwrt_geom_data_args
-                 create_hwrt_rt_data_args
-                 create_hwrt_free_list_args
-                 drm_pvr_ioctl_create_hwrt_dataset_args
+   :identifiers: drm_pvr_ioctl_destroy_free_list_args
 
-DESTROY_OBJECT
---------------
+CREATE_HWRT_DATASET
+-------------------
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :doc: IOCTL DESTROY_OBJECT
+   :doc: IOCTL CREATE_HWRT_DATASET
 
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :identifiers: drm_pvr_ioctl_destroy_object_args
+   :identifiers: drm_pvr_ioctl_create_hwrt_dataset_args
+
+.. kernel-doc:: include/uapi/drm/pvr_drm.h
+   :identifiers: drm_pvr_create_hwrt_geom_data_args
+                 drm_pvr_create_hwrt_rt_data_args
+
+DESTROY_HWRT_DATASET
+-------------------
+.. kernel-doc:: include/uapi/drm/pvr_drm.h
+   :doc: IOCTL DESTROY_HWRT_DATASET
+
+.. kernel-doc:: include/uapi/drm/pvr_drm.h
+   :identifiers: drm_pvr_ioctl_destroy_hwrt_dataset_args
+
+SUBMIT_JOB
+----------
+.. kernel-doc:: include/uapi/drm/pvr_drm.h
+   :doc: Flags for the drm_pvr_sync_op object.
+
+.. kernel-doc:: include/uapi/drm/pvr_drm.h
+   :identifiers: drm_pvr_ioctl_submit_jobs_args
+
+.. kernel-doc:: include/uapi/drm/pvr_drm.h
+   :doc: Flags for SUBMIT_JOB ioctl geometry command.
+
+.. kernel-doc:: include/uapi/drm/pvr_drm.h
+   :doc: Flags for SUBMIT_JOB ioctl fragment command.
+
+.. kernel-doc:: include/uapi/drm/pvr_drm.h
+   :doc: Flags for SUBMIT_JOB ioctl compute command.
+
+.. kernel-doc:: include/uapi/drm/pvr_drm.h
+   :doc: Flags for SUBMIT_JOB ioctl transfer command.
+
+.. kernel-doc:: include/uapi/drm/pvr_drm.h
+   :identifiers: drm_pvr_sync_op
+                 drm_pvr_job_type
+                 drm_pvr_hwrt_data_ref
+                 drm_pvr_job
 
 GET_HEAP_INFO
 -------------
@@ -104,19 +185,6 @@ GET_HEAP_INFO
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
    :identifiers: drm_pvr_heap_id
 
-VM_OP
------
-.. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :doc: IOCTL VM_OP
-
-.. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :identifiers: drm_pvr_ioctl_vm_op_args
-
-.. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :identifiers: drm_pvr_ioctl_vm_op_map_args drm_pvr_ioctl_vm_op_unmap_args
-
-.. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :doc: Flags for VM_OP
 
 Internal notes
 ==============
