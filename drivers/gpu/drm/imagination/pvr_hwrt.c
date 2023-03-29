@@ -252,13 +252,13 @@ hwrt_init_common_fw_structure(struct pvr_file *pvr_file,
 		 * aligned to a tile group.
 		 */
 		info.mtile_x[0] = DIV_ROUND_UP(info.num_tiles_x, 8) * 2;
-		info.mtile_y[0] = DIV_ROUND_UP(info.num_tiles_x, 8) * 2;
+		info.mtile_y[0] = DIV_ROUND_UP(info.num_tiles_y, 8) * 2;
 		info.mtile_x[1] = 0;
 		info.mtile_y[1] = 0;
 		info.mtile_x[2] = 0;
 		info.mtile_y[2] = 0;
 		info.tile_max_x = round_up(info.num_tiles_x, 2) - 1;
-		info.tile_max_y = round_up(info.num_tiles_x, 2) - 1;
+		info.tile_max_y = round_up(info.num_tiles_y, 2) - 1;
 	} else {
 		/* Set up 16 macrotiles with a multiple of 4x4 tiles per macrotile. */
 		info.mtile_x[0] = round_up(DIV_ROUND_UP(info.num_tiles_x, 4), 4);
