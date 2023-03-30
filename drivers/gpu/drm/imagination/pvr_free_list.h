@@ -164,7 +164,7 @@ pvr_free_list_lookup_id(struct pvr_device *pvr_dev, u32 id)
 	 * destroyed.
 	 */
 	free_list = xa_load(&pvr_dev->free_list_ids, id);
-	if (!kref_get_unless_zero(&free_list->ref_count))
+	if (free_list && !kref_get_unless_zero(&free_list->ref_count))
 		free_list = NULL;
 	xa_unlock(&pvr_dev->free_list_ids);
 
