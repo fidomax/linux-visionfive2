@@ -4,6 +4,7 @@
 #ifndef __PVR_DRV_H__
 #define __PVR_DRV_H__
 
+#include "linux/compiler_attributes.h"
 #include <uapi/drm/pvr_drm.h>
 
 #define PVR_DRIVER_NAME "powervr"
@@ -20,42 +21,60 @@
 
 int pvr_get_uobj(u64 usr_ptr, u32 usr_size, u32 min_size, u32 obj_size, void *out);
 int pvr_set_uobj(u64 usr_ptr, u32 usr_size, u32 min_size, u32 obj_size, const void *in);
-void *pvr_get_uobj_array(const struct drm_pvr_obj_array *in, u32 min_stride, u32 obj_size);
+int pvr_get_uobj_array(const struct drm_pvr_obj_array *in, u32 min_stride, u32 obj_size,
+		       void **out);
 int pvr_set_uobj_array(const struct drm_pvr_obj_array *out, u32 min_stride, u32 obj_size,
 		       const void *in);
 
-#define DRM_PVR_OBJ_TYPE(__obj_name, __last_mandatory_field) \
-static __always_inline int \
-pvr_get_ ## __obj_name(u64 usr_ptr, u32 usr_size, struct drm_pvr_ ## __obj_name *out) \
-{ \
-	u32 min_size = offsetof(struct drm_pvr_ ## __obj_name, __last_mandatory_field) + \
-		       sizeof(out->__last_mandatory_field); \
-	return pvr_get_uobj(usr_ptr, usr_size, min_size, sizeof(*out), out); \
-} \
-static __always_inline int \
-pvr_set_ ## __obj_name(u64 usr_ptr, u32 usr_size, const struct drm_pvr_ ## __obj_name *in) \
-{ \
-	u32 min_size = offsetof(struct drm_pvr_ ## __obj_name, __last_mandatory_field) + \
-		       sizeof(in->__last_mandatory_field); \
-	return pvr_set_uobj(usr_ptr, usr_size, min_size, sizeof(*in), in); \
-} \
-static __always_inline struct drm_pvr_ ## __obj_name * \
-pvr_get_ ## __obj_name ## _array(struct drm_pvr_obj_array *in) \
-{ \
-	u32 min_stride = offsetof(struct drm_pvr_ ## __obj_name, __last_mandatory_field) + \
-			 sizeof(((struct drm_pvr_ ## __obj_name *)0)->__last_mandatory_field); \
-	return pvr_get_uobj_array(in, min_stride, sizeof(struct drm_pvr_ ## __obj_name)); \
-} \
-static __always_inline int \
-pvr_set_ ## __obj_name ## _array(const struct drm_pvr_obj_array *out, \
-				 const struct drm_pvr_ ## __obj_name *in) \
-{ \
-	u32 min_stride = offsetof(struct drm_pvr_ ## __obj_name, __last_mandatory_field) + \
-			 sizeof(((struct drm_pvr_ ## __obj_name *)0)->__last_mandatory_field); \
-	return pvr_set_uobj_array(out, min_stride, sizeof(struct drm_pvr_ ## __obj_name), in); \
-}
+#define PVR_UOBJ_MIN_SIZE_INTERNAL(_typename, _last_mandatory_field) \
+	(offsetof(_typename, _last_mandatory_field) + \
+	 sizeof(((_typename *)NULL)->_last_mandatory_field))
 
-DRM_PVR_OBJ_TYPE(sync_op, value);
-DRM_PVR_OBJ_TYPE(job, hwrt);
+#define PVR_UOBJ_DECL(_typename, _last_mandatory_field) \
+	, _typename : PVR_UOBJ_MIN_SIZE_INTERNAL(_typename, _last_mandatory_field)
+
+/**
+ * PVR user objects.
+ *
+ * Macros used to aid copying structured and array data to and from
+ * userspace. Objects can differ in size, provided the minimum size
+ * allowed is specified (using the last mandatory field in the struct).
+ * All types used with PVR_UOBJ_GET/SET macros must be listed here under
+ * PVR_UOBJ_MIN_SIZE, with the last mandatory struct field specified.
+ */
+#define PVR_UOBJ_MIN_SIZE(_obj_name) _Generic(_obj_name \
+	PVR_UOBJ_DECL(struct drm_pvr_job, hwrt) \
+	PVR_UOBJ_DECL(struct drm_pvr_sync_op, value) \
+	)
+
+/** PVR_UOBJ_GET() - Copies from _src_usr_ptr to &_dest_obj. */
+#define PVR_UOBJ_GET(_dest_obj, _usr_size, _src_usr_ptr) \
+	pvr_get_uobj(_src_usr_ptr, _usr_size, \
+		     PVR_UOBJ_MIN_SIZE(_dest_obj), \
+		     sizeof(_dest_obj), &_dest_obj)
+
+/** PVR_UOBJ_SET() - Copies from &_src_obj to _dest_usr_ptr. */
+#define PVR_UOBJ_SET(_dest_usr_ptr, _usr_size, _src_obj) \
+	pvr_set_uobj(_dest_usr_ptr, _usr_size, \
+		     PVR_UOBJ_MIN_SIZE(_src_obj), \
+		     sizeof(_src_obj), &_src_obj)
+
+/**
+ * PVR_UOBJ_GET_ARRAY() - Copies from _src_drm_pvr_obj_array.array to
+ * alloced memory and returns a pointer in _dest_array.
+ */
+#define PVR_UOBJ_GET_ARRAY(_dest_array, _src_drm_pvr_obj_array) \
+	pvr_get_uobj_array(_src_drm_pvr_obj_array, \
+			   PVR_UOBJ_MIN_SIZE(_dest_array[0]), \
+			   sizeof(_dest_array[0]), (void **)&_dest_array)
+
+/**
+ * PVR_UOBJ_SET_ARRAY() - Copies from _src_array to
+ * _dest_drm_pvr_obj_array.array.
+ */
+#define PVR_UOBJ_SET_ARRAY(_dest_drm_pvr_obj_array, _src_array) \
+	pvr_set_uobj_array(_dest_drm_pvr_obj_array, \
+			   PVR_UOBJ_MIN_SIZE(_src_array[0]), \
+			   sizeof(_src_array[0]), _src_array)
 
 #endif /* __PVR_DRV_H__ */

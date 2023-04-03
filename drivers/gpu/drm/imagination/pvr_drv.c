@@ -1064,37 +1064,39 @@ pvr_set_uobj(u64 usr_ptr, u32 usr_stride, u32 min_stride, u32 obj_size, const vo
 	if (usr_stride < min_stride)
 		return -EINVAL;
 
-	if (clear_user(u64_to_user_ptr(usr_ptr), usr_stride))
-		return -EFAULT;
-
 	if (copy_to_user(u64_to_user_ptr(usr_ptr), in, min_t(u32, usr_stride, obj_size)))
 		return -EFAULT;
+
+	if (usr_stride > obj_size &&
+	    clear_user(u64_to_user_ptr(usr_ptr + obj_size), usr_stride - obj_size)) {
+		return -EFAULT;
+	}
 
 	return 0;
 }
 
-void *
-pvr_get_uobj_array(const struct drm_pvr_obj_array *in, u32 min_stride, u32 obj_size)
+int
+pvr_get_uobj_array(const struct drm_pvr_obj_array *in, u32 min_stride, u32 obj_size, void **out)
 {
 	int ret = 0;
-	void *out;
+	void *out_alloc;
 
 	if (in->stride < min_stride)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	if (!in->count)
-		return NULL;
+		return 0;
 
-	out = kvmalloc_array(in->count, obj_size, GFP_KERNEL);
-	if (!out)
-		return ERR_PTR(-ENOMEM);
+	out_alloc = kvmalloc_array(in->count, obj_size, GFP_KERNEL);
+	if (!out_alloc)
+		return -ENOMEM;
 
 	if (obj_size == in->stride) {
-		if (copy_from_user(out, u64_to_user_ptr(in->array), obj_size * in->count))
+		if (copy_from_user(out_alloc, u64_to_user_ptr(in->array), obj_size * in->count))
 			ret = -EFAULT;
 	} else {
 		void __user *in_ptr = u64_to_user_ptr(in->array);
-		void *out_ptr = out;
+		void *out_ptr = out_alloc;
 
 		for (u32 i = 0; i < in->count; i++) {
 			ret = copy_struct_from_user(out_ptr, obj_size, in_ptr, in->stride);
@@ -1107,11 +1109,12 @@ pvr_get_uobj_array(const struct drm_pvr_obj_array *in, u32 min_stride, u32 obj_s
 	}
 
 	if (ret) {
-		kvfree(out);
-		return ERR_PTR(ret);
+		kvfree(out_alloc);
+		return ret;
 	}
 
-	return out;
+	*out = out_alloc;
+	return 0;
 }
 
 int
@@ -1123,9 +1126,6 @@ pvr_set_uobj_array(const struct drm_pvr_obj_array *out, u32 min_stride, u32 obj_
 
 	if (!out->count)
 		return 0;
-
-	if (clear_user(u64_to_user_ptr(out->array), obj_size * out->count))
-		return -EFAULT;
 
 	if (obj_size == out->stride) {
 		if (copy_to_user(u64_to_user_ptr(out->array), in, obj_size * out->count))
@@ -1141,6 +1141,12 @@ pvr_set_uobj_array(const struct drm_pvr_obj_array *out, u32 min_stride, u32 obj_
 
 			out_ptr += obj_size;
 			in_ptr += out->stride;
+		}
+
+		if (out->stride > obj_size &&
+		    clear_user(u64_to_user_ptr(out->array + obj_size),
+			       out->stride - obj_size)) {
+			return -EFAULT;
 		}
 	}
 

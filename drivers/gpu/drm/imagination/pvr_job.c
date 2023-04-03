@@ -966,11 +966,9 @@ pvr_create_job(struct pvr_device *pvr_dev,
 	if (err)
 		goto err_put_job;
 
-	sync_ops = pvr_get_sync_op_array(&args->sync_ops);
-	if (IS_ERR(sync_ops)) {
-		err = PTR_ERR(sync_ops);
+	err = PVR_UOBJ_GET_ARRAY(sync_ops, &args->sync_ops);
+	if (err)
 		goto err_put_job;
-	}
 
 	err = pvr_sync_signal_array_collect_ops(signal_array, from_pvr_file(pvr_file),
 						args->sync_ops.count, sync_ops);
@@ -1061,9 +1059,9 @@ pvr_submit_jobs(struct pvr_device *pvr_dev,
 	if (!args->jobs.count)
 		return -EINVAL;
 
-	jobs_args = pvr_get_job_array(&args->jobs);
-	if (IS_ERR(jobs_args))
-		return PTR_ERR(jobs_args);
+	err = PVR_UOBJ_GET_ARRAY(jobs_args, &args->jobs);
+	if (err)
+		return err;
 
 	jobs = kvmalloc_array(args->jobs.count, sizeof(*jobs), GFP_KERNEL | __GFP_ZERO);
 	if (!jobs) {
