@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /**
- * DOC: IOCTLS
+ * DOC: PowerVR UAPI
  *
  * The PowerVR IOCTL argument structs have a few limitations in place, in
  * addition to the standard kernel restrictions:
@@ -22,31 +22,74 @@ extern "C" {
  *  - All members must be type-aligned.
  *  - The overall struct must be padded to 64-bit alignment.
  *  - Explicit padding is almost always required. This takes the form of
- *    &_padding_x members of sufficient size to pad to the next power-of-two
- *    alignment, where x is the offset into the struct in hexadecimal. Arrays
+ *    ``_padding_[x]`` members of sufficient size to pad to the next power-of-two
+ *    alignment, where [x] is the offset into the struct in hexadecimal. Arrays
  *    are never used for alignment. Padding fields must be zeroed; this is
  *    always checked.
  *  - Unions may only appear as the last member of a struct.
  *  - Individual union members may grow in the future. The space between the
  *    end of a union member and the end of its containing union is considered
  *    "implicit padding" and must be zeroed. This is always checked.
+ *
+ * In addition to the IOCTL argument structs, the PowerVR UAPI makes use of
+ * DEV_QUERY argument structs. These are used to fetch information about the
+ * device and runtime. These structs are subject to the same rules set out
+ * above.
  */
 
-/* clang-format off */
+/**
+ * struct drm_pvr_obj_array - Container used to pass arrays of objects
+ *
+ * It is not unusual to have to extend objects to pass new parameters, and the DRM
+ * ioctl infrastructure is supporting that by padding ioctl arguments with zeros
+ * when the data passed by userspace is smaller than the struct defined in the
+ * drm_ioctl_desc, thus keeping things backward compatible. This type is just
+ * applying the same concepts to indirect objects passed through arrays referenced
+ * from the main ioctl arguments structure: the stride basically defines the size
+ * of the object passed by userspace, which allows the kernel driver to pad with
+ * zeros when it's smaller than the size of the object it expects.
+ *
+ * Use ``DRM_PVR_OBJ_ARRAY()`` to fill object array fields, unless you
+ * have a very good reason not to.
+ */
+struct drm_pvr_obj_array {
+	/** @stride: Stride of object struct. Used for versioning. */
+	__u32 stride;
+
+	/** @count: Number of objects in the array. */
+	__u32 count;
+
+	/** @array: User pointer to an array of objects. */
+	__u64 array;
+};
+
+/**
+ * DRM_PVR_OBJ_ARRAY() - Helper macro for filling &struct drm_pvr_obj_array.
+ * @cnt: Number of elements pointed to py @ptr.
+ * @ptr: Pointer to start of a C array.
+ *
+ * Return: Literal of type &struct drm_pvr_obj_array.
+ */
+#define DRM_PVR_OBJ_ARRAY(cnt, ptr) \
+	{ .stride = sizeof((ptr)[0]), .count = (cnt), .array = (__u64)(uintptr_t)(ptr) }
+
+/**
+ * DOC: PowerVR IOCTL interface
+ */
+
 /**
  * PVR_IOCTL() - Build a PowerVR IOCTL number
  * @_ioctl: An incrementing id for this IOCTL. Added to %DRM_COMMAND_BASE.
- * @_mode: Must be one of DRM_IO{R,W,WR}.
+ * @_mode: Must be one of %DRM_IOR, %DRM_IOW or %DRM_IOWR.
  * @_data: The type of the args struct passed by this IOCTL.
  *
- * The struct referred to by @_data must have a &drm_pvr_ioctl_ prefix and an
- * &_args suffix. They are therefore omitted from @_data.
+ * The struct referred to by @_data must have a ``drm_pvr_ioctl_`` prefix and an
+ * ``_args suffix``. They are therefore omitted from @_data.
  *
  * This should only be used to build the constants described below; it should
  * never be used to call an IOCTL directly.
  *
- * Return:
- * An IOCTL number to be passed to ioctl() from userspace.
+ * Return: An IOCTL number to be passed to ioctl() from userspace.
  */
 #define PVR_IOCTL(_ioctl, _mode, _data) \
 	_mode(DRM_COMMAND_BASE + (_ioctl), struct drm_pvr_ioctl_##_data##_args)
@@ -67,36 +110,16 @@ extern "C" {
 #define DRM_IOCTL_PVR_SUBMIT_JOBS PVR_IOCTL(0x0d, DRM_IOW, submit_jobs)
 
 /**
- * struct drm_pvr_obj_array - Container used to pass arrays of objects
- *
- * It is not unusual to have to extend objects to pass new parameters, and the DRM
- * ioctl infrastructure is supporting that by padding ioctl arguments with zeros
- * when the data passed by userspace is smaller than the struct defined in the
- * drm_ioctl_desc, thus keeping things backward compatible. This drm_pvr_obj_array
- * is just applying the same concepts to indirect objects passed through arrays
- * referenced from the main ioctl arguments structure: the stride basically defines
- * the size of the object passed by userspace, which allows the kernel driver to
- * pad things with zeros when it's smaller than the size of the object it expects.
- *
- * Use DRM_PVR_OBJ_ARRAY() to fill object array fields, unless you have a very
- * good reason not to.
+ * DOC: PowerVR IOCTL DEV_QUERY interface
  */
-struct drm_pvr_obj_array {
-	/** @stride: Stride of object struct. Used for versioning. */
-	__u32 stride;
 
-	/** @count: Number of objects in the array. */
-	__u32 count;
-
-	/** @array: User pointer to an array of objects. */
-	__u64 array;
-};
-
-#define DRM_PVR_OBJ_ARRAY(cnt, ptr) \
-	{ .stride = sizeof((ptr)[0]), .count = (cnt), .array = (__u64)(uintptr_t)(ptr) }
-
-/* clang-format on */
-
+/**
+ * struct drm_pvr_dev_query_gpu_info - Container used to fetch information about
+ * the graphics processor.
+ *
+ * When fetching this type &struct drm_pvr_ioctl_dev_query_args.type must be set
+ * to %DRM_PVR_DEV_QUERY_GPU_INFO_GET.
+ */
 struct drm_pvr_dev_query_gpu_info {
 	/**
 	 * @gpu_id: GPU identifier.
@@ -118,20 +141,27 @@ struct drm_pvr_dev_query_gpu_info {
 	__u32 num_phantoms;
 };
 
+/**
+ * struct drm_pvr_dev_query_runtime_info - Container used to fetch information
+ * about the graphics runtime.
+ *
+ * When fetching this type &struct drm_pvr_ioctl_dev_query_args.type must be set
+ * to %DRM_PVR_DEV_QUERY_RUNTIME_INFO_GET.
+ */
 struct drm_pvr_dev_query_runtime_info {
-	/*
+	/**
 	 * @free_list_min_pages: Minimum allowed free list size,
 	 * in PM physical pages.
 	 */
 	__u64 free_list_min_pages;
 
-	/*
+	/**
 	 * @free_list_max_pages: Maximum allowed free list size,
 	 * in PM physical pages.
 	 */
 	__u64 free_list_max_pages;
 
-	/*
+	/**
 	 * @common_store_alloc_region_size: Size of the Allocation
 	 * Region within the Common Store used for coefficient and shared
 	 * registers, in dwords.
@@ -157,6 +187,13 @@ struct drm_pvr_dev_query_runtime_info {
 	__u32 cdm_max_local_mem_size_regs;
 };
 
+/**
+ * struct drm_pvr_dev_query_hwrt_info - Container used to fetch information
+ * necessary for creating render targets.
+ *
+ * When fetching this type &struct drm_pvr_ioctl_dev_query_args.type must be set
+ * to %DRM_PVR_DEV_QUERY_HWRT_INFO_GET.
+ */
 struct drm_pvr_dev_query_hwrt_info {
 	/**
 	 * @num_geomdatas: Number of geom data arguments
@@ -183,6 +220,14 @@ struct drm_pvr_dev_query_hwrt_info {
 	__u32 _padding_4;
 };
 
+/**
+ * struct drm_pvr_dev_query_quirks - Container used to fetch information about
+ * hardware fixes for which the device may require support in the user mode
+ * driver.
+ *
+ * When fetching this type &struct drm_pvr_ioctl_dev_query_args.type must be set
+ * to %DRM_PVR_DEV_QUERY_QUIRKS_GET.
+ */
 struct drm_pvr_dev_query_quirks {
 	/**
 	 * @quirks: A userspace address for the hardware quirks __u32 array.
@@ -210,6 +255,14 @@ struct drm_pvr_dev_query_quirks {
 	__u32 _padding_c;
 };
 
+/**
+ * struct drm_pvr_dev_query_enhancements - Container used to fetch information
+ * about optional enhancements supported by the device that require support in
+ * the user mode driver.
+ *
+ * When fetching this type &struct drm_pvr_ioctl_dev_query_args.type must be set
+ * to %DRM_PVR_DEV_ENHANCEMENTS_GET.
+ */
 struct drm_pvr_dev_query_enhancements {
 	/**
 	 * @enhancements: A userspace address for the hardware enhancements
@@ -233,12 +286,16 @@ struct drm_pvr_dev_query_enhancements {
 
 /**
  * enum drm_pvr_heap_id - Array index for heap info data returned by
- * DRM_PVR_DEV_QUERY_HEAP_INFO_GET.
+ * %DRM_PVR_DEV_QUERY_HEAP_INFO_GET.
+ *
+ * For compatibility reasons all indices will be present in the returned array,
+ * however some heaps may not be present. These are indicated where
+ * &struct drm_pvr_heap.size is set to zero.
  */
 enum drm_pvr_heap_id {
 	/** @DRM_PVR_HEAP_GENERAL: General purpose heap. */
 	DRM_PVR_HEAP_GENERAL = 0,
-	/** @DRM_PVR_HEAP_PDS_CODE_DATA: PDS code & data heap. */
+	/** @DRM_PVR_HEAP_PDS_CODE_DATA: PDS code and data heap. */
 	DRM_PVR_HEAP_PDS_CODE_DATA,
 	/** @DRM_PVR_HEAP_USC_CODE: USC code heap. */
 	DRM_PVR_HEAP_USC_CODE,
@@ -251,14 +308,16 @@ enum drm_pvr_heap_id {
 
 	/**
 	 * @DRM_PVR_HEAP_COUNT: The number of heaps returned by
-	 * DRM_PVR_DEV_QUERY_HEAP_INFO_GET. More heaps may be added, so this
-	 * also serves as the copy limit when sent by the caller.
+	 * %DRM_PVR_DEV_QUERY_HEAP_INFO_GET.
+	 *
+	 * More heaps may be added, so this also serves as the copy limit when
+	 * sent by the caller.
 	 */
 	DRM_PVR_HEAP_COUNT
 	/* Please only add additional heaps above DRM_PVR_HEAP_COUNT! */
 };
 
-/*
+/**
  * DOC: Flags for DRM_PVR_DEV_QUERY_HEAP_INFO_GET.
  *
  * .. c:macro:: DRM_PVR_HEAP_FLAG_STATIC_CARVEOUT_AT_END
@@ -271,6 +330,11 @@ enum drm_pvr_heap_id {
  */
 #define DRM_PVR_HEAP_FLAG_STATIC_CARVEOUT_AT_END _BITUL(0)
 
+/**
+ * struct drm_pvr_heap - Container holding information about a single heap.
+ *
+ * This will always be fetched as an array.
+ */
 struct drm_pvr_heap {
 	/** @base: Base address of heap. */
 	__u64 base;
@@ -288,18 +352,33 @@ struct drm_pvr_heap {
 };
 
 /**
- * struct drm_pvr_dev_query_heap_info_args - Arguments for
- * %DRM_PVR_DEV_QUERY_HEAP_INFO_GET
+ * struct drm_pvr_dev_query_heap_info - Container used to fetch information
+ * about heaps supported by the device driver.
+ *
+ * Please note all driver-supported heaps will be returned up to &heaps.count.
+ * Some heaps will not be present in all devices, which will be indicated by
+ * &struct drm_pvr_heap.size being set to zero.
+ *
+ * When fetching this type &struct drm_pvr_ioctl_dev_query_args.type must be set
+ * to %DRM_PVR_DEV_QUERY_HEAP_INFO_GET.
  */
 struct drm_pvr_dev_query_heap_info {
 	/**
-	 * @heaps: Array of struct drm_pvr_heap. If pointer is NULL, the count
+	 * @heaps: Array of &struct drm_pvr_heap. If pointer is NULL, the count
 	 * and stride will be updated with those known to the driver version, to
 	 * facilitate allocation by the caller.
 	 */
 	struct drm_pvr_obj_array heaps;
 };
 
+/**
+ * enum drm_pvr_static_data_area_usage - Array index for static data area info
+ * returned by %DRM_PVR_DEV_QUERY_STATIC_DATA_AREAS_GET.
+ *
+ * For compatibility reasons all indices will be present in the returned array,
+ * however some areas may not be present. These are indicated where
+ * &struct drm_pvr_static_data_area.size is set to zero.
+ */
 enum drm_pvr_static_data_area_usage {
 	/**
 	 * @DRM_PVR_STATIC_DATA_AREA_EOT: End of Tile USC program.
@@ -317,7 +396,8 @@ enum drm_pvr_static_data_area_usage {
 	 */
 	DRM_PVR_STATIC_DATA_AREA_FENCE,
 
-	/** @DRM_PVR_STATIC_DATA_AREA_VDM_SYNC: VDM sync program.
+	/**
+	 * @DRM_PVR_STATIC_DATA_AREA_VDM_SYNC: VDM sync program.
 	 *
 	 * The VDM sync program is used to synchronise multiple areas of the GPU hardware.
 	 */
@@ -348,9 +428,15 @@ enum drm_pvr_static_data_area_usage {
 	DRM_PVR_STATIC_DATA_AREA_YUV_CSC,
 };
 
+/**
+ * struct drm_pvr_static_data_area - Container holding information about a
+ * single static data area.
+ *
+ * This will always be fetched as an array.
+ */
 struct drm_pvr_static_data_area {
 	/**
-	 * @id: Usage of static data area.
+	 * @area_usage: Usage of static data area.
 	 * See &enum drm_pvr_static_data_area_usage.
 	 */
 	__u16 area_usage;
@@ -362,7 +448,7 @@ struct drm_pvr_static_data_area {
 	 */
 	__u16 location_heap_id;
 
-	/** @size: Size of static data area. */
+	/** @size: Size of static data area. Not present if set to zero. */
 	__u32 size;
 
 	/**
@@ -373,12 +459,23 @@ struct drm_pvr_static_data_area {
 };
 
 /**
- * struct drm_pvr_dev_query_static_data_areas_args - Arguments for
- * %DRM_PVR_DEV_QUERY_STATIC_DATA_AREAS_GET
+ * struct drm_pvr_dev_query_static_data_areas - Container used to fetch
+ * information about the static data areas in heaps supported by the device
+ * driver.
+ *
+ * Please note all driver-supported static data areas will be returned up to
+ * &static_data_areas.count. Some will not be present for all devices which,
+ * will be indicated by &struct drm_pvr_static_data_area.size being set to zero.
+ *
+ * Further, some heaps will not be present either. See &struct
+ * drm_pvr_dev_query_heap_info.
+ *
+ * When fetching this type &struct drm_pvr_ioctl_dev_query_args.type must be set
+ * to %DRM_PVR_DEV_QUERY_STATIC_DATA_AREAS_GET.
  */
 struct drm_pvr_dev_query_static_data_areas {
 	/**
-	 * @static_data_areas: Array of struct drm_pvr_static_data_area. If
+	 * @static_data_areas: Array of &struct drm_pvr_static_data_area. If
 	 * pointer is NULL, the count and stride will be updated with those
 	 * known to the driver version, to facilitate allocation by the caller.
 	 */
@@ -386,39 +483,61 @@ struct drm_pvr_dev_query_static_data_areas {
 };
 
 /**
- * enum drm_pvr_dev_query - Arguments for &drm_pvr_ioctl_dev_query_args.type
+ * enum drm_pvr_dev_query - For use with &drm_pvr_ioctl_dev_query_args.type to
+ * indicate the type of the receiving container.
  *
  * Append only. Do not reorder.
  */
 enum drm_pvr_dev_query {
-	/* struct drm_pvr_dev_query_gpu_info */
+	/**
+	 * @DRM_PVR_DEV_QUERY_GPU_INFO_GET: The dev query args contain a pointer
+	 * to &struct drm_pvr_dev_query_gpu_info.
+	 */
 	DRM_PVR_DEV_QUERY_GPU_INFO_GET = 0,
 
-	/* struct drm_pvr_dev_query_runtime_info */
+	/**
+	 * @DRM_PVR_DEV_QUERY_RUNTIME_INFO_GET: The dev query args contain a
+	 * pointer to &struct drm_pvr_dev_query_runtime_info.
+	 */
 	DRM_PVR_DEV_QUERY_RUNTIME_INFO_GET,
 
-	/* struct drm_pvr_dev_query_hwrt_info */
+	/**
+	 * @DRM_PVR_DEV_QUERY_HWRT_INFO_GET: The dev query args contain a
+	 * pointer to &struct drm_pvr_dev_query_hwrt_info.
+	 */
 	DRM_PVR_DEV_QUERY_HWRT_INFO_GET,
 
-	/* struct drm_pvr_dev_query_quirks */
+	/**
+	 * @DRM_PVR_DEV_QUERY_QUIRKS_GET: The dev query args contain a pointer
+	 * to &struct drm_pvr_dev_query_quirks.
+	 */
 	DRM_PVR_DEV_QUERY_QUIRKS_GET,
 
-	/* struct drm_pvr_dev_query_enhancements */
+	/**
+	 * @DRM_PVR_DEV_QUERY_ENHANCEMENTS_GET: The dev query args contain a
+	 * pointer to &struct drm_pvr_dev_query_enhancements.
+	 */
 	DRM_PVR_DEV_QUERY_ENHANCEMENTS_GET,
 
-	/* struct drm_pvr_dev_query_heap_info */
+	/**
+	 * @DRM_PVR_DEV_QUERY_HEAP_INFO_GET: The dev query args contain a
+	 * pointer to &struct drm_pvr_dev_query_heap_info.
+	 */
 	DRM_PVR_DEV_QUERY_HEAP_INFO_GET,
 
-	/* struct drm_pvr_dev_query_static_data_areas */
+	/**
+	 * @DRM_PVR_DEV_QUERY_STATIC_DATA_AREAS_GET: The dev query args contain
+	 * a pointer to &struct drm_pvr_dev_query_static_data_areas.
+	 */
 	DRM_PVR_DEV_QUERY_STATIC_DATA_AREAS_GET,
 };
 
 /**
- * struct drm_pvr_ioctl_dev_query_args - Arguments for %DRM_IOCTL_PVR_DEV_QUERY
+ * struct drm_pvr_ioctl_dev_query_args - Arguments for %DRM_IOCTL_PVR_DEV_QUERY.
  */
 struct drm_pvr_ioctl_dev_query_args {
 	/**
-	 * @type: Type of query and output struct. See enum drm_pvr_dev_query.
+	 * @type: Type of query and output struct. See &enum drm_pvr_dev_query.
 	 */
 	__u32 type;
 
@@ -434,7 +553,7 @@ struct drm_pvr_ioctl_dev_query_args {
 	__u32 size;
 
 	/**
-	 * @pointer: [OUT] Pointer to receiving struct @type.
+	 * @pointer: Pointer to struct @type.
 	 *
 	 * Must be large enough to contain @size bytes.
 	 * If pointer is NULL, the expected size will be returned in the @size
@@ -444,9 +563,13 @@ struct drm_pvr_ioctl_dev_query_args {
 };
 
 /**
+ * DOC: PowerVR IOCTL CREATE_BO interface
+ */
+
+/**
  * DOC: Flags for CREATE_BO
  *
- * The &drm_pvr_ioctl_create_bo_args.flags field is 64 bits wide and consists
+ * The &struct drm_pvr_ioctl_create_bo_args.flags field is 64 bits wide and consists
  * of three groups of flags: creation, device mapping and CPU mapping.
  *
  * We use "device" to refer to the GPU here because of the ambiguity between
@@ -505,11 +628,15 @@ struct drm_pvr_ioctl_create_bo_args {
 	/**
 	 * @flags: [IN] Options which will affect the behaviour of this
 	 * creation operation and future mapping operations on the created
-	 * object. This field must be a valid combination of DRM_PVR_BO_*
+	 * object. This field must be a valid combination of ``DRM_PVR_BO_*``
 	 * values, with all bits marked as reserved set to zero.
 	 */
 	__u64 flags;
 };
+
+/**
+ * DOC: PowerVR IOCTL GET_BO_MMAP_OFFSET interface
+ */
 
 /**
  * struct drm_pvr_ioctl_get_bo_mmap_offset_args - Arguments for
@@ -530,6 +657,10 @@ struct drm_pvr_ioctl_get_bo_mmap_offset_args {
 	/** @offset: [OUT] Fake offset to use in the real mmap call. */
 	__u64 offset;
 };
+
+/**
+ * DOC: PowerVR IOCTL CREATE_VM_CONTEXT and DESTROY_VM_CONTEXT interfaces
+ */
 
 /**
  * struct drm_pvr_ioctl_create_vm_context_args - Arguments for
@@ -558,7 +689,7 @@ struct drm_pvr_ioctl_destroy_vm_context_args {
 };
 
 /**
- * DOC: VM UAPI
+ * DOC: PowerVR IOCTL VM_MAP and VM_UNMAP interfaces
  *
  * The VM UAPI allows userspace to create buffer object mappings in GPU virtual address space.
  *
@@ -579,7 +710,7 @@ struct drm_pvr_ioctl_destroy_vm_context_args {
 struct drm_pvr_ioctl_vm_map_args {
 	/**
 	 * @vm_context_handle: [IN] Handle for VM context for this mapping to
-	 *                          exist in.
+	 * exist in.
 	 */
 	__u32 vm_context_handle;
 
@@ -628,7 +759,7 @@ struct drm_pvr_ioctl_vm_map_args {
 struct drm_pvr_ioctl_vm_unmap_args {
 	/**
 	 * @vm_context_handle: [IN] Handle for VM context that this mapping
-	 *                          exists in.
+	 * exists in.
 	 */
 	__u32 vm_context_handle;
 
@@ -643,21 +774,30 @@ struct drm_pvr_ioctl_vm_unmap_args {
 };
 
 /**
+ * DOC: PowerVR IOCTL CREATE_CONTEXT and DESTROY_CONTEXT interfaces
+ */
+
+/**
  * enum drm_pvr_ctx_priority - Arguments for
  * &drm_pvr_ioctl_create_context_args.priority
  */
 enum drm_pvr_ctx_priority {
+	/** @DRM_PVR_CTX_PRIORITY_LOW: Priority below normal. */
 	DRM_PVR_CTX_PRIORITY_LOW = -512,
+
+	/** @DRM_PVR_CTX_PRIORITY_NORMAL: Normal priority. */
 	DRM_PVR_CTX_PRIORITY_NORMAL = 0,
-	/* A priority above NORMAL requires CAP_SYS_NICE or DRM_MASTER. */
+
+	/**
+	 * @DRM_PVR_CTX_PRIORITY_HIGH: Priority above normal.
+	 * Note this requires ``CAP_SYS_NICE`` or ``DRM_MASTER``.
+	 */
 	DRM_PVR_CTX_PRIORITY_HIGH = 512,
 };
 
-/* clang-format off */
-
 /**
  * enum drm_pvr_ctx_type - Arguments for
- * &drm_pvr_ioctl_create_context_args.type
+ * &struct drm_pvr_ioctl_create_context_args.type
  */
 enum drm_pvr_ctx_type {
 	/**
@@ -678,8 +818,6 @@ enum drm_pvr_ctx_type {
 	 */
 	DRM_PVR_CTX_TYPE_TRANSFER_FRAG,
 };
-
-/* clang-format on */
 
 /**
  * struct drm_pvr_ioctl_create_context_args - Arguments for
@@ -708,7 +846,7 @@ struct drm_pvr_ioctl_create_context_args {
 
 	/**
 	 * @static_context_state: [IN] Pointer to static context state to copy to
-	 *                             new context.
+	 * new context.
 	 *
 	 * The state differs based on the value of @type:
 	 * * For %DRM_PVR_CTX_TYPE_RENDER, state should be of type
@@ -725,14 +863,13 @@ struct drm_pvr_ioctl_create_context_args {
 
 	/**
 	 * @vm_context_handle: [IN] Handle for VM context that this context is
-	 *                          associated with.
+	 * associated with.
 	 */
 	__u32 vm_context_handle;
 
 	/**
 	 * @callstack_addr: [IN] Address for initial call stack pointer. Only valid
-	 *                       if @type is %DRM_PVR_CTX_TYPE_RENDER, otherwise
-	 *                       must be 0.
+	 * if @type is %DRM_PVR_CTX_TYPE_RENDER, otherwise must be 0.
 	 */
 	__u64 callstack_addr;
 };
@@ -752,30 +889,32 @@ struct drm_pvr_ioctl_destroy_context_args {
 };
 
 /**
+ * DOC: PowerVR IOCTL CREATE_FREE_LIST and DESTROY_FREE_LIST interfaces
+ */
+
+/**
  * struct drm_pvr_ioctl_create_free_list_args - Arguments for
  * %DRM_IOCTL_PVR_CREATE_FREE_LIST
  *
  * Free list arguments have the following constraints :
  *
- * - &max_num_pages must be greater than zero.
- * - &grow_threshold must be between 0 and 100.
- * - &grow_num_pages must be less than or equal to &max_num_pages.
- * - &initial_num_pages, &max_num_pages and &grow_num_pages must be multiples
+ * - @max_num_pages must be greater than zero.
+ * - @grow_threshold must be between 0 and 100.
+ * - @grow_num_pages must be less than or equal to &max_num_pages.
+ * - @initial_num_pages, @max_num_pages and @grow_num_pages must be multiples
  *   of 4.
- *
- * When &grow_num_pages is 0 :
- * - &initial_num_pages must be equal to &max_num_pages
- *
- * When &grow_num_pages is non-zero :
- * - &initial_num_pages must be less than &max_num_pages.
+ * - When &grow_num_pages is 0, @initial_num_pages must be equal to
+ *   @max_num_pages.
+ * - When &grow_num_pages is non-zero, @initial_num_pages must be less than
+ *   @max_num_pages.
  */
 struct drm_pvr_ioctl_create_free_list_args {
 	/**
 	 * @free_list_gpu_addr: [IN] Address of GPU mapping of buffer object
-	 *                           containing memory to be used by free list.
+	 * containing memory to be used by free list.
 	 *
 	 * The mapped region of the buffer object must be at least
-	 * @max_num_pages * sizeof(__u32).
+	 * @max_num_pages * ``sizeof(__u32)``.
 	 *
 	 * The buffer object must have been created with
 	 * %DRM_PVR_BO_DEVICE_PM_FW_PROTECT set and
@@ -794,13 +933,13 @@ struct drm_pvr_ioctl_create_free_list_args {
 
 	/**
 	 * @grow_threshold: [IN] Percentage of FL memory used that should
-	 *                       trigger a new grow request.
+	 * trigger a new grow request.
 	 */
 	__u32 grow_threshold;
 
 	/**
 	 * @vm_context_handle: [IN] Handle for VM context that the free list buffer
-	 *                          object is mapped in.
+	 * object is mapped in.
 	 */
 	__u32 vm_context_handle;
 
@@ -824,6 +963,14 @@ struct drm_pvr_ioctl_destroy_free_list_args {
 	__u32 _padding_4;
 };
 
+/**
+ * DOC: PowerVR IOCTL CREATE_HWRT_DATASET and DESTROY_HWRT_DATASET interfaces
+ */
+
+/**
+ * struct drm_pvr_create_hwrt_geom_data_args - Geometry data arguments used for
+ * &struct drm_pvr_ioctl_create_hwrt_dataset_args.geom_data_args.
+ */
 struct drm_pvr_create_hwrt_geom_data_args {
 	/** @tpc_dev_addr: [IN] Tail pointer cache GPU virtual address. */
 	__u64 tpc_dev_addr;
@@ -841,6 +988,10 @@ struct drm_pvr_create_hwrt_geom_data_args {
 	__u64 rtc_dev_addr;
 };
 
+/**
+ * struct drm_pvr_create_hwrt_rt_data_args - Render target arguments used for
+ * &struct drm_pvr_ioctl_create_hwrt_dataset_args.rt_data_args.
+ */
 struct drm_pvr_create_hwrt_rt_data_args {
 	/** @pm_mlist_dev_addr: [IN] PM MLIST GPU virtual address. */
 	__u64 pm_mlist_dev_addr;
@@ -864,10 +1015,10 @@ struct drm_pvr_ioctl_create_hwrt_dataset_args {
 	struct drm_pvr_create_hwrt_rt_data_args rt_data_args[2];
 
 	/**
-	 * @free_list_args: [IN] Array of free list handles.
+	 * @free_list_handles: [IN] Array of free list handles.
 	 *
 	 * free_list_handles[0] must have initial size of at least that reported
-	 * by %DRM_PVR_DEV_QUERY_RUNTIME_INFO::free_list_min_pages.
+	 * by &drm_pvr_dev_query_runtime_info.free_list_min_pages.
 	 */
 	__u32 free_list_handles[2];
 
@@ -903,7 +1054,7 @@ struct drm_pvr_ioctl_create_hwrt_dataset_args {
 
 	/**
 	 * @region_header_size: [IN] Size of region header array. This common field is used by
-	 *                           both render targets in this data set.
+	 * both render targets in this data set.
 	 *
 	 * The units for this field differ depending on what version of the simple internal
 	 * parameter format the device uses. If format 2 is in use then this is interpreted as the
@@ -932,10 +1083,12 @@ struct drm_pvr_ioctl_destroy_hwrt_dataset_args {
 };
 
 /**
+ * DOC: PowerVR IOCTL SUBMIT_JOBS interface
+ */
+
+/**
  * DOC: Flags for the drm_pvr_sync_op object.
  *
- * Operations
- * ~~~~~~~~~~
  * .. c:macro:: DRM_PVR_SYNC_OP_HANDLE_TYPE_MASK
  *
  *    Handle type mask for the drm_pvr_sync_op::flags field.
@@ -976,7 +1129,7 @@ struct drm_pvr_sync_op {
 	/** @handle: Handle of sync object. */
 	__u32 handle;
 
-	/** @flags: Combination of DRM_PVR_SYNC_OP_FLAG_ flags. */
+	/** @flags: Combination of ``DRM_PVR_SYNC_OP_FLAG_`` flags. */
 	__u32 flags;
 
 	/** @value: Timeline value for this drm_syncobj. MBZ for a binary syncobj. */
@@ -986,8 +1139,6 @@ struct drm_pvr_sync_op {
 /**
  * DOC: Flags for SUBMIT_JOB ioctl geometry command.
  *
- * Operations
- * ~~~~~~~~~~
  * .. c:macro:: DRM_PVR_SUBMIT_JOB_GEOM_CMD_FIRST
  *
  *    Indicates if this the first command to be issued for a render.
@@ -1015,8 +1166,6 @@ struct drm_pvr_sync_op {
 /**
  * DOC: Flags for SUBMIT_JOB ioctl fragment command.
  *
- * Operations
- * ~~~~~~~~~~
  * .. c:macro:: DRM_PVR_SUBMIT_JOB_FRAG_CMD_SINGLE_CORE
  *
  *    Use single core in a multi core setup.
@@ -1056,8 +1205,6 @@ struct drm_pvr_sync_op {
 /**
  * DOC: Flags for SUBMIT_JOB ioctl compute command.
  *
- * Operations
- * ~~~~~~~~~~
  * .. c:macro:: DRM_PVR_SUBMIT_JOB_COMPUTE_CMD_PREVENT_ALL_OVERLAP
  *
  *    Disallow other jobs overlapped with this compute.
@@ -1065,6 +1212,10 @@ struct drm_pvr_sync_op {
  * .. c:macro:: DRM_PVR_SUBMIT_JOB_COMPUTE_CMD_SINGLE_CORE
  *
  *    Forces to use single core in a multi core device.
+ *
+ * .. c:macro:: DRM_PVR_SUBMIT_JOB_COMPUTE_CMD_FLAGS_MASK
+ *
+ *    Logical OR of all the compute cmd flags.
  */
 #define DRM_PVR_SUBMIT_JOB_COMPUTE_CMD_PREVENT_ALL_OVERLAP _BITULL(0)
 #define DRM_PVR_SUBMIT_JOB_COMPUTE_CMD_SINGLE_CORE _BITULL(1)
@@ -1075,11 +1226,13 @@ struct drm_pvr_sync_op {
 /**
  * DOC: Flags for SUBMIT_JOB ioctl transfer command.
  *
- * Operations
- * ~~~~~~~~~~
  * .. c:macro:: DRM_PVR_SUBMIT_JOB_TRANSFER_CMD_SINGLE_CORE
  *
  *    Forces job to use a single core in a multi core device.
+ *
+ * .. c:macro:: DRM_PVR_SUBMIT_JOB_TRANSFER_CMD_FLAGS_MASK
+ *
+ *    Logical OR of all the transfer cmd flags.
  */
 #define DRM_PVR_SUBMIT_JOB_TRANSFER_CMD_SINGLE_CORE _BITULL(0)
 
@@ -1087,12 +1240,19 @@ struct drm_pvr_sync_op {
 	DRM_PVR_SUBMIT_JOB_TRANSFER_CMD_SINGLE_CORE
 
 /**
- * enum drm_pvr_job_type - Arguments for &drm_pvr_job.job_type
+ * enum drm_pvr_job_type - Arguments for &struct drm_pvr_job.job_type
  */
 enum drm_pvr_job_type {
+	/** @DRM_PVR_JOB_TYPE_GEOMETRY: Job type is geometry. */
 	DRM_PVR_JOB_TYPE_GEOMETRY = 0,
+
+	/** @DRM_PVR_JOB_TYPE_FRAGMENT: Job type is fragment. */
 	DRM_PVR_JOB_TYPE_FRAGMENT,
+
+	/** @DRM_PVR_JOB_TYPE_COMPUTE: Job type is compute. */
 	DRM_PVR_JOB_TYPE_COMPUTE,
+
+	/** @DRM_PVR_JOB_TYPE_TRANSFER_FRAG: Job type is a fragment transfer. */
 	DRM_PVR_JOB_TYPE_TRANSFER_FRAG,
 };
 
@@ -1119,7 +1279,7 @@ struct drm_pvr_job {
 	__u32 type;
 
 	/**
-	 * @context: [IN] Context handle.
+	 * @context_handle: [IN] Context handle.
 	 *
 	 * When @job_type is %DRM_PVR_JOB_TYPE_RENDER, %DRM_PVR_JOB_TYPE_COMPUTE or
 	 * %DRM_PVR_JOB_TYPE_TRANSFER_FRAG, this must be a valid handle returned by
@@ -1133,7 +1293,7 @@ struct drm_pvr_job {
 	/**
 	 * @flags: [IN] Flags for command.
 	 *
-	 * Those are job-dependent. See DRM_PVR_SUBMIT_JOB_xxx_
+	 * Those are job-dependent. See all ``DRM_PVR_SUBMIT_JOB_*``.
 	 */
 	__u32 flags;
 
@@ -1168,11 +1328,52 @@ struct drm_pvr_ioctl_submit_jobs_args {
 	struct drm_pvr_obj_array jobs;
 };
 
-/* Definitions for coredump decoding in userspace. */
+/**
+ * DOC: PowerVR definitions for coredump decoding in userspace
+ */
 
-#define PVR_COREDUMP_HEADER_MAGIC 0x21525650 /* PVR! */
+/**
+ * DOC: Formatting information for PowerVR coredumps
+ *
+ * .. c:macro:: PVR_COREDUMP_HEADER_MAGIC
+ *
+ *    Magic number indicating the coredump data is probably valid.
+ *    When cast to char[4], this will be "PVR!".
+ *    See &struct pvr_coredump_header.magic.
+ *
+ * .. c:macro:: PVR_COREDUMP_HEADER_VERSION_MAJ
+ *
+ *    Major version of the coredump format.
+ *    See &struct pvr_coredump_header.major_version.
+ *
+ * .. c:macro:: PVR_COREDUMP_HEADER_VERSION_MIN
+ *
+ *    Minor version of the coredump format.
+ *    See &struct pvr_coredump_header.minor_version.
+ *
+ * .. c:macro:: PVR_COREDUMP_PROCESS_NAME_LEN
+ *
+ *    Maximum length of the process name string.
+ *    See &struct pvr_coredump_block_devinfo.process_name.
+ *
+ * .. c:macro:: PVR_COREDUMP_VERSION_LEN
+ *
+ *    Maximum length of kernel version string.
+ *    See &struct pvr_coredump_block_devinfo.kernel_version.
+ *
+ * .. c:macro:: PVR_COREDUMP_DEVINFO_PADDING
+ *
+ *    Length of padding following the process name and kernel version, such that
+ *    the total is __u64 aligned.
+ *    See &struct pvr_coredump_block_devinfo.padding.
+ */
+#define PVR_COREDUMP_HEADER_MAGIC 0x21525650
 #define PVR_COREDUMP_HEADER_VERSION_MAJ 1
 #define PVR_COREDUMP_HEADER_VERSION_MIN 0
+#define PVR_COREDUMP_PROCESS_NAME_LEN 16
+#define PVR_COREDUMP_VERSION_LEN 65
+#define PVR_COREDUMP_DEVINFO_PADDING (8 - ((PVR_COREDUMP_PROCESS_NAME_LEN + \
+					    PVR_COREDUMP_VERSION_LEN) & 7))
 
 /**
  * struct pvr_coredump_header - Header of PowerVR coredump
@@ -1180,11 +1381,22 @@ struct drm_pvr_ioctl_submit_jobs_args {
 struct pvr_coredump_header {
 	/** @magic: Will be %PVR_COREDUMP_HEADER_MAGIC. */
 	__u32 magic;
-	/** @major_version: Will be %PVR_COREDUMP_HEADER_VERSION_MAJ. */
+	/**
+	 * @major_version: Major version of the coredump format.
+	 *
+	 * Will be %PVR_COREDUMP_HEADER_VERSION_MAJ.
+	 */
 	__u32 major_version;
-	/** @minor_version: Will be %PVR_COREDUMP_HEADER_VERSION_MIN. */
+	/**
+	 * @minor_version: Minor version of the coredump format.
+	 *
+	 * Will be %PVR_COREDUMP_HEADER_VERSION_MIN.
+	 */
 	__u32 minor_version;
-	/** @flags: Flags for this coredump. Currently no flags are defined, this should be zero. */
+	/**
+	 * @flags: Flags for this coredump.
+	 * Currently no flags are defined, this should be zero.
+	 */
 	__u32 flags;
 	/** @size: Size of coredump (including this header) in bytes. */
 	__u32 size;
@@ -1197,29 +1409,29 @@ struct pvr_coredump_header {
  */
 enum pvr_coredump_block_type {
 	/**
-	 * %PVR_COREDUMP_BLOCK_TYPE_DEVINFO: Device information block.
+	 * @PVR_COREDUMP_BLOCK_TYPE_DEVINFO: Device information block.
 	 *
 	 * Block data is &struct pvr_coredump_block_devinfo.
 	 */
 	PVR_COREDUMP_BLOCK_TYPE_DEVINFO = 0,
 
 	/**
-	 * %PVR_COREDUMP_BLOCK_TYPE_REGISTERS: Register block.
+	 * @PVR_COREDUMP_BLOCK_TYPE_REGISTERS: Register block.
 	 *
-	 * Block data is an array of &struct pvr_coredump_block_register. Number of registers is
-	 * determined by block size.
+	 * Block data is an array of &struct pvr_coredump_block_register. Number
+	 * of registers is determined by block size.
 	 */
 	PVR_COREDUMP_BLOCK_TYPE_REGISTERS,
 
 	/**
-	 * %PVR_COREDUMP_BLOCK_TYPE_CONTEXT_RESET_DATA: Context reset data block.
+	 * @PVR_COREDUMP_BLOCK_TYPE_CONTEXT_RESET_DATA: Context reset data block.
 	 *
 	 * Block data is &struct pvr_coredump_block_reset_data.
 	 */
 	PVR_COREDUMP_BLOCK_TYPE_CONTEXT_RESET_DATA,
 
 	/**
-	 * %PVR_COREDUMP_BLOCK_TYPE_HWRINFO: Hardware Reset information block.
+	 * @PVR_COREDUMP_BLOCK_TYPE_HWRINFO: Hardware Reset information block.
 	 *
 	 * Block data is &struct pvr_coredump_block_hwrinfo.
 	 */
@@ -1232,7 +1444,7 @@ enum pvr_coredump_block_type {
  * Block data immediately follows this header. The format is determined by @type.
  */
 struct pvr_coredump_block_header {
-	/** @type: Block type. One of %PVR_COREDUMP_BLOCK_TYPE_*. */
+	/** @type: Block type. One of &enum pvr_coredump_block_type. */
 	__u32 type;
 	/** @size: Size of block data following this header, in bytes. */
 	__u32 size;
@@ -1241,11 +1453,6 @@ struct pvr_coredump_block_header {
 	/** @padding: Reserved. This field must be zero. */
 	__u32 padding;
 };
-
-#define PVR_COREDUMP_PROCESS_NAME_LEN 16
-#define PVR_COREDUMP_VERSION_LEN      65
-#define PVR_COREDUMP_DEVINFO_PADDING (8 - ((PVR_COREDUMP_PROCESS_NAME_LEN + \
-					    PVR_COREDUMP_VERSION_LEN) & 7))
 
 /**
  * struct pvr_coredump_block_devinfo - Device information block
@@ -1268,11 +1475,23 @@ struct pvr_coredump_block_devinfo {
 	__u8 padding[PVR_COREDUMP_DEVINFO_PADDING];
 };
 
-/** %PVR_COREDUMP_REGISTER_FLAG_SIZE_MASK: Mask of register size field. */
+/**
+ * DOC: Flags for PowerVR register dumps
+ *
+ * .. c:macro:: PVR_COREDUMP_REGISTER_FLAG_SIZE_MASK
+ *
+ *    Mask of register size field.
+ *
+ * .. c:macro:: PVR_COREDUMP_REGISTER_FLAG_SIZE_32BIT
+ *
+ *    Register is 32-bits wide.
+ *
+ * .. c:macro:: PVR_COREDUMP_REGISTER_FLAG_SIZE_64BIT
+ *
+ *    Register is 64-bits wide.
+ */
 #define PVR_COREDUMP_REGISTER_FLAG_SIZE_MASK 7
-/** %PVR_COREDUMP_REGISTER_FLAG_SIZE_32BIT: Register is 32-bits wide. */
 #define PVR_COREDUMP_REGISTER_FLAG_SIZE_32BIT 2
-/** %PVR_COREDUMP_REGISTER_FLAG_SIZE_64BIT: Register is 64-bits wide. */
 #define PVR_COREDUMP_REGISTER_FLAG_SIZE_64BIT 3
 
 /**
@@ -1281,57 +1500,133 @@ struct pvr_coredump_block_devinfo {
 struct pvr_coredump_block_register {
 	/** @offset: Offset of register. */
 	__u32 offset;
-	/** @flags: Flags for this register. Combination of %PVR_COREDUMP_REGISTER_FLAG_*. */
+	/** @flags: Flags for this register. Combination of ``PVR_COREDUMP_REGISTER_FLAG_*``. */
 	__u32 flags;
 	/** @value: Value of register. */
 	__u64 value;
 };
 
-/** %PVR_COREDUMP_RESET_DATA_FLAG_PF: Set if a page fault happened. */
+/**
+ * DOC: Flags for &struct pvr_coredump_block_reset_data
+ *
+ * .. c:macro:: PVR_COREDUMP_RESET_DATA_FLAG_PF
+ *
+ *    Set if a page fault happened.
+ *
+ * .. c:macro:: PVR_COREDUMP_RESET_DATA_FLAG_ALL_CTXS
+ *
+ *    Set if reset applicable to all contexts.
+ */
 #define PVR_COREDUMP_RESET_DATA_FLAG_PF _BITUL(0)
-/** %PVR_COREDUMP_RESET_DATA_FLAG_ALL_CTXS: Set if reset applicable to all contexts. */
 #define PVR_COREDUMP_RESET_DATA_FLAG_ALL_CTXS _BITUL(1)
 
-/** %PVR_COREDUMP_RESET_REASON_NONE: No reset reason recorded. */
+/**
+ * DOC: Reset reasons reported in &struct pvr_coredump_block_reset_data.reset_reason
+ *
+ * .. c:macro:: PVR_COREDUMP_RESET_REASON_NONE
+ *
+ *    No reset reason recorded.
+ *
+ * .. c:macro:: PVR_COREDUMP_RESET_REASON_GUILTY_LOCKUP
+ *
+ *    Caused a reset due to locking up.
+ *
+ * .. c:macro:: PVR_COREDUMP_RESET_REASON_INNOCENT_LOCKUP
+ *
+ *    Affected by another context locking up.
+ *
+ * .. c:macro:: PVR_COREDUMP_RESET_REASON_GUILTY_OVERRUNING
+ *
+ *    Overran the global deadline.
+ *
+ * .. c:macro:: PVR_COREDUMP_RESET_REASON_INNOCENT_OVERRUNING
+ *
+ *    Affected by another context overrunning.
+ *
+ * .. c:macro:: PVR_COREDUMP_RESET_REASON_HARD_CONTEXT_SWITCH
+ *
+ *    Forced reset to meet scheduling requirements.
+ *
+ * .. c:macro:: PVR_COREDUMP_RESET_REASON_FW_WATCHDOG
+ *
+ *    FW Safety watchdog triggered.
+ *
+ * .. c:macro:: PVR_COREDUMP_RESET_REASON_FW_PAGEFAULT
+ *
+ *    FW page fault (no HWR).
+ *
+ * .. c:macro:: PVR_COREDUMP_RESET_REASON_FW_EXEC_ERR
+ *
+ *    FW execution error (GPU reset requested).
+ *
+ * .. c:macro:: PVR_COREDUMP_RESET_REASON_HOST_WDG_FW_ERR
+ *
+ *    Host watchdog detected FW error.
+ *
+ * .. c:macro:: PVR_COREDUMP_RESET_REASON_GEOM_OOM_DISABLED
+ *
+ *    Geometry DM OOM event is not allowed.
+ */
 #define PVR_COREDUMP_RESET_REASON_NONE 0
-/** %PVR_COREDUMP_RESET_REASON_GUILTY_LOCKUP: Caused a reset due to locking up. */
 #define PVR_COREDUMP_RESET_REASON_GUILTY_LOCKUP 1
-/** %PVR_COREDUMP_RESET_REASON_INNOCENT_LOCKUP: Affected by another context locking up. */
 #define PVR_COREDUMP_RESET_REASON_INNOCENT_LOCKUP 2
-/** %PVR_COREDUMP_RESET_REASON_GUILTY_OVERRUNING: Overran the global deadline. */
 #define PVR_COREDUMP_RESET_REASON_GUILTY_OVERRUNING 3
-/** %PVR_COREDUMP_RESET_REASON_INNOCENT_OVERRUNING: Affected by another context overrunning. */
 #define PVR_COREDUMP_RESET_REASON_INNOCENT_OVERRUNING 4
-/** %PVR_COREDUMP_RESET_REASON_HARD_CONTEXT_SWITCH: Forced reset to meet scheduling requirements. */
 #define PVR_COREDUMP_RESET_REASON_HARD_CONTEXT_SWITCH 5
-/** %PVR_COREDUMP_RESET_REASON_FW_WATCHDOG: FW Safety watchdog triggered. */
 #define PVR_COREDUMP_RESET_REASON_FW_WATCHDOG 12
-/** %PVR_COREDUMP_RESET_REASON_FW_PAGEFAULT: FW page fault (no HWR). */
 #define PVR_COREDUMP_RESET_REASON_FW_PAGEFAULT 13
-/** %PVR_COREDUMP_RESET_REASON_FW_EXEC_ERR: FW execution error (GPU reset requested). */
 #define PVR_COREDUMP_RESET_REASON_FW_EXEC_ERR 14
-/** %PVR_COREDUMP_RESET_REASON_HOST_WDG_FW_ERR: Host watchdog detected FW error. */
 #define PVR_COREDUMP_RESET_REASON_HOST_WDG_FW_ERR 15
-/** %PVR_COREDUMP_RESET_REASON_GEOM_OOM_DISABLED: Geometry DM OOM event is not allowed. */
 #define PVR_COREDUMP_RESET_REASON_GEOM_OOM_DISABLED 16
 
-/** %PVR_COREDUMP_DM_GP: General purpose Data Master. */
+/**
+ * DOC: Reset data master reported in &struct pvr_coredump_block_reset_data.dm
+ *      and &struct pvr_coredump_block_hwrinfo.dm.
+ *
+ * .. c:macro:: PVR_COREDUMP_DM_GP
+ *
+ *    General purpose Data Master.
+ *
+ * .. c:macro:: PVR_COREDUMP_DM_2D
+ *
+ *    2D Data Master.
+ *
+ * .. c:macro:: PVR_COREDUMP_DM_GEOM
+ *
+ *    Geometry Data Master.
+ *
+ * .. c:macro:: PVR_COREDUMP_DM_FRAG
+ *
+ *    Fragment Data Master.
+ *
+ * .. c:macro:: PVR_COREDUMP_DM_CDM
+ *
+ *    Compute Data Master.
+ *
+ * .. c:macro:: PVR_COREDUMP_DM_RAY
+ *
+ *    Ray tracing Data Master.
+ *
+ * .. c:macro:: PVR_COREDUMP_DM_GEOM2
+ *
+ *    Geometry 2 Data Master.
+ *
+ * .. c:macro:: PVR_COREDUMP_DM_GEOM3
+ *
+ *    Geometry 3 Data Master.
+ *
+ * .. c:macro:: PVR_COREDUMP_DM_GEOM4
+ *
+ *    Geometry 4 Data Master.
+ */
 #define PVR_COREDUMP_DM_GP 0
-/** %PVR_COREDUMP_DM_2D: 2D Data Master. */
 #define PVR_COREDUMP_DM_2D 1
-/** %PVR_COREDUMP_DM_GEOM: Geometry Data Master. */
 #define PVR_COREDUMP_DM_GEOM 2
-/** %PVR_COREDUMP_DM_FRAG: Fragment Data Master. */
 #define PVR_COREDUMP_DM_FRAG 3
-/** %PVR_COREDUMP_DM_CDM: Compute Data Master. */
 #define PVR_COREDUMP_DM_CDM 4
-/** %PVR_COREDUMP_DM_RAY: Ray tracing Data Master. */
 #define PVR_COREDUMP_DM_RAY 5
-/** %PVR_COREDUMP_DM_GEOM2: Geometry 2 Data Master. */
 #define PVR_COREDUMP_DM_GEOM2 6
-/** %PVR_COREDUMP_DM_GEOM3: Geometry 3 Data Master. */
 #define PVR_COREDUMP_DM_GEOM3 7
-/** %PVR_COREDUMP_DM_GEOM4: Geometry 4 Data Master. */
 #define PVR_COREDUMP_DM_GEOM4 8
 
 /**
@@ -1340,69 +1635,144 @@ struct pvr_coredump_block_register {
 struct pvr_coredump_block_reset_data {
 	/** @context_id: FW ID of context affected by the reset */
 	__u32 context_id;
-	/** @reset_reason: Reason for reset. One of %PVR_COREDUMP_RESET_REASON_*. */
+	/** @reset_reason: Reason for reset. One of ``PVR_COREDUMP_RESET_REASON_*``. */
 	__u32 reset_reason;
-	/** @dm: Data Master affected by the reset. One of %PVR_COREDUMP_DM_. */
+	/** @dm: Data Master affected by the reset. One of ``PVR_COREDUMP_DM_*``. */
 	__u32 dm;
 	/** @reset_job_ref: Internal job ref running at the time of reset. */
 	__u32 reset_job_ref;
-	/** @flags: Reset data flags. Combination of %PVR_COREDUMP_RESET_DATA_FLAG_*. */
+	/** @flags: Reset data flags. Combination of ``PVR_COREDUMP_RESET_DATA_FLAG_*``. */
 	__u32 flags;
 	/** @padding: Reserved. This field must be zero. */
 	__u32 padding;
 	/**
 	 * @fault_address: Page fault address. Only valid when %PVR_COREDUMP_RESET_DATA_FLAG_PF is
-	 *                 set in @flags.
+	 * set in @flags.
 	 */
 	__u64 fault_address;
 };
 
-/** %PVR_COREDUMP_HWRTYPE_UNKNOWNFAILURE: HWR triggered by unknown failure. */
+/**
+ * DOC: HWR event types as reported in &struct pvr_coredump_block_hwrinfo.hwr_type
+ *
+ * .. c:macro:: PVR_COREDUMP_HWRTYPE_UNKNOWNFAILURE
+ *
+ *     HWR triggered by unknown failure.
+ *
+ * .. c:macro:: PVR_COREDUMP_HWRTYPE_OVERRUN
+ *
+ *     HWR triggered by overrun.
+ *
+ * .. c:macro:: PVR_COREDUMP_HWRTYPE_POLLFAILURE
+ *
+ *     HWR triggered by poll timeout.
+ *
+ * .. c:macro:: PVR_COREDUMP_HWRTYPE_BIF0FAULT
+ *
+ *     HWR triggered by fault from Bus Interface 0.
+ *
+ * .. c:macro:: PVR_COREDUMP_HWRTYPE_BIF1
+ *
+ *     HWR triggered by fault from Bus Interface 1.
+ *
+ * .. c:macro:: PVR_COREDUMP_HWRTYPE_TEXASBIF0FAULT
+ *
+ *     HWR triggered by fault from Texas Bus Interface 0.
+ *
+ * .. c:macro:: PVR_COREDUMP_HWRTYPE_MMUFAULT
+ *
+ *     HWR triggered by MMU fault.
+ *
+ * .. c:macro:: PVR_COREDUMP_HWRTYPE_MMUMETAFAULT
+ *
+ *     HWR triggered by MMU fault caused by META FW processor.
+ *
+ * .. c:macro:: PVR_COREDUMP_HWRTYPE_MIPSTLBFAULT
+ *
+ *     HWR triggered by TLB fault from MIPS FW processor.
+ *
+ * .. c:macro:: PVR_COREDUMP_HWRTYPE_ECCFAULT
+ *
+ *     HWR triggered by ECC fault.
+ *
+ * .. c:macro:: PVR_COREDUMP_HWRTYPE_MMURISCVFAULT
+ *
+ *     HWR triggered by MMU fault from RISC-V FW processor.
+ */
 #define PVR_COREDUMP_HWRTYPE_UNKNOWNFAILURE 0
-/** %PVR_COREDUMP_HWRTYPE_OVERRUN: HWR triggered by overrun. */
 #define PVR_COREDUMP_HWRTYPE_OVERRUN 1
-/** %PVR_COREDUMP_HWRTYPE_POLLFAILURE: HWR triggered by poll timeout. */
 #define PVR_COREDUMP_HWRTYPE_POLLFAILURE 2
-/** %PVR_COREDUMP_HWRTYPE_BIF0FAULT: HWR triggered by fault from Bus Interface 0. */
 #define PVR_COREDUMP_HWRTYPE_BIF0FAULT 3
-/** %PVR_COREDUMP_HWRTYPE_BIF1: HWR triggered by fault from Bus Interface 1. */
 #define PVR_COREDUMP_HWRTYPE_BIF1FAULT 4
-/** %PVR_COREDUMP_HWRTYPE_TEXASBIF0FAULT: HWR triggered by fault from Texas Bus Interface 0. */
 #define PVR_COREDUMP_HWRTYPE_TEXASBIF0FAULT 5
-/** %PVR_COREDUMP_HWRTYPE_MMUFAULT: HWR triggered by MMU fault. */
 #define PVR_COREDUMP_HWRTYPE_MMUFAULT 6
-/** %PVR_COREDUMP_HWRTYPE_MMUMETAFAULT: HWR triggered by MMU fault caused by META FW processor. */
 #define PVR_COREDUMP_HWRTYPE_MMUMETAFAULT 7
-/** %PVR_COREDUMP_HWRTYPE_MIPSTLBFAULT: HWR triggered by TLB fault from MIPS FW processor. */
 #define PVR_COREDUMP_HWRTYPE_MIPSTLBFAULT 8
-/** %PVR_COREDUMP_HWRTYPE_ECCFAULT: HWR triggered by ECC fault. */
 #define PVR_COREDUMP_HWRTYPE_ECCFAULT 9
-/** %PVR_COREDUMP_HWRTYPE_MMURISCVFAULT: HWR triggered by MMU fault from RISC-V FW processor. */
 #define PVR_COREDUMP_HWRTYPE_MMURISCVFAULT 10
 
-/* DM is working if all flags are cleared */
+/**
+ * DOC: HWR event types as reported in &struct pvr_coredump_block_hwrinfo.hwr_type
+ *
+ * .. c:macro:: PVR_COREDUMP_HWRINFO_DM_STATE_WORKING
+ *
+ *    DM is working if all flags are cleared.
+ *
+ * .. c:macro:: PVR_COREDUMP_HWRINFO_DM_STATE_READY_FOR_HWR
+ *
+ *    DM is idle and ready for HWR.
+ *
+ * .. c:macro:: PVR_COREDUMP_HWRINFO_DM_STATE_NEEDS_SKIP
+ *
+ *    DM need to skip to next cmd before resuming processing.
+ *
+ * .. c:macro:: PVR_COREDUMP_HWRINFO_DM_STATE_NEEDS_PR_CLEANUP
+ *
+ *    DM need partial render cleanup before resuming processing.
+ *
+ * .. c:macro:: PVR_COREDUMP_HWRINFO_DM_STATE_NEEDS_TRACE_CLEAR
+ *
+ *    DM need to increment Recovery Count once fully recovered.
+ *
+ * .. c:macro:: PVR_COREDUMP_HWRINFO_DM_STATE_GUILTY_LOCKUP
+ *
+ *    DM was identified as locking up and causing HWR.
+ *
+ * .. c:macro:: PVR_COREDUMP_HWRINFO_DM_STATE_INNOCENT_LOCKUP
+ *
+ *    DM was innocently affected by another lockup which caused HWR.
+ *
+ * .. c:macro:: PVR_COREDUMP_HWRINFO_DM_STATE_GUILTY_OVERRUNING
+ *
+ *    DM was identified as over-running and causing HWR.
+ *
+ * .. c:macro:: PVR_COREDUMP_HWRINFO_DM_STATE_INNOCENT_OVERRUNING
+ *
+ *    DM was innocently affected by another DM over-running which caused HWR.
+ *
+ * .. c:macro:: PVR_COREDUMP_HWRINFO_DM_STATE_HARD_CONTEXT_SWITCH
+ *
+ *    DM was forced into HWR as it delayed more important workloads.
+ *
+ * .. c:macro:: PVR_COREDUMP_HWRINFO_DM_STATE_GPU_ECC_HWR
+ *
+ *    DM was forced into HWR due to an uncorrected GPU ECC error.
+ */
 #define PVR_COREDUMP_HWRINFO_DM_STATE_WORKING 0
-/* DM is idle and ready for HWR */
 #define PVR_COREDUMP_HWRINFO_DM_STATE_READY_FOR_HWR _BITUL(0)
-/* DM need to skip to next cmd before resuming processing */
 #define PVR_COREDUMP_HWRINFO_DM_STATE_NEEDS_SKIP _BITUL(2)
-/* DM need partial render cleanup before resuming processing */
 #define PVR_COREDUMP_HWRINFO_DM_STATE_NEEDS_PR_CLEANUP _BITUL(3)
-/* DM need to increment Recovery Count once fully recovered */
 #define PVR_COREDUMP_HWRINFO_DM_STATE_NEEDS_TRACE_CLEAR _BITUL(4)
-/* DM was identified as locking up and causing HWR */
 #define PVR_COREDUMP_HWRINFO_DM_STATE_GUILTY_LOCKUP _BITUL(5)
-/* DM was innocently affected by another lockup which caused HWR */
 #define PVR_COREDUMP_HWRINFO_DM_STATE_INNOCENT_LOCKUP _BITUL(6)
-/* DM was identified as over-running and causing HWR */
 #define PVR_COREDUMP_HWRINFO_DM_STATE_GUILTY_OVERRUNING _BITUL(7)
-/* DM was innocently affected by another DM over-running which caused HWR */
 #define PVR_COREDUMP_HWRINFO_DM_STATE_INNOCENT_OVERRUNING _BITUL(8)
-/* DM was forced into HWR as it delayed more important workloads */
 #define PVR_COREDUMP_HWRINFO_DM_STATE_HARD_CONTEXT_SWITCH _BITUL(9)
-/* DM was forced into HWR due to an uncorrected GPU ECC error */
 #define PVR_COREDUMP_HWRINFO_DM_STATE_GPU_ECC_HWR _BITUL(10)
 
+/**
+ * struct pvr_coredump_hwrinfo_bifinfo - See &struct pvr_coredump_block_hwrinfo.
+ */
 struct pvr_coredump_hwrinfo_bifinfo {
 	/** @bif_req_status: Request status for affected BIF. */
 	__u64 bif_req_status;
@@ -1410,16 +1780,25 @@ struct pvr_coredump_hwrinfo_bifinfo {
 	__u64 bif_mmu_status;
 };
 
+/**
+ * struct pvr_coredump_hwrinfo_eccinfo - See &struct pvr_coredump_block_hwrinfo.
+ */
 struct pvr_coredump_hwrinfo_eccinfo {
 	/** @fault_gpu: GPU fault information. */
 	__u32 fault_gpu;
 };
 
+/**
+ * struct pvr_coredump_hwrinfo_mmuinfo - See &struct pvr_coredump_block_hwrinfo.
+ */
 struct pvr_coredump_hwrinfo_mmuinfo {
 	/** @mmu_status: MMU status. */
 	__u64 mmu_status[2];
 };
 
+/**
+ * struct pvr_coredump_hwrinfo_pollinfo - See &struct pvr_coredump_block_hwrinfo.
+ */
 struct pvr_coredump_hwrinfo_pollinfo {
 	/** @thread_num: Number of thread which timed out on a poll. */
 	__u32 thread_num;
@@ -1431,6 +1810,9 @@ struct pvr_coredump_hwrinfo_pollinfo {
 	__u32 cr_poll_last_value;
 };
 
+/**
+ * struct pvr_coredump_hwrinfo_tlbinfo - See &struct pvr_coredump_block_hwrinfo.
+ */
 struct pvr_coredump_hwrinfo_tlbinfo {
 	/** @bad_addr: Virtual address of failed access. */
 	__u32 bad_addr;
@@ -1442,15 +1824,15 @@ struct pvr_coredump_hwrinfo_tlbinfo {
  * struct pvr_coredump_block_hwrinfo - Firmware hardware reset information
  */
 struct pvr_coredump_block_hwrinfo {
-	/** @hwr_type: Type of HWR event. One of %PVR_COREDUMP_HWRTYPE_*. */
+	/** @hwr_type: Type of HWR event. One of ``PVR_COREDUMP_HWRTYPE_*``. */
 	__u32 hwr_type;
-	/** @dm: Data Master affected by the HWR event. One of %PVR_COREDUMP_DM_. */
+	/** @dm: Data Master affected by the HWR event. One of ``PVR_COREDUMP_DM_*``. */
 	__u32 dm;
 	/** @core_id: ID of GPU core affected by the HWR event. */
 	__u32 core_id;
 	/** @event_status: Event status of Data Master. */
 	__u32 event_status;
-	/** @dm_state: Data Master state. Combination of %PVR_COREDUMP_HWRINFO_DM_STATE_. */
+	/** @dm_state: Data Master state. Combination of ``PVR_COREDUMP_HWRINFO_DM_STATE_*``. */
 	__u32 dm_state;
 	/** @active_hwrt_data: FW address of affected HWRT data. */
 	__u32 active_hwrt_data;

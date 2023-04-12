@@ -6,6 +6,8 @@ The sources associated with this section can be found in ``pvr_drm.h``.
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
    :doc: PowerVR UAPI
 
+OBJECT ARRAYS
+=============
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
    :identifiers: drm_pvr_obj_array
 
@@ -15,7 +17,7 @@ The sources associated with this section can be found in ``pvr_drm.h``.
 IOCTLS
 ======
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :doc: IOCTLS
+   :doc: PowerVR IOCTL interface
 
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
    :identifiers: PVR_IOCTL
@@ -23,32 +25,38 @@ IOCTLS
 DEV_QUERY
 ---------
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :doc: IOCTL DEV_QUERY
+   :doc: PowerVR IOCTL DEV_QUERY interface
+
+.. kernel-doc:: include/uapi/drm/pvr_drm.h
+   :identifiers: drm_pvr_dev_query
 
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
    :identifiers: drm_pvr_ioctl_dev_query_args
 
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :identifiers: drm_pvr_dev_query
-                 drm_pvr_dev_query_gpu_info
+   :identifiers: drm_pvr_dev_query_gpu_info
                  drm_pvr_dev_query_runtime_info
-                 drm_pvr_dev_query_runtime_info_ext
+                 drm_pvr_dev_query_hwrt_info
                  drm_pvr_dev_query_quirks
                  drm_pvr_dev_query_enhancements
-                 drm_pvr_heap_id
+
+.. kernel-doc:: include/uapi/drm/pvr_drm.h
+   :identifiers: drm_pvr_heap_id
                  drm_pvr_heap
                  drm_pvr_dev_query_heap_info
-                 drm_pvr_static_data_area_usage
-                 drm_pvr_static_data_area
-                 drm_pvr_dev_query_static_data_areas
 
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
    :doc: Flags for DRM_PVR_DEV_QUERY_HEAP_INFO_GET.
 
+.. kernel-doc:: include/uapi/drm/pvr_drm.h
+   :identifiers: drm_pvr_static_data_area_usage
+                 drm_pvr_static_data_area
+                 drm_pvr_dev_query_static_data_areas
+
 CREATE_BO
 ---------
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :doc: IOCTL CREATE_BO
+   :doc: PowerVR IOCTL CREATE_BO interface
 
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
    :identifiers: drm_pvr_ioctl_create_bo_args
@@ -59,48 +67,33 @@ CREATE_BO
 GET_BO_MMAP_OFFSET
 ------------------
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :doc: IOCTL GET_BO_MMAP_OFFSET
+   :doc: PowerVR IOCTL GET_BO_MMAP_OFFSET interface
 
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
    :identifiers: drm_pvr_ioctl_get_bo_mmap_offset_args
 
-CREATE_VM_CONTEXT
------------------
+CREATE_VM_CONTEXT and DESTROY_VM_CONTEXT
+----------------------------------------
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :doc: IOCTL CREATE_VM_CONTEXT
+   :doc: PowerVR IOCTL CREATE_VM_CONTEXT and DESTROY_VM_CONTEXT interfaces
 
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
    :identifiers: drm_pvr_ioctl_create_vm_context_args
+                 drm_pvr_ioctl_destroy_vm_context_args
 
-DESTROY_VM_CONTEXT
-------------------
+VM_MAP and VM_UNMAP
+-------------------
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :doc: IOCTL DESTROY_VM_CONTEXT
-
-.. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :identifiers: drm_pvr_ioctl_destroy_vm_context_args
-
-VM UAPI
--------
-.. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :doc: VM UAPI
-
-.. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :doc: IOCTL VM_MAP
+   :doc: PowerVR IOCTL VM_MAP and VM_UNMAP interfaces
 
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
    :identifiers: drm_pvr_ioctl_vm_map_args
+                 drm_pvr_ioctl_vm_unmap_args
 
+CREATE_CONTEXT and DESTROY_CONTEXT
+----------------------------------
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :doc: IOCTL VM_UNMAP
-
-.. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :identifiers: drm_pvr_ioctl_vm_unmap_args
-
-CREATE_CONTEXT
---------------
-.. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :doc: IOCTL CREATE_CONTEXT
+   :doc: PowerVR IOCTL CREATE_CONTEXT and DESTROY_CONTEXT interfaces
 
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
    :identifiers: drm_pvr_ioctl_create_context_args
@@ -113,34 +106,24 @@ CREATE_CONTEXT
                  drm_pvr_reset_framework
                  drm_pvr_reset_framework_format
 
-DESTROY_CONTEXT
----------------
-.. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :doc: IOCTL DESTROY_CONTEXT
-
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
    :identifiers: drm_pvr_ioctl_destroy_context_args
 
-CREATE_FREE_LIST
--------------------
+CREATE_FREE_LIST and DESTROY_FREE_LIST
+--------------------------------------
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :doc: IOCTL CREATE_FREE_LIST
+   :doc: PowerVR IOCTL CREATE_FREE_LIST and DESTROY_FREE_LIST interfaces
 
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
    :identifiers: drm_pvr_ioctl_create_free_list_args
 
-DESTROY_FREE_LIST
--------------------
-.. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :doc: IOCTL DESTROY_FREE_LIST
-
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
    :identifiers: drm_pvr_ioctl_destroy_free_list_args
 
-CREATE_HWRT_DATASET
--------------------
+CREATE_HWRT_DATASET and DESTROY_HWRT_DATASET
+--------------------------------------
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :doc: IOCTL CREATE_HWRT_DATASET
+   :doc: PowerVR IOCTL CREATE_HWRT_DATASET and DESTROY_HWRT_DATASET interfaces
 
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
    :identifiers: drm_pvr_ioctl_create_hwrt_dataset_args
@@ -149,16 +132,14 @@ CREATE_HWRT_DATASET
    :identifiers: drm_pvr_create_hwrt_geom_data_args
                  drm_pvr_create_hwrt_rt_data_args
 
-DESTROY_HWRT_DATASET
--------------------
-.. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :doc: IOCTL DESTROY_HWRT_DATASET
-
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
    :identifiers: drm_pvr_ioctl_destroy_hwrt_dataset_args
 
-SUBMIT_JOB
-----------
+SUBMIT_JOBS
+-----------
+.. kernel-doc:: include/uapi/drm/pvr_drm.h
+   :doc: PowerVR IOCTL SUBMIT_JOBS interface
+
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
    :doc: Flags for the drm_pvr_sync_op object.
 
