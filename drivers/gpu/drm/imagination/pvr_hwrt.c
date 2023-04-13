@@ -18,7 +18,7 @@ static_assert(ROGUE_FWIF_NUM_RTDATAS == 2);
 static_assert(ROGUE_FWIF_NUM_GEOMDATAS == 1);
 static_assert(ROGUE_FWIF_NUM_RTDATA_FREELISTS == 2);
 
-/**
+/*
  * struct pvr_rt_mtile_info - Render target macrotile information
  */
 struct pvr_rt_mtile_info {

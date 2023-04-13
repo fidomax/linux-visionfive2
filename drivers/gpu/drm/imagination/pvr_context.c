@@ -1318,8 +1318,8 @@ pvr_context_queue_collect_done_jobs(struct pvr_context_queue *queue, struct list
 }
 
 /**
- * pvr_context_queue_collect_done_jobs() - Collect all done jobs and add them to the list
- * @context: Context to collect done jobs on.
+ * pvr_context_collect_done_jobs() - Collect all done jobs and add them to the list
+ * @ctx: Context to collect done jobs on.
  * @done_jobs: List to queue these done jobs to.
  *
  * Collect all jobs on all queues belonging to this context.

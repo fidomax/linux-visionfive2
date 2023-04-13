@@ -185,12 +185,13 @@ struct pvr_context {
 	/** @ctx_id: FW context ID. */
 	u32 ctx_id;
 
+	/** @process_name: Name of process that created this context. */
 	char process_name[PVR_COREDUMP_PROCESS_NAME_LEN];
 
 	/** @active_node: Used to queue the context to the active context list. */
 	struct list_head active_node;
 
-	/** @job_pending: Job pending worker, used to evalulate job dependencies. */
+	/** @job_pending_work: Job pending worker, used to evalulate job dependencies. */
 	struct work_struct job_pending_work;
 
 	/** @destroyed: True when the context has been destroyed. */

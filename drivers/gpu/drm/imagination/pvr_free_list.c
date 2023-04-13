@@ -387,7 +387,6 @@ pvr_free_list_free_node(struct pvr_free_list_node *free_list_node)
  * pvr_free_list_create() - Create a new free list and return an object pointer
  * @pvr_file: Pointer to pvr_file structure.
  * @args: Creation arguments from userspace.
- * @id: FW object ID.
  *
  * Return:
  *  * Pointer to new free_list, or

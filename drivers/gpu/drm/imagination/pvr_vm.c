@@ -1605,7 +1605,6 @@ pvr_page_table_l0_idx(u64 device_addr)
 /**
  * pvr_page_table_l1_create_unchecked() - Create a level 1 page table and
  *                                        insert it into a level 2 page table.
- * @pvr_dev: Target PowerVR device.
  * @ptr: Page table pointer pointing to the entry to insert the L1 page table into.
  *
  * This function is unchecked. By using it, the caller is asserting that @ptr
@@ -3267,6 +3266,7 @@ err_out:
 
 /**
  * pvr_vm_context_fini() - Teardown a VM context.
+ * @ref_count: Pointer to reference counter of the VM context.
  *
  * This function ensures that no mappings are left dangling by unmapping them
  * all in order of ascending device-virtual address.

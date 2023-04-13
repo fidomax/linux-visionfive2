@@ -211,7 +211,7 @@ err_out:
  * @cmd_defs: Stream definition.
  * @stream: Pointer to command stream.
  * @stream_size: Size of command stream, in bytes.
- * @dest_out: Pointer to location to store address of FW structure.
+ * @job: Pointer to job in which to store address of FW structure.
  *
  * Caller is responsible for freeing the output structure.
  *

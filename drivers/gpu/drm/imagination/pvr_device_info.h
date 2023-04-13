@@ -8,7 +8,7 @@
 
 struct pvr_device;
 
-/**
+/*
  * struct pvr_device_features - Hardware feature information
  */
 struct pvr_device_features {
@@ -74,7 +74,7 @@ struct pvr_device_features {
 	u8 xpu_max_slaves;
 };
 
-/**
+/*
  * struct pvr_device_quirks - Hardware quirk information
  */
 struct pvr_device_quirks {
@@ -91,7 +91,7 @@ struct pvr_device_quirks {
 	bool has_brn66011 : 1;
 };
 
-/**
+/*
  * struct pvr_device_enhancements - Hardware enhancement information
  */
 struct pvr_device_enhancements {
@@ -107,7 +107,7 @@ int pvr_device_info_init(struct pvr_device *pvr_dev);
  * Meta cores
  *
  * These are the values for the 'meta' feature when the feature is present
- * (as per @pvr_device_features)/
+ * (as per &struct pvr_device_features)/
  */
 #define PVR_META_MTP218 (1)
 #define PVR_META_MTP219 (2)

@@ -398,7 +398,8 @@ struct pvr_sync_signal {
 	/** @handle: Handle of the syncobj to signal. */
 	u32 handle;
 
-	/** @point: Point to signal in the syncobj.
+	/**
+	 * @point: Point to signal in the syncobj.
 	 *
 	 * Only relevant for timeline syncobjs.
 	 */

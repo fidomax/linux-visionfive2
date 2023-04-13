@@ -151,7 +151,7 @@ static int pvr_cccb_check_command_space_locked(struct pvr_cccb *pvr_cccb, size_t
 }
 
 /**
- * pvr_cccb_check_command_space_locked() - Check if a command sequence fits in the CCCB
+ * pvr_cccb_check_command_space() - Check if a command sequence fits in the CCCB
  * @pvr_cccb: Target Client CCB.
  * @size: Size of the command sequence.
  *

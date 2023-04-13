@@ -57,7 +57,7 @@ struct pvr_free_list {
 	/** @fw_obj: FW object representing the FW-side structure. */
 	struct pvr_fw_object *fw_obj;
 
-	/** &fw_data: Pointer to CPU mapping of the FW-side structure. */
+	/** @fw_data: Pointer to CPU mapping of the FW-side structure. */
 	struct rogue_fwif_freelist *fw_data;
 
 	/**
@@ -142,7 +142,7 @@ pvr_free_list_lookup(struct pvr_file *pvr_file, u32 handle)
 
 /**
  * pvr_free_list_lookup_id() - Lookup free list pointer from FW ID
- * @pvr_device: Device pointer.
+ * @pvr_dev: Device pointer.
  * @id: FW object ID.
  *
  * Takes reference on free list object. Call pvr_free_list_put() to release.
