@@ -717,93 +717,13 @@ pvr_ioctl_create_context(struct drm_device *drm_dev, void *raw_args,
 			 struct drm_file *file)
 {
 	struct drm_pvr_ioctl_create_context_args *args = raw_args;
+	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
 	struct pvr_file *pvr_file = file->driver_priv;
-	struct pvr_device *pvr_dev = pvr_file->pvr_dev;
-	struct pvr_context *ctx = NULL;
-	u32 handle;
-	void *old;
-	int err;
-	u32 id;
 
 	if (pvr_dev->lost)
 		return -EIO;
 
-	if (args->flags) {
-		/* Context creation flags are currently unused and must be zero. */
-		err = -EINVAL;
-		goto err_out;
-	}
-
-	/*
-	 * Allocate global ID for firmware. We will update this with the context once it is created.
-	 */
-	err = xa_alloc(&pvr_dev->ctx_ids, &id, NULL, xa_limit_32b,
-		       GFP_KERNEL);
-	if (err < 0)
-		goto err_out;
-
-	/*
-	 * Allocate context handle for userspace. We will update this with the context once it
-	 * is created.
-	 */
-	err = xa_alloc(&pvr_file->ctx_handles, &handle, NULL, xa_limit_32b,
-		       GFP_KERNEL);
-	if (err < 0)
-		goto err_id_xa_erase;
-
-	switch (args->type) {
-	case DRM_PVR_CTX_TYPE_RENDER: {
-		ctx = pvr_create_render_context(pvr_file, args, id);
-		break;
-	}
-
-	case DRM_PVR_CTX_TYPE_COMPUTE: {
-		ctx = pvr_create_compute_context(pvr_file, args, id);
-		break;
-	}
-
-	case DRM_PVR_CTX_TYPE_TRANSFER_FRAG: {
-		ctx = pvr_create_transfer_context(pvr_file, args, id);
-		break;
-	}
-
-	default:
-		ctx = ERR_PTR(-EINVAL);
-		break;
-	}
-
-	if (IS_ERR(ctx)) {
-		err = PTR_ERR(ctx);
-		goto err_handle_xa_erase;
-	}
-
-	old = xa_store(&pvr_dev->ctx_ids, id, ctx, GFP_KERNEL);
-	if (xa_is_err(old)) {
-		err = xa_err(old);
-		goto err_context_destroy;
-	}
-
-	old = xa_store(&pvr_file->ctx_handles, handle, ctx, GFP_KERNEL);
-	if (xa_is_err(old)) {
-		err = xa_err(old);
-		goto err_context_destroy;
-	}
-
-	args->handle = handle;
-
-	return 0;
-
-err_context_destroy:
-	pvr_context_destroy(pvr_file, handle);
-
-err_handle_xa_erase:
-	xa_erase(&pvr_file->ctx_handles, handle);
-
-err_id_xa_erase:
-	xa_erase(&pvr_dev->ctx_ids, id);
-
-err_out:
-	return err;
+	return pvr_context_create(pvr_file, args);
 }
 
 /**
@@ -1508,8 +1428,11 @@ pvr_probe(struct platform_device *plat_dev)
 	drm_dev = &pvr_dev->base;
 
 	platform_set_drvdata(plat_dev, drm_dev);
-
 	pvr_context_device_init(pvr_dev);
+
+	err = pvr_queue_device_init(pvr_dev);
+	if (err)
+		goto err_context_fini;
 
 	pm_runtime_enable(&plat_dev->dev);
 
@@ -1533,7 +1456,6 @@ pvr_probe(struct platform_device *plat_dev)
 	if (err)
 		goto err_device_fini;
 
-	xa_init_flags(&pvr_dev->ctx_ids, XA_FLAGS_ALLOC1);
 	xa_init_flags(&pvr_dev->free_list_ids, XA_FLAGS_ALLOC1);
 	xa_init_flags(&pvr_dev->job_ids, XA_FLAGS_ALLOC1);
 
@@ -1550,6 +1472,10 @@ err_power_fini:
 	pvr_power_fini(pvr_dev);
 
 	pm_runtime_disable(&plat_dev->dev);
+	pvr_queue_device_fini(pvr_dev);
+
+err_context_fini:
+	pvr_context_device_fini(pvr_dev);
 
 err_out:
 	return err;
@@ -1563,11 +1489,9 @@ pvr_remove(struct platform_device *plat_dev)
 
 	WARN_ON(!xa_empty(&pvr_dev->job_ids));
 	WARN_ON(!xa_empty(&pvr_dev->free_list_ids));
-	WARN_ON(!xa_empty(&pvr_dev->ctx_ids));
 
 	xa_destroy(&pvr_dev->job_ids);
 	xa_destroy(&pvr_dev->free_list_ids);
-	xa_destroy(&pvr_dev->ctx_ids);
 
 	drm_dev_unregister(drm_dev);
 	pvr_device_fini(pvr_dev);
@@ -1575,6 +1499,8 @@ pvr_remove(struct platform_device *plat_dev)
 		pvr_dev->vendor.callbacks->fini(pvr_dev);
 	pvr_power_fini(pvr_dev);
 	pm_runtime_disable(&plat_dev->dev);
+	pvr_queue_device_fini(pvr_dev);
+	pvr_context_device_fini(pvr_dev);
 
 	return 0;
 }

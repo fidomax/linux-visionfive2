@@ -10,6 +10,8 @@
 #include <linux/mutex.h>
 #include <linux/types.h>
 
+#define PADDING_COMMAND_SIZE sizeof(struct rogue_fwif_ccb_cmd_header)
+
 /* Forward declaration from pvr_device.h. */
 struct pvr_device;
 
@@ -71,6 +73,8 @@ int pvr_cccb_unlock_send_kccb_kick(struct pvr_device *pvr_dev,
 				   struct pvr_hwrt_data *hwrt);
 int pvr_cccb_check_command_space(struct pvr_cccb *pvr_cccb, size_t size);
 
+bool pvr_cccb_cmdseq_fits(struct pvr_cccb *pvr_cccb, size_t size);
+
 /**
  * pvr_cccb_lock() - Lock a client CCB for writing
  * @pvr_cccb: Target client CCB.
@@ -107,6 +111,28 @@ static __always_inline u32
 pvr_cccb_get_size_of_cmd_with_hdr(u32 cmd_size)
 {
 	return sizeof(struct rogue_fwif_ccb_cmd_header) + cmd_size;
+}
+
+/**
+ * pvr_cccb_cmdseq_can_fit() - Check if a command sequence can fit in the CCCB.
+ * @size: Command sequence size.
+ *
+ * Returns:
+ *  * true it the CCCB is big enough to contain a command sequence, or
+ *  * false otherwise.
+ */
+static __always_inline bool
+pvr_cccb_cmdseq_can_fit(struct pvr_cccb *pvr_cccb, size_t size)
+{
+	/* We divide the capacity by two to simplify our CCCB fencing logic:
+	 * we want to be sure that, no matter what we had queued before, we
+	 * are able to either queue our command sequence at the end or add a
+	 * padding command and queue the command sequence at the beginning
+	 * of the CCCB. If the command sequence size is bigger than half the
+	 * CCCB capacity, we'd have to queue the padding command and make sure
+	 * the FW is done processing it before queueing our command sequence.
+	 */
+	return size + PADDING_COMMAND_SIZE <= pvr_cccb->size / 2;
 }
 
 #endif /* PVR_CCCB_H */

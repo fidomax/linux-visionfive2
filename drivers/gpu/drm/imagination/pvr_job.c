@@ -25,17 +25,6 @@
 #include <linux/xarray.h>
 #include <uapi/drm/pvr_drm.h>
 
-static void release_fences(struct xarray *in_fences)
-{
-	struct dma_fence *fence;
-	unsigned long id;
-
-	xa_for_each(in_fences, id, fence)
-		dma_fence_put(fence);
-
-	xa_destroy(in_fences);
-}
-
 static void pvr_job_release(struct kref *kref)
 {
 	struct pvr_job *job = container_of(kref, struct pvr_job, ref_count);
@@ -45,300 +34,35 @@ static void pvr_job_release(struct kref *kref)
 	pvr_hwrt_data_put(job->hwrt);
 	pvr_context_put(job->ctx);
 
-	if (job->deps.cur) {
-		dma_fence_remove_callback(job->deps.cur, &job->deps.cb);
-		dma_fence_put(job->deps.cur);
-	}
+	pvr_queue_job_cleanup(job);
+	pvr_job_release_pm_ref(job);
 
-	release_fences(&job->deps.non_native);
-	release_fences(&job->deps.native);
-
-	dma_fence_put(job->done_fence);
 	kfree(job->cmd);
 	kfree(job);
-}
-
-static void pvr_job_dep_cb(struct dma_fence *fence, struct dma_fence_cb *cb)
-{
-	struct pvr_job *job = container_of(cb, struct pvr_job, deps.cb);
-	struct pvr_context *ctx = job->ctx;
-
-	pvr_context_pending_job_event(ctx);
-}
-
-bool pvr_job_non_native_deps_done(struct pvr_job *job)
-{
-	/* The current fence is a native fence, meaning all non-native deps are done. */
-	if (job->deps.cur && to_pvr_context_queue_fence(job->deps.cur))
-		return true;
-
-	/* No more non-native deps to wait on. */
-	if (!job->deps.cur && xa_empty(&job->deps.non_native))
-		return true;
-
-	/* Current non-native fence is still unsignaled. */
-	if (job->deps.cur && !dma_fence_is_signaled(job->deps.cur))
-		return false;
-
-	dma_fence_put(job->deps.cur);
-	job->deps.cur = NULL;
-
-	while (!xa_empty(&job->deps.non_native)) {
-		struct dma_fence *next_dep;
-		int ret;
-
-		next_dep = xa_erase(&job->deps.non_native, job->deps.next_index++);
-		ret = dma_fence_add_callback(next_dep, &job->deps.cb, pvr_job_dep_cb);
-		if (!ret) {
-			job->deps.cur = next_dep;
-			break;
-		}
-
-		WARN_ON(ret != -ENOENT);
-		dma_fence_put(next_dep);
-	}
-
-	/* Reset the index so it can be used to iterate over the native array. */
-	if (xa_empty(&job->deps.non_native))
-		job->deps.next_index = 0;
-
-	return !job->deps.cur;
 }
 
 /**
  * pvr_job_evict_signaled_native_deps() - Evict signaled native deps
  * @job: Job to operate on.
+ *
+ * Returns: Number of unsignalled native deps remaining.
  */
-void pvr_job_evict_signaled_native_deps(struct pvr_job *job)
+unsigned long pvr_job_evict_signaled_native_deps(struct pvr_job *job)
 {
+	unsigned long remaining_count = 0;
 	struct dma_fence *fence = NULL;
 	unsigned long index;
 
-	if (job->deps.cur && dma_fence_is_signaled(job->deps.cur)) {
-		if (!WARN_ON(!to_pvr_context_queue_fence(job->deps.cur)))
-			job->deps.native_count--;
-
-		dma_fence_put(job->deps.cur);
-		job->deps.cur = NULL;
-	}
-
-	xa_for_each_start(&job->deps.native, index, fence, job->deps.next_index) {
+	xa_for_each(&job->base.dependencies, index, fence) {
 		if (dma_fence_is_signaled(fence)) {
-			xa_erase(&job->deps.native, index);
+			xa_erase(&job->base.dependencies, index);
 			dma_fence_put(fence);
-			job->deps.native_count--;
+		} else {
+			remaining_count++;
 		}
 	}
-}
 
-/**
- * pvr_job_wait_first_non_signaled_native_dep() - Register a fence callback on the first
- *						  non-signaled native dep
- * @job: Job to operate on.
- *
- * Returns:
- *  * 0 on success,
- *  * or -ENOENT if there's no fence to wait on.
- */
-int pvr_job_wait_first_non_signaled_native_dep(struct pvr_job *job)
-{
-	struct dma_fence *fence;
-	unsigned long index;
-
-	if (job->deps.cur)
-		return 0;
-
-	xa_for_each_start(&job->deps.native, index, fence, job->deps.next_index) {
-		int err;
-
-		xa_erase(&job->deps.native, index);
-		err = dma_fence_add_callback(fence, &job->deps.cb, pvr_job_dep_cb);
-		if (!err) {
-			job->deps.cur = fence;
-			job->deps.next_index = index + 1;
-			return 0;
-		}
-
-		WARN_ON(err != -ENOENT);
-		job->deps.native_count--;
-		dma_fence_put(fence);
-	}
-
-	return -ENOENT;
-}
-
-struct pvr_cccb *
-get_cccb(struct pvr_job *job)
-{
-	switch (job->type) {
-	case DRM_PVR_JOB_TYPE_GEOMETRY:
-		return &container_of(job->ctx, struct pvr_context_render, base)->ctx_geom.cccb;
-
-	case DRM_PVR_JOB_TYPE_FRAGMENT:
-		return &container_of(job->ctx, struct pvr_context_render, base)->ctx_frag.cccb;
-
-	case DRM_PVR_JOB_TYPE_COMPUTE:
-		return &container_of(job->ctx, struct pvr_context_compute, base)->cccb;
-
-	case DRM_PVR_JOB_TYPE_TRANSFER_FRAG:
-		return &container_of(job->ctx, struct pvr_context_transfer, base)->cccb;
-
-	default:
-		return NULL;
-	}
-}
-
-struct pvr_context_queue *
-get_ctx_queue(struct pvr_job *job)
-{
-	switch (job->type) {
-	case DRM_PVR_JOB_TYPE_GEOMETRY:
-		return &container_of(job->ctx, struct pvr_context_render, base)->ctx_geom.queue;
-
-	case DRM_PVR_JOB_TYPE_FRAGMENT:
-		return &container_of(job->ctx, struct pvr_context_render, base)->ctx_frag.queue;
-
-	case DRM_PVR_JOB_TYPE_COMPUTE:
-		return &container_of(job->ctx, struct pvr_context_compute, base)->queue;
-
-	case DRM_PVR_JOB_TYPE_TRANSFER_FRAG:
-		return &container_of(job->ctx, struct pvr_context_transfer, base)->queue;
-
-	default:
-		return NULL;
-	}
-}
-
-static u32 get_ctx_fw_addr(struct pvr_job *job)
-{
-	u32 ctx_fw_addr;
-
-	pvr_fw_object_get_fw_addr(job->ctx->fw_obj, &ctx_fw_addr);
-
-	if (job->type == DRM_PVR_JOB_TYPE_FRAGMENT)
-		ctx_fw_addr += offsetof(struct rogue_fwif_fwrendercontext, frag_context);
-
-	return ctx_fw_addr;
-}
-
-/**
- * pvr_job_fits_in_cccb() - Check if a job fits in CCCB
- * @job: Job to check.
- *
- * Returns:
- *  * 0 on success,
- *  * or -E2BIG if the CCCB is too small to ever hold the commands for this job,
- *  * or -ENOMEM if the CCCB doesn't have enough memory to hold the commands for
- *    this job at the moment.
- */
-int pvr_job_fits_in_cccb(struct pvr_job *job)
-{
-	/* One UFO for job done signaling, and one per remaining native fence. */
-	u32 ufo_op_count = 1 + job->deps.native_count;
-
-	u32 size = (pvr_cccb_get_size_of_cmd_with_hdr(sizeof(struct rogue_fwif_ufo)) *
-		    ufo_op_count) +
-		   pvr_cccb_get_size_of_cmd_with_hdr(job->cmd_len);
-	struct pvr_cccb *cccb = get_cccb(job);
-
-	return pvr_cccb_check_command_space(cccb, size);
-}
-
-void pvr_job_submit(struct pvr_job *job)
-{
-	struct pvr_context_queue *queue = get_ctx_queue(job);
-	struct pvr_device *pvr_dev = job->pvr_dev;
-	struct pvr_context_queue_fence *qfence;
-	struct pvr_cccb *cccb = get_cccb(job);
-	struct rogue_fwif_ufo queue_ufo;
-	u32 ctx_fw_addr = get_ctx_fw_addr(job);
-	struct dma_fence *fence;
-	unsigned long index;
-	int err;
-
-	if (WARN_ON(!queue || !cccb))
-		return;
-
-	err = pvr_power_get(pvr_dev);
-	if (WARN_ON(err))
-		return;
-
-	pvr_cccb_lock(cccb);
-
-	spin_lock(&pvr_dev->active_contexts.lock);
-	if (list_empty(&job->ctx->active_node))
-		list_add_tail(&job->ctx->active_node, &pvr_dev->active_contexts.list);
-	spin_lock(&queue->jobs.lock);
-	list_move_tail(&job->node, &queue->jobs.in_flight);
-	spin_unlock(&queue->jobs.lock);
-	spin_unlock(&pvr_dev->active_contexts.lock);
-
-	qfence = to_pvr_context_queue_fence(job->deps.cur);
-	WARN_ON(job->deps.cur && !qfence);
-	if (qfence) {
-		pvr_fw_object_get_fw_addr(qfence->ctx->timeline_ufo.fw_obj, &queue_ufo.addr);
-		queue_ufo.value = job->deps.cur->seqno;
-		err = pvr_cccb_write_command_with_header(cccb, ROGUE_FWIF_CCB_CMD_TYPE_FENCE_PR,
-							 sizeof(queue_ufo), &queue_ufo, 0, 0);
-		if (WARN_ON(err))
-			goto err_cccb_unlock_rollback;
-	}
-
-	xa_for_each(&job->deps.native, index, fence) {
-		qfence = to_pvr_context_queue_fence(fence);
-		if (WARN_ON(!qfence))
-			continue;
-
-		pvr_fw_object_get_fw_addr(qfence->ctx->timeline_ufo.fw_obj, &queue_ufo.addr);
-		queue_ufo.value = fence->seqno;
-		err = pvr_cccb_write_command_with_header(cccb, ROGUE_FWIF_CCB_CMD_TYPE_FENCE_PR,
-							 sizeof(queue_ufo), &queue_ufo, 0, 0);
-		if (WARN_ON(err))
-			goto err_cccb_unlock_rollback;
-	}
-
-	/* Submit job to FW */
-	err = pvr_cccb_write_command_with_header(cccb, job->fw_ccb_cmd_type, job->cmd_len, job->cmd,
-						 job->id, job->id);
-	if (WARN_ON(err))
-		goto err_cccb_unlock_rollback;
-
-	pvr_fw_object_get_fw_addr(queue->fence_ctx->timeline_ufo.fw_obj, &queue_ufo.addr);
-	queue_ufo.value = job->done_fence->seqno;
-	err = pvr_cccb_write_command_with_header(cccb, ROGUE_FWIF_CCB_CMD_TYPE_UPDATE,
-						 sizeof(queue_ufo), &queue_ufo, 0, 0);
-	if (WARN_ON(err))
-		goto err_cccb_unlock_rollback;
-
-	err = pvr_cccb_unlock_send_kccb_kick(pvr_dev, cccb, ctx_fw_addr, job->hwrt);
-	if (WARN_ON(err))
-		goto err_cccb_unlock_rollback;
-
-	return;
-
-err_cccb_unlock_rollback:
-	spin_lock(&pvr_dev->active_contexts.lock);
-	spin_lock(&queue->jobs.lock);
-	list_move(&job->node, &queue->jobs.pending);
-	spin_unlock(&queue->jobs.lock);
-	if (!pvr_context_has_in_flight_jobs(job->ctx))
-		list_del_init(&job->ctx->active_node);
-	spin_unlock(&pvr_dev->active_contexts.lock);
-	pvr_cccb_unlock_rollback(cccb);
-	pvr_power_put(pvr_dev);
-}
-
-static void pvr_job_push(struct pvr_job *job)
-{
-	struct pvr_context_queue *queue = get_ctx_queue(job);
-
-	pvr_job_get(job);
-
-	spin_lock(&queue->jobs.lock);
-	list_add_tail(&job->node, &queue->jobs.pending);
-	spin_unlock(&queue->jobs.lock);
-
-	pvr_context_pending_job_event(job->ctx);
+	return remaining_count;
 }
 
 /**
@@ -405,7 +129,7 @@ struct pvr_sync_signal {
 	/**
 	 * @fence: New fence object to attach to the syncobj.
 	 *
-	 * This pointer starts with the currently fence bound to
+	 * This pointer starts with the current fence bound to
 	 * the <handle,point> pair.
 	 */
 	struct dma_fence *fence;
@@ -555,7 +279,7 @@ pvr_sync_signal_array_update_fences(struct xarray *array,
 		sig_sync->fence = dma_fence_get(done_fence);
 		dma_fence_put(old_fence);
 
-		if (!sig_sync->fence)
+		if (WARN_ON(!sig_sync->fence))
 			return -EINVAL;
 	}
 
@@ -579,67 +303,18 @@ pvr_sync_signal_array_push_fences(struct xarray *array)
 	}
 }
 
-/**
- * fence_array_add() - Adds the fence to an array of fences to be waited on,
- *                     deduplicating fences from the same context.
- * @fence_array: array of dma_fence * for the job to block on.
- * @fence: the dma_fence to add to the list of dependencies.
- *
- * This functions consumes the reference for @fence both on success and error
- * cases.
- *
- * Returns:
- *  * 0 on success, or an error on failing to expand the array.
- */
-static int
-fence_array_add(struct xarray *fence_array, struct dma_fence *fence)
-{
-	struct dma_fence *entry;
-	unsigned long index;
-	u32 id = 0;
-	int ret;
-
-	if (!fence)
-		return 0;
-
-	/* Deduplicate if we already depend on a fence from the same context.
-	 * This lets the size of the array of deps scale with the number of
-	 * engines involved, rather than the number of BOs.
-	 */
-	xa_for_each(fence_array, index, entry) {
-		if (entry->context != fence->context)
-			continue;
-
-		if (dma_fence_is_later(fence, entry)) {
-			dma_fence_put(entry);
-			xa_store(fence_array, index, fence, GFP_KERNEL);
-		} else {
-			dma_fence_put(fence);
-		}
-		return 0;
-	}
-
-	ret = xa_alloc(fence_array, &id, fence, xa_limit_32b, GFP_KERNEL);
-	if (ret != 0)
-		dma_fence_put(fence);
-
-	return ret;
-}
-
 static int
 pvr_job_add_deps(struct pvr_file *pvr_file, struct pvr_job *job,
 		 u32 sync_op_count, const struct drm_pvr_sync_op *sync_ops,
 		 struct xarray *signal_array)
 {
-	struct dma_fence *fence;
-	unsigned long index;
 	int err = 0;
 
 	if (!sync_op_count)
 		return 0;
 
 	for (u32 i = 0; i < sync_op_count; i++) {
-		struct dma_fence *unwrapped_fence;
+		struct dma_fence *unwrapped_fence, *fence;
 		struct pvr_sync_signal *sig_sync;
 		struct dma_fence_unwrap iter;
 		u32 native_fence_count = 0;
@@ -666,13 +341,13 @@ pvr_job_add_deps(struct pvr_file *pvr_file, struct pvr_job *job,
 		}
 
 		dma_fence_unwrap_for_each(unwrapped_fence, &iter, fence) {
-			if (to_pvr_context_queue_fence(unwrapped_fence))
+			if (pvr_queue_fence_is_ufo_backed(unwrapped_fence))
 				native_fence_count++;
 		}
 
 		if (!native_fence_count) {
 			/* No need to unwrap the fence if it's fully non-native. */
-			err = fence_array_add(&job->deps.non_native, fence);
+			err = drm_sched_job_add_dependency(&job->base, fence);
 			if (err)
 				return err;
 		} else {
@@ -685,12 +360,7 @@ pvr_job_add_deps(struct pvr_file *pvr_file, struct pvr_job *job,
 					continue;
 
 				dma_fence_get(unwrapped_fence);
-				if (to_pvr_context_queue_fence(unwrapped_fence)) {
-					err = fence_array_add(&job->deps.native, unwrapped_fence);
-				} else {
-					err = fence_array_add(&job->deps.non_native,
-							      unwrapped_fence);
-				}
+				err = drm_sched_job_add_dependency(&job->base, unwrapped_fence);
 				dma_fence_put(unwrapped_fence);
 			}
 
@@ -698,9 +368,6 @@ pvr_job_add_deps(struct pvr_file *pvr_file, struct pvr_job *job,
 				return err;
 		}
 	}
-
-	xa_for_each(&job->deps.native, index, fence)
-		job->deps.native_count++;
 
 	return 0;
 }
@@ -813,7 +480,7 @@ pvr_geom_job_fw_cmd_init(struct pvr_job *job,
 	if (args->flags & ~DRM_PVR_SUBMIT_JOB_GEOM_CMD_FLAGS_MASK)
 		return -EINVAL;
 
-	if (!to_pvr_context_render(job->ctx))
+	if (job->ctx->type != DRM_PVR_CTX_TYPE_RENDER)
 		return -EINVAL;
 
 	if (!job->hwrt)
@@ -842,7 +509,7 @@ pvr_frag_job_fw_cmd_init(struct pvr_job *job,
 	if (args->flags & ~DRM_PVR_SUBMIT_JOB_FRAG_CMD_FLAGS_MASK)
 		return -EINVAL;
 
-	if (!to_pvr_context_render(job->ctx))
+	if (job->ctx->type != DRM_PVR_CTX_TYPE_RENDER)
 		return -EINVAL;
 
 	if (!job->hwrt)
@@ -884,7 +551,7 @@ pvr_compute_job_fw_cmd_init(struct pvr_job *job,
 	if (args->flags & ~DRM_PVR_SUBMIT_JOB_COMPUTE_CMD_FLAGS_MASK)
 		return -EINVAL;
 
-	if (!to_pvr_context_compute(job->ctx))
+	if (job->ctx->type != DRM_PVR_CTX_TYPE_COMPUTE)
 		return -EINVAL;
 
 	job->fw_ccb_cmd_type = ROGUE_FWIF_CCB_CMD_TYPE_CDM;
@@ -920,7 +587,7 @@ pvr_transfer_job_fw_cmd_init(struct pvr_job *job,
 	if (args->flags & ~DRM_PVR_SUBMIT_JOB_TRANSFER_CMD_FLAGS_MASK)
 		return -EINVAL;
 
-	if (!to_pvr_context_transfer_frag(job->ctx))
+	if (job->ctx->type != DRM_PVR_CTX_TYPE_TRANSFER_FRAG)
 		return -EINVAL;
 
 	job->fw_ccb_cmd_type = ROGUE_FWIF_CCB_CMD_TYPE_TQ_3D;
@@ -964,7 +631,7 @@ pvr_create_job(struct pvr_device *pvr_dev,
 	       struct xarray *signal_array)
 {
 	struct drm_pvr_sync_op *sync_ops = NULL;
-	struct pvr_context_queue *queue;
+	struct dma_fence *done_fence;
 	struct pvr_job *job = NULL;
 	int err;
 
@@ -980,11 +647,9 @@ pvr_create_job(struct pvr_device *pvr_dev,
 	if (!job)
 		return ERR_PTR(-ENOMEM);
 
-	xa_init_flags(&job->deps.non_native, XA_FLAGS_ALLOC);
-	xa_init_flags(&job->deps.native, XA_FLAGS_ALLOC);
 	kref_init(&job->ref_count);
-	job->pvr_dev = pvr_dev;
 	job->type = args->type;
+	job->pvr_dev = pvr_dev;
 
 	err = xa_alloc(&pvr_dev->job_ids, &job->id, job, xa_limit_32b, GFP_KERNEL);
 	if (err)
@@ -1018,31 +683,20 @@ pvr_create_job(struct pvr_device *pvr_dev,
 	if (err)
 		goto err_put_job;
 
-	/* Check if the job will ever fit in the CCCB. */
-	err = pvr_job_fits_in_cccb(job);
-	if (err == -E2BIG)
+	err = pvr_queue_job_init(job);
+	if (err)
 		goto err_put_job;
 
 	err = pvr_job_add_deps(pvr_file, job, args->sync_ops.count, sync_ops, signal_array);
 	if (err)
 		goto err_put_job;
 
-	queue = get_ctx_queue(job);
-	if (!queue) {
-		err = -EINVAL;
-		goto err_put_job;
-	}
-
-	job->done_fence = pvr_context_queue_fence_create(queue);
-	if (IS_ERR(job->done_fence)) {
-		err = PTR_ERR(job->done_fence);
-		job->done_fence = NULL;
-		goto err_put_job;
-	}
+	/* We need to arm the job to get the job done fence. */
+	done_fence = pvr_queue_job_arm(job);
 
 	err = pvr_sync_signal_array_update_fences(signal_array,
 						  args->sync_ops.count, sync_ops,
-						  job->done_fence);
+						  done_fence);
 	if (err)
 		goto err_put_job;
 
@@ -1104,7 +758,7 @@ pvr_submit_jobs(struct pvr_device *pvr_dev,
 	}
 
 	for (u32 i = 0; i < args->jobs.count; i++)
-		pvr_job_push(jobs[i]);
+		pvr_queue_job_push(jobs[i]);
 
 	pvr_sync_signal_array_push_fences(&signal_array);
 	err = 0;

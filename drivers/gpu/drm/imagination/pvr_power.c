@@ -28,10 +28,8 @@
 static void
 pvr_device_lost(struct pvr_device *pvr_dev)
 {
-	if (!pvr_dev->lost) {
+	if (!pvr_dev->lost)
 		pvr_dev->lost = true;
-		pvr_context_cancel_active_jobs(pvr_dev);
-	}
 }
 
 static int
@@ -158,9 +156,9 @@ pvr_watchdog_kccb_stalled(struct pvr_device *pvr_dev)
 	} else if (pvr_dev->watchdog.old_kccb_cmds_executed == kccb_cmds_executed) {
 		bool has_active_contexts;
 
-		spin_lock(&pvr_dev->active_contexts.lock);
-		has_active_contexts = list_empty(&pvr_dev->active_contexts.list);
-		spin_unlock(&pvr_dev->active_contexts.lock);
+		mutex_lock(&pvr_dev->queues.lock);
+		has_active_contexts = list_empty(&pvr_dev->queues.active);
+		mutex_unlock(&pvr_dev->queues.lock);
 
 		if (has_active_contexts) {
 			/* Send a HEALTH_CHECK command so we can verify FW is still alive. */

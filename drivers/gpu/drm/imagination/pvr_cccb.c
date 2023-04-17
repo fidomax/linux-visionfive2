@@ -13,8 +13,6 @@
 #include <linux/mutex.h>
 #include <linux/types.h>
 
-#define PADDING_COMMAND_SIZE sizeof(struct rogue_fwif_ccb_cmd_header)
-
 static __always_inline u32
 get_ccb_space(u32 w_off, u32 r_off, u32 ccb_size)
 {
@@ -100,6 +98,43 @@ build_padding_command(void *cmd_ptr, u32 remaining)
 
 	WRITE_ONCE(cmd->cmd_type, ROGUE_FWIF_CCB_CMD_TYPE_PADDING);
 	WRITE_ONCE(cmd->cmd_size, remaining - sizeof(*cmd));
+}
+
+/**
+ * pvr_cccb_cmdseq_fits() - Check if a command sequence fits in the CCCB
+ * @pvr_cccb: Target Client CCB.
+ * @size: Size of the command sequence.
+ *
+ * Check if a command sequence fits in the CCCB we have at hand.
+ *
+ * Return:
+ *  * true if the command sequence fits in the CCCB, or
+ *  * false otherwise.
+ */
+bool pvr_cccb_cmdseq_fits(struct pvr_cccb *pvr_cccb, size_t size)
+{
+	struct rogue_fwif_cccb_ctl *ctrl = pvr_cccb->ctrl;
+	u32 read_offset, remaining;
+	bool fits = false;
+
+	mutex_lock(&pvr_cccb->lock);
+
+	read_offset = READ_ONCE(ctrl->read_offset);
+	remaining = pvr_cccb->size - pvr_cccb->write_offset;
+
+	/* Always ensure we have enough room for a padding command at the end of the CCCB.
+	 * If our command sequence does not fit, reserve the remaining space for a padding
+	 * command.
+	 */
+	if (size + PADDING_COMMAND_SIZE > remaining)
+		size += remaining;
+
+	if (get_ccb_space(pvr_cccb->write_offset, read_offset, pvr_cccb->size) >= size)
+		fits = true;
+
+	mutex_unlock(&pvr_cccb->lock);
+
+	return fits;
 }
 
 /**

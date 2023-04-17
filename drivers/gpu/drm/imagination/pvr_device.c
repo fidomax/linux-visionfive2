@@ -4,6 +4,7 @@
 #include "pvr_device.h"
 #include "pvr_device_info.h"
 
+#include "pvr_context.h"
 #include "pvr_fw.h"
 #include "pvr_params.h"
 #include "pvr_power.h"
@@ -252,7 +253,7 @@ static irqreturn_t pvr_meta_irq_handler(int irq, void *data)
 	if (pvr_dev->fw_dev.booted) {
 		queue_work(pvr_dev->irq_wq, &pvr_dev->fwccb_work);
 		wake_up(&pvr_dev->kccb.rtn_q);
-		queue_work(pvr_dev->irq_wq, &pvr_dev->context_work);
+		queue_work(pvr_dev->irq_wq, &pvr_dev->queues.work);
 	}
 
 	return IRQ_HANDLED;

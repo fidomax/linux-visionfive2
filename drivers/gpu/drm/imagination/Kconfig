@@ -6,6 +6,7 @@ config DRM_POWERVR
 	depends on ARM64
 	depends on DRM
 	select DRM_GEM_SHMEM_HELPER
+	select DRM_SCHED
 	select FW_LOADER
 	help
 	  Choose this option if you have a system that has an Imagination

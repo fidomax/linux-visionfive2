@@ -10,6 +10,9 @@
 #include <linux/types.h>
 
 #include <drm/drm_gem.h>
+#include <drm/gpu_scheduler.h>
+
+#include "pvr_power.h"
 
 /* Forward declaration from "pvr_context.h". */
 struct pvr_context;
@@ -21,7 +24,13 @@ struct pvr_file;
 /* Forward declarations from "pvr_hwrt.h". */
 struct pvr_hwrt_data;
 
+/* Forward declaration from "pvr_queue.h". */
+struct pvr_queue;
+
 struct pvr_job {
+	/** @base: drm_sched_job object. */
+	struct drm_sched_job base;
+
 	/** @ref_count: Refcount for job. */
 	struct kref ref_count;
 
@@ -31,32 +40,11 @@ struct pvr_job {
 	/** @id: Job ID number. */
 	u32 id;
 
-	/** @node: List node used to add a job to a context queue. */
-	struct list_head node;
+	/** @cccb_fence: Fence used to wait for CCCB space. */
+	struct dma_fence *cccb_fence;
 
 	/** @done_fence: Fence to signal when the job is done. */
 	struct dma_fence *done_fence;
-
-	/** @deps: Dependency tracking data. */
-	struct {
-		/** @cb: dma_fence callback used to get informed when a dependency is signaled. */
-		struct dma_fence_cb cb;
-
-		/** @cur: Current dependency we're waiting on. */
-		struct dma_fence *cur;
-
-		/** @next_index: Index of the next dependency to process. */
-		unsigned long next_index;
-
-		/** @non_native: Array containing remaining non-native dependencies to wait on. */
-		struct xarray non_native;
-
-		/** @native_count: Number of native dependencies. */
-		unsigned long native_count;
-
-		/** @native: Array containing remaining native dependencies to wait on. */
-		struct xarray native;
-	} deps;
 
 	/** @pvr_dev: Device pointer. */
 	struct pvr_device *pvr_dev;
@@ -77,6 +65,12 @@ struct pvr_job {
 
 	/** @hwrt: HWRT object. Will be NULL for compute and transfer jobs. */
 	struct pvr_hwrt_data *hwrt;
+
+	/**
+	 * @has_pm_ref: True if the job has a power ref, thus forcing the GPU to stay on until
+	 * the job is done.
+	 */
+	bool has_pm_ref;
 };
 
 /**
@@ -100,13 +94,49 @@ pvr_job_get(struct pvr_job *job)
 
 void pvr_job_put(struct pvr_job *job);
 
-void pvr_job_evict_signaled_native_deps(struct pvr_job *job);
+/**
+ * pvr_job_release_pm_ref() - Release the PM ref if the job acquired it.
+ * @job: The job to release the PM ref on.
+ */
+static __always_inline void
+pvr_job_release_pm_ref(struct pvr_job *job)
+{
+	if (job->has_pm_ref) {
+		pvr_power_put(job->pvr_dev);
+		job->has_pm_ref = false;
+	}
+}
+
+/**
+ * pvr_job_get_pm_ref() - Get a PM ref and attach it to the job.
+ * @job: The job to attach the PM ref to.
+ *
+ * Return:
+ *  * 0 on success, or
+ *  * Any error returned by pvr_power_get() otherwise.
+ */
+static __always_inline int
+pvr_job_get_pm_ref(struct pvr_job *job)
+{
+	int err;
+
+	if (job->has_pm_ref)
+		return 0;
+
+	err = pvr_power_get(job->pvr_dev);
+	if (!err)
+		job->has_pm_ref = true;
+
+	return err;
+}
+
+unsigned long pvr_job_evict_signaled_native_deps(struct pvr_job *job);
 
 int pvr_job_wait_first_non_signaled_native_dep(struct pvr_job *job);
 
 bool pvr_job_non_native_deps_done(struct pvr_job *job);
 
-int pvr_job_fits_in_cccb(struct pvr_job *job);
+int pvr_job_fits_in_cccb(struct pvr_job *job, unsigned long native_dep_count);
 
 void pvr_job_submit(struct pvr_job *job);
 

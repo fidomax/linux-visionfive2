@@ -22,6 +22,7 @@ powervr-y := \
 	pvr_job.o \
 	pvr_params.o \
 	pvr_power.o \
+	pvr_queue.o \
 	pvr_stream.o \
 	pvr_stream_defs.o \
 	pvr_vm.o \

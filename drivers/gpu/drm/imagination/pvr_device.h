@@ -205,20 +205,21 @@ struct pvr_device {
 	struct xarray job_ids;
 
 	/**
-	 * @active_contexts: Active context list and the lock protecting it.
-	 *
-	 * Used to iterate over in-flight jobs and signal fences for done jobs.
+	 * @queues: Queue-related fields.
 	 */
 	struct {
-		/** @list: Active context list. */
-		struct list_head list;
+		/** @active: Active queue list. */
+		struct list_head active;
 
-		/** @lock: Lock protecting access to the active context list. */
-		spinlock_t lock;
-	} active_contexts;
+		/** @idle: Idle queue list. */
+		struct list_head idle;
 
-	/** @context_work: Work item for context processing. */
-	struct work_struct context_work;
+		/** @lock: Lock protecting access to the active/idle lists. */
+		struct mutex lock;
+
+		/** @work: Work item for active queue processing. */
+		struct work_struct work;
+	} queues;
 
 	struct {
 		/** @work: Work item for watchdog callback. */
@@ -250,6 +251,9 @@ struct pvr_device {
 
 	/** @lost: %true if the device has been lost. */
 	bool lost;
+
+	/** @sched_wq: Workqueue for schedulers. */
+	struct workqueue_struct *sched_wq;
 };
 
 /**
@@ -464,6 +468,7 @@ packed_bvnc_to_pvr_gpu_id(u64 bvnc, struct pvr_gpu_id *gpu_id)
 
 int pvr_device_init(struct pvr_device *pvr_dev);
 void pvr_device_fini(struct pvr_device *pvr_dev);
+void pvr_device_reset(struct pvr_device *pvr_dev);
 
 int
 pvr_device_clk_core_get_freq(struct pvr_device *pvr_dev, u32 *freq_out);
