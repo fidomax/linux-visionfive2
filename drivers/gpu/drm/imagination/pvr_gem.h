@@ -260,20 +260,6 @@ pvr_gem_object_size(struct pvr_gem_object *pvr_obj)
 	return from_pvr_gem_object(pvr_obj)->size;
 }
 
-/**
- * pvr_gem_object_is_imported() - Return whether an object is imported
- * @pvr_obj: Pointer to object to test.
- *
- * Returns:
- *  * %true if object is imported, or
- *  * %false if object is not imported.
- */
-static __always_inline bool
-pvr_gem_object_is_imported(struct pvr_gem_object *pvr_obj)
-{
-	return pvr_obj->base.import_attach;
-}
-
 void pvr_fw_object_release(struct pvr_fw_object *fw_obj);
 
 static __always_inline void *
