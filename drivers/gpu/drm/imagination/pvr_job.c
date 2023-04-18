@@ -719,6 +719,43 @@ pvr_job_add_deps(struct pvr_file *pvr_file, struct pvr_job *job,
 	return 0;
 }
 
+/**
+ * pvr_job_process_stream() - Build job FW structure from stream
+ * @pvr_dev: Device pointer.
+ * @cmd_defs: Stream definition.
+ * @stream: Pointer to command stream.
+ * @stream_size: Size of command stream, in bytes.
+ * @job: Pointer to job.
+ *
+ * Caller is responsible for freeing the output structure.
+ *
+ * Returns:
+ *  * 0 on success,
+ *  * -%ENOMEM on out of memory, or
+ *  * -%EINVAL on malformed stream.
+ */
+static int
+pvr_job_process_stream(struct pvr_device *pvr_dev, const struct pvr_stream_cmd_defs *cmd_defs,
+		       void *stream, u32 stream_size, struct pvr_job *job)
+{
+	int err;
+
+	job->cmd = kzalloc(cmd_defs->dest_size, GFP_KERNEL);
+	if (!job->cmd) {
+		err = -ENOMEM;
+		goto err_out;
+	}
+
+	job->cmd_len = cmd_defs->dest_size;
+
+	err = pvr_stream_process(pvr_dev, cmd_defs, stream, stream_size, job->cmd);
+	if (err)
+		kfree(job->cmd);
+
+err_out:
+	return err;
+}
+
 static int pvr_fw_cmd_init(struct pvr_device *pvr_dev, struct pvr_job *job,
 			   const struct pvr_stream_cmd_defs *stream_def,
 			   u64 stream_userptr, u32 stream_len)
@@ -737,7 +774,7 @@ static int pvr_fw_cmd_init(struct pvr_device *pvr_dev, struct pvr_job *job,
 		goto err_free_stream;
 	}
 
-	err = pvr_stream_process(pvr_dev, stream_def, stream, stream_len, job);
+	err = pvr_job_process_stream(pvr_dev, stream_def, stream, stream_len, job);
 
 err_free_stream:
 	kfree(stream);

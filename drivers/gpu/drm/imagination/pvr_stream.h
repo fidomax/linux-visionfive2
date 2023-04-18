@@ -17,6 +17,8 @@ enum pvr_stream_type {
 	PVR_STREAM_TYPE_FRAG,
 	PVR_STREAM_TYPE_COMPUTE,
 	PVR_STREAM_TYPE_TRANSFER,
+	PVR_STREAM_TYPE_STATIC_RENDER_CONTEXT,
+	PVR_STREAM_TYPE_STATIC_COMPUTE_CONTEXT,
 
 	PVR_STREAM_TYPE_MAX
 };
@@ -66,8 +68,7 @@ struct pvr_stream_cmd_defs {
 
 int
 pvr_stream_process(struct pvr_device *pvr_dev, const struct pvr_stream_cmd_defs *cmd_defs,
-		   void *stream, u32 stream_size, struct pvr_job *job);
-
+		   void *stream, u32 stream_size, void *dest_out);
 void
 pvr_stream_create_musthave_masks(struct pvr_device *pvr_dev);
 

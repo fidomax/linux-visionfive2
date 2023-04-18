@@ -10,6 +10,8 @@
 #include "pvr_rogue_fwif.h"
 #include "pvr_rogue_fwif_common.h"
 #include "pvr_rogue_fwif_resetframework.h"
+#include "pvr_stream.h"
+#include "pvr_stream_defs.h"
 
 #include <drm/drm_auth.h>
 #include <linux/errno.h>
@@ -734,6 +736,39 @@ pvr_fini_fw_common_context(struct pvr_context *ctx)
 {
 }
 
+static int
+process_static_context_state(struct pvr_device *pvr_dev, const struct pvr_stream_cmd_defs *cmd_defs,
+			     u64 stream_user_ptr, u32 stream_size, void *dest)
+{
+	void *stream;
+	int err;
+
+	stream = kzalloc(stream_size, GFP_KERNEL);
+	if (!stream) {
+		err = -ENOMEM;
+		goto err_out;
+	}
+
+	if (copy_from_user(stream, u64_to_user_ptr(stream_user_ptr), stream_size)) {
+		err = -EFAULT;
+		goto err_free;
+	}
+
+	err = pvr_stream_process(pvr_dev, cmd_defs, stream, stream_size, dest);
+	if (err)
+		goto err_free;
+
+	kfree(stream);
+
+	return 0;
+
+err_free:
+	kfree(stream);
+
+err_out:
+	return err;
+}
+
 /**
  * pvr_init_fw_render_context() - Initialise an FW-side render context structure
  * @ctx_render: Pointer to parent render context.
@@ -747,15 +782,16 @@ pvr_init_fw_render_context(struct pvr_context_render *ctx_render,
 			   struct drm_pvr_ioctl_create_context_args *args)
 {
 	struct rogue_fwif_static_rendercontext_state *static_rendercontext_state;
+	struct pvr_device *pvr_dev = ctx_render->base.pvr_dev;
 	struct rogue_fwif_fwrendercontext *fw_render_context;
 	int err;
 
-	if (args->static_context_state_len != sizeof(*static_rendercontext_state)) {
+	if (!args->static_context_state_len) {
 		err = -EINVAL;
 		goto err_out;
 	}
 
-	fw_render_context = pvr_gem_create_and_map_fw_object(ctx_render->base.pvr_dev,
+	fw_render_context = pvr_gem_create_and_map_fw_object(pvr_dev,
 							     sizeof(*fw_render_context),
 							     PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
 							     DRM_PVR_BO_CREATE_ZEROED,
@@ -768,11 +804,13 @@ pvr_init_fw_render_context(struct pvr_context_render *ctx_render,
 	static_rendercontext_state = &fw_render_context->static_render_context_state;
 
 	/* Copy static render context state from userspace. */
-	if (copy_from_user(static_rendercontext_state, u64_to_user_ptr(args->static_context_state),
-			   sizeof(*static_rendercontext_state))) {
-		err = -EFAULT;
+	err = process_static_context_state(pvr_dev,
+					   &pvr_static_render_context_state_stream,
+					   args->static_context_state,
+					   args->static_context_state_len,
+					   &static_rendercontext_state->ctxswitch_regs[0]);
+	if (err)
 		goto err_destroy_gem_object;
-	}
 
 	pvr_init_fw_common_context(&ctx_render->base, &fw_render_context->geom_context,
 				   PVR_FWIF_DM_GEOM, args->priority, MAX_DEADLINE_MS,
@@ -828,7 +866,7 @@ pvr_init_compute_context(struct pvr_file *pvr_file, struct pvr_context_compute *
 	struct rogue_fwif_fwcomputecontext *fw_compute_context;
 	int err;
 
-	if (args->static_context_state_len != sizeof(*ctxswitch_regs)) {
+	if (!args->static_context_state_len) {
 		err = -EINVAL;
 		goto err_out;
 	}
@@ -857,12 +895,13 @@ pvr_init_compute_context(struct pvr_file *pvr_file, struct pvr_context_compute *
 		&fw_compute_context->static_compute_context_state.ctxswitch_regs;
 
 	/* Copy static compute context state from userspace. */
-	if (copy_from_user(ctxswitch_regs,
-			   u64_to_user_ptr(args->static_context_state),
-			   sizeof(*ctxswitch_regs))) {
-		err = -EFAULT;
+	err = process_static_context_state(pvr_dev,
+					   &pvr_static_compute_context_state_stream,
+					   args->static_context_state,
+					   args->static_context_state_len,
+					   ctxswitch_regs);
+	if (err)
 		goto err_destroy_gem_object;
-	}
 
 	err = pvr_context_queue_init(pvr_dev, &ctx_compute->queue, PVR_CONTEXT_QUEUE_TYPE_COMPUTE);
 	if (err)

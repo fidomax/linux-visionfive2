@@ -222,7 +222,7 @@ err_out:
  */
 int
 pvr_stream_process(struct pvr_device *pvr_dev, const struct pvr_stream_cmd_defs *cmd_defs,
-		   void *stream, u32 stream_size, struct pvr_job *job)
+		   void *stream, u32 stream_size, void *dest_out)
 {
 	u32 stream_offset = 0;
 	u32 main_stream_len;
@@ -234,18 +234,10 @@ pvr_stream_process(struct pvr_device *pvr_dev, const struct pvr_stream_cmd_defs 
 		goto err_out;
 	}
 
-	job->cmd = kzalloc(cmd_defs->dest_size, GFP_KERNEL);
-	if (!job->cmd) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-
-	job->cmd_len = cmd_defs->dest_size;
-
 	err = pvr_stream_get_data(stream, &stream_offset, stream_size, sizeof(u32),
 				  sizeof(u32), &main_stream_len);
 	if (err)
-		goto err_free_dest;
+		goto err_out;
 
 	/*
 	 * u32 after stream length is padding to ensure u64 alignment, but may be used for expansion
@@ -254,24 +246,24 @@ pvr_stream_process(struct pvr_device *pvr_dev, const struct pvr_stream_cmd_defs 
 	err = pvr_stream_get_data(stream, &stream_offset, stream_size, sizeof(u32),
 				  sizeof(u32), &padding);
 	if (err)
-		goto err_free_dest;
+		goto err_out;
 
 	if (main_stream_len < stream_offset || main_stream_len > stream_size || padding) {
 		err = -EINVAL;
-		goto err_free_dest;
+		goto err_out;
 	}
 
 	err = pvr_stream_process_1(pvr_dev, cmd_defs->main_stream, cmd_defs->main_stream_len,
-				   stream, stream_offset, main_stream_len, job->cmd,
+				   stream, stream_offset, main_stream_len, dest_out,
 				   cmd_defs->dest_size, &stream_offset);
 	if (err)
-		goto err_free_dest;
+		goto err_out;
 
 	if (stream_offset < stream_size) {
 		err = pvr_stream_process_ext_stream(pvr_dev, cmd_defs, stream, stream_offset,
-						    stream_size, job->cmd);
+						    stream_size, dest_out);
 		if (err)
-			goto err_free_dest;
+			goto err_out;
 	} else {
 		u32 i;
 
@@ -288,9 +280,6 @@ pvr_stream_process(struct pvr_device *pvr_dev, const struct pvr_stream_cmd_defs 
 	}
 
 	return 0;
-
-err_free_dest:
-	kfree(job->cmd);
 
 err_out:
 	return err;

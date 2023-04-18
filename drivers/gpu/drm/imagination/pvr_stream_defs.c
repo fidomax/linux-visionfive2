@@ -268,3 +268,84 @@ const struct pvr_stream_cmd_defs pvr_cmd_transfer_stream = {
 
 	.dest_size = sizeof(struct rogue_fwif_cmd_transfer),
 };
+
+static const struct pvr_stream_def rogue_fwif_static_render_context_state_stream[] = {
+	PVR_STREAM_DEF(rogue_fwif_geom_registers_caswitch,
+		       geom_reg_vdm_context_state_base_addr, 64),
+	PVR_STREAM_DEF(rogue_fwif_geom_registers_caswitch,
+		       geom_reg_vdm_context_state_resume_addr, 64),
+	PVR_STREAM_DEF(rogue_fwif_geom_registers_caswitch,
+		       geom_reg_ta_context_state_base_addr, 64),
+	PVR_STREAM_DEF(rogue_fwif_geom_registers_caswitch,
+		       geom_state[0].geom_reg_vdm_context_store_task0, 64),
+	PVR_STREAM_DEF(rogue_fwif_geom_registers_caswitch,
+		       geom_state[0].geom_reg_vdm_context_store_task1, 64),
+	PVR_STREAM_DEF(rogue_fwif_geom_registers_caswitch,
+		       geom_state[0].geom_reg_vdm_context_store_task2, 64),
+	PVR_STREAM_DEF(rogue_fwif_geom_registers_caswitch,
+		       geom_state[0].geom_reg_vdm_context_store_task3, 64),
+	PVR_STREAM_DEF(rogue_fwif_geom_registers_caswitch,
+		       geom_state[0].geom_reg_vdm_context_store_task4, 64),
+	PVR_STREAM_DEF(rogue_fwif_geom_registers_caswitch,
+		       geom_state[0].geom_reg_vdm_context_resume_task0, 64),
+	PVR_STREAM_DEF(rogue_fwif_geom_registers_caswitch,
+		       geom_state[0].geom_reg_vdm_context_resume_task1, 64),
+	PVR_STREAM_DEF(rogue_fwif_geom_registers_caswitch,
+		       geom_state[0].geom_reg_vdm_context_resume_task2, 64),
+	PVR_STREAM_DEF(rogue_fwif_geom_registers_caswitch,
+		       geom_state[0].geom_reg_vdm_context_resume_task3, 64),
+	PVR_STREAM_DEF(rogue_fwif_geom_registers_caswitch,
+		       geom_state[0].geom_reg_vdm_context_resume_task4, 64),
+	PVR_STREAM_DEF(rogue_fwif_geom_registers_caswitch,
+		       geom_state[1].geom_reg_vdm_context_store_task0, 64),
+	PVR_STREAM_DEF(rogue_fwif_geom_registers_caswitch,
+		       geom_state[1].geom_reg_vdm_context_store_task1, 64),
+	PVR_STREAM_DEF(rogue_fwif_geom_registers_caswitch,
+		       geom_state[1].geom_reg_vdm_context_store_task2, 64),
+	PVR_STREAM_DEF(rogue_fwif_geom_registers_caswitch,
+		       geom_state[1].geom_reg_vdm_context_store_task3, 64),
+	PVR_STREAM_DEF(rogue_fwif_geom_registers_caswitch,
+		       geom_state[1].geom_reg_vdm_context_store_task4, 64),
+	PVR_STREAM_DEF(rogue_fwif_geom_registers_caswitch,
+		       geom_state[1].geom_reg_vdm_context_resume_task0, 64),
+	PVR_STREAM_DEF(rogue_fwif_geom_registers_caswitch,
+		       geom_state[1].geom_reg_vdm_context_resume_task1, 64),
+	PVR_STREAM_DEF(rogue_fwif_geom_registers_caswitch,
+		       geom_state[1].geom_reg_vdm_context_resume_task2, 64),
+	PVR_STREAM_DEF(rogue_fwif_geom_registers_caswitch,
+		       geom_state[1].geom_reg_vdm_context_resume_task3, 64),
+	PVR_STREAM_DEF(rogue_fwif_geom_registers_caswitch,
+		       geom_state[1].geom_reg_vdm_context_resume_task4, 64),
+};
+
+const struct pvr_stream_cmd_defs pvr_static_render_context_state_stream = {
+	.type = PVR_STREAM_TYPE_STATIC_RENDER_CONTEXT,
+
+	.main_stream = rogue_fwif_static_render_context_state_stream,
+	.main_stream_len = ARRAY_SIZE(rogue_fwif_static_render_context_state_stream),
+
+	.ext_nr_headers = 0,
+
+	.dest_size = sizeof(struct rogue_fwif_geom_registers_caswitch),
+};
+
+static const struct pvr_stream_def rogue_fwif_static_compute_context_state_stream[] = {
+	PVR_STREAM_DEF(rogue_fwif_cdm_registers_cswitch, cdmreg_cdm_context_pds0, 64),
+	PVR_STREAM_DEF(rogue_fwif_cdm_registers_cswitch, cdmreg_cdm_context_pds1, 64),
+	PVR_STREAM_DEF(rogue_fwif_cdm_registers_cswitch, cdmreg_cdm_terminate_pds, 64),
+	PVR_STREAM_DEF(rogue_fwif_cdm_registers_cswitch, cdmreg_cdm_terminate_pds1, 64),
+	PVR_STREAM_DEF(rogue_fwif_cdm_registers_cswitch, cdmreg_cdm_resume_pds0, 64),
+	PVR_STREAM_DEF(rogue_fwif_cdm_registers_cswitch, cdmreg_cdm_context_pds0_b, 64),
+	PVR_STREAM_DEF(rogue_fwif_cdm_registers_cswitch, cdmreg_cdm_resume_pds0_b, 64),
+};
+
+const struct pvr_stream_cmd_defs pvr_static_compute_context_state_stream = {
+	.type = PVR_STREAM_TYPE_STATIC_COMPUTE_CONTEXT,
+
+	.main_stream = rogue_fwif_static_compute_context_state_stream,
+	.main_stream_len = ARRAY_SIZE(rogue_fwif_static_compute_context_state_stream),
+
+	.ext_nr_headers = 0,
+
+	.dest_size = sizeof(struct rogue_fwif_cdm_registers_cswitch),
+};

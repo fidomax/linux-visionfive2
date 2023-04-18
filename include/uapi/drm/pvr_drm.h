@@ -850,14 +850,7 @@ struct drm_pvr_ioctl_create_context_args {
 	__u32 handle;
 
 	/**
-	 * @static_context_state: [IN] Pointer to static context state to copy to
-	 * new context.
-	 *
-	 * The state differs based on the value of @type:
-	 * * For %DRM_PVR_CTX_TYPE_RENDER, state should be of type
-	 *   &struct rogue_fwif_static_rendercontext_state.
-	 * * For %DRM_PVR_CTX_TYPE_COMPUTE, state should be of type
-	 *   &struct rogue_fwif_static_computecontext_state.
+	 * @static_context_state: [IN] Pointer to static context state stream.
 	 */
 	__u64 static_context_state;
 
