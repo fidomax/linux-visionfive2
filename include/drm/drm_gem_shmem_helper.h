@@ -102,6 +102,10 @@ void drm_gem_shmem_free(struct drm_gem_shmem_object *shmem);
 void drm_gem_shmem_put_pages(struct drm_gem_shmem_object *shmem);
 int drm_gem_shmem_pin(struct drm_gem_shmem_object *shmem);
 void drm_gem_shmem_unpin(struct drm_gem_shmem_object *shmem);
+int drm_gem_shmem_begin_cpu_access(struct drm_gem_shmem_object *shmem,
+				   enum dma_data_direction dir);
+int drm_gem_shmem_end_cpu_access(struct drm_gem_shmem_object *shmem,
+				 enum dma_data_direction dir);
 int drm_gem_shmem_vmap(struct drm_gem_shmem_object *shmem,
 		       struct iosys_map *map);
 void drm_gem_shmem_vunmap(struct drm_gem_shmem_object *shmem,
