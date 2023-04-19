@@ -2527,12 +2527,12 @@ pvr_vm_context_map_sgt(struct pvr_vm_context *vm_ctx,
 /**
  * pvr_vm_gpuva_mapping_page_flags_raw() - Generate raw page flags required for
  * applying a mapping.
- * @va: Pointer to drm_gpuva mapping object.
+ * @va: Pointer to drm_gpuva_op_map.
  *
  * Return: A raw page flags instance for use with pvr_vm_context_map_sgt().
  */
-static struct pvr_page_flags_raw
-pvr_vm_gpuva_mapping_page_flags_raw(const struct drm_gpuva *va)
+static __always_inline struct pvr_page_flags_raw
+pvr_vm_gpuva_mapping_page_flags_raw(const struct drm_gpuva_op_map *va)
 {
 	const u64 flags = to_pvr_gem_object(va->gem.obj)->flags;
 
@@ -2564,22 +2564,25 @@ pvr_vm_gpuva_mapping_page_flags_raw(const struct drm_gpuva *va)
  *   CPU page-aligned both in start position and size, and
  * * The range specified by @device_addr and @size (the "device range") must be
  *   device page-aligned both in start position and size.
+ *
+ * Furthermore, it is up to the caller to make sure that a reference to @pvr_obj
+ * is taken prior to mapping @va with the drm_gpuva_manager.
  */
 static void
 pvr_vm_gpuva_mapping_init(struct drm_gpuva *va, u64 device_addr, u64 size,
 			  struct pvr_gem_object *pvr_obj, u64 pvr_obj_offset)
 {
-	/*
-	 * Increment the refcount on the underlying physical memory resource
-	 * to prevent de-allocation while the mapping exists.
-	 */
-	pvr_gem_object_get(pvr_obj);
-
 	va->va.addr = device_addr;
 	va->va.range = size;
 	va->gem.obj = &pvr_obj->base;
 	va->gem.offset = pvr_obj_offset;
 }
+
+struct pvr_vm_gpuva_op_ctx {
+	struct pvr_vm_context *vm_ctx;
+	struct drm_gpuva_prealloc *pa;
+	struct drm_gpuva *new_va, *prev_va, *next_va;
+};
 
 /**
  * pvr_vm_gpuva_mapping_fini() - Teardown a mapping.
@@ -2596,74 +2599,175 @@ pvr_vm_gpuva_mapping_fini(struct drm_gpuva *va)
 }
 
 /**
- * pvr_vm_mapping_map() - Insert a mapping into a memory context.
- * @vm_ctx: Target VM context.
- * @va: Pointer to drm_gpuva mapping object.
+ * pvr_vm_gpuva_map() - Insert a mapping into a memory context.
+ * @op: gpuva op containing the remap details.
+ * @op_ctx: Operation context.
+ *
+ * Context: Called by drm_gpuva_sm_map following a successful mapping while
+ * @op_ctx.vm_ctx mutex is held.
  *
  * Return:
- *  * 0 on success,
- *  * -%EINVAL if @va is outside the virtual address space in @vm_ctx,
- *  * -%EEXIST if @va overlaps with an existing mapping in @vm_ctx,
+ *  * 0 on success, or
  *  * Any error encountered while attempting to obtain a reference to the
- *    buffer bound to @va (see pvr_gem_object_get_pages()), or
+ *    buffer bound to @op (see pvr_gem_object_get_pages()), or
  *  * Any error returned by pvr_vm_context_map_sgt().
  */
 static int
-pvr_vm_gpuva_mapping_map(struct pvr_vm_context *vm_ctx, struct drm_gpuva *va)
+pvr_vm_gpuva_map(struct drm_gpuva_op *op, void *op_ctx)
 {
-	struct pvr_gem_object *pvr_gem = to_pvr_gem_object(va->gem.obj);
+	struct pvr_vm_gpuva_op_ctx *ctx = op_ctx;
+	struct pvr_gem_object *pvr_gem = to_pvr_gem_object(op->map.gem.obj);
 	int err;
 
-	if (!va->gem.obj->import_attach) {
+	if (!pvr_gem->base.import_attach) {
 		err = pvr_gem_object_get_pages(pvr_gem);
 		if (err)
 			return err;
 	}
 
-	err = pvr_vm_context_map_sgt(vm_ctx, pvr_gem->sgt,
-				     va->gem.offset, va->va.addr, va->va.range,
-				     pvr_vm_gpuva_mapping_page_flags_raw(va));
+	err = pvr_vm_context_map_sgt(ctx->vm_ctx, pvr_gem->sgt, op->map.gem.offset,
+				     op->map.va.addr, op->map.va.range,
+				     pvr_vm_gpuva_mapping_page_flags_raw(&op->map));
 	if (err)
 		goto err_put_pages;
 
-	err = drm_gpuva_insert(&vm_ctx->gpuva_mgr, va);
+	pvr_vm_gpuva_mapping_init(ctx->new_va, op->map.va.addr,
+				  op->map.va.range, pvr_gem, op->map.gem.offset);
+
+	err = drm_gpuva_map(&ctx->vm_ctx->gpuva_mgr, ctx->pa, ctx->new_va);
 	if (err)
-		goto err_put_pages;
+		goto err_unmap;
 
-	drm_gpuva_link(va);
+	/*
+	 * Increment the refcount on the underlying physical memory resource
+	 * to prevent de-allocation while the mapping exists.
+	 */
+	pvr_gem_object_get(pvr_gem);
 
+	drm_gpuva_link(ctx->new_va);
+	ctx->new_va = NULL;
 	return 0;
 
+err_unmap:
+	pvr_vm_context_unmap(ctx->vm_ctx, op->map.va.addr,
+			     op->map.va.range >> PVR_DEVICE_PAGE_SHIFT);
+
 err_put_pages:
-	if (!va->gem.obj->import_attach)
+	if (!pvr_gem->base.import_attach)
 		pvr_gem_object_put_pages(pvr_gem);
 
 	return err;
 }
 
 /**
- * pvr_vm_mapping_unmap() - Remove a mapping from a memory context.
- * @vm_ctx: Target VM context.
- * @va: Pointer to drm_gpuva mapping object.
+ * pvr_vm_gpuva_unmap() - Remove a mapping from a memory context.
+ * @op: gpuva op containing the unmap details.
+ * @state: Iterator.
+ * @op_ctx: Operation context.
+ *
+ * Context: Called by drm_gpuva_sm_unmap following a successful unmapping while
+ * @op_ctx.vm_ctx mutex is held.
  *
  * Return:
  *  * 0 on success, or
  *  * Any error returned by pvr_vm_context_unmap().
  */
 static int
-pvr_vm_gpuva_mapping_unmap(struct pvr_vm_context *vm_ctx, struct drm_gpuva *va)
+pvr_vm_gpuva_unmap(struct drm_gpuva_op *op, drm_gpuva_state_t state, void *op_ctx)
 {
-	int err;
+	struct pvr_gem_object *pvr_gem = to_pvr_gem_object(op->unmap.va->gem.obj);
+	struct pvr_vm_gpuva_op_ctx *ctx = op_ctx;
 
-	drm_gpuva_remove(va);
-
-	err = pvr_vm_context_unmap(vm_ctx, va->va.addr,
-				   va->va.range >> PVR_DEVICE_PAGE_SHIFT);
+	int err = pvr_vm_context_unmap(ctx->vm_ctx, op->unmap.va->va.addr,
+				       op->unmap.va->va.range >> PVR_DEVICE_PAGE_SHIFT);
 	if (err)
 		return err;
 
-	if (!va->gem.obj->import_attach)
-		pvr_gem_object_put_pages(to_pvr_gem_object(va->gem.obj));
+	drm_gpuva_unmap(state);
+	drm_gpuva_unlink(op->unmap.va);
+
+	if (!pvr_gem->base.import_attach)
+		pvr_gem_object_put_pages(pvr_gem);
+
+	pvr_gem_object_put(pvr_gem);
+	kfree(op->unmap.va);
+	return 0;
+}
+
+/**
+ * pvr_vm_gpuva_remap() - Remap a mapping within a memory context.
+ * @op: gpuva op containing the remap details.
+ * @state: Iterator.
+ * @op_ctx: Operation context.
+ *
+ * Context: Called by either drm_gpuva_sm_map or drm_gpuva_sm_unmap when a
+ * mapping or unmapping operation causes a region to be split. The
+ * @op_ctx.vm_ctx mutex is held.
+ *
+ * Return:
+ *  * 0 on success, or
+ *  * Any error returned by pvr_vm_gpuva_unmap() or pvr_vm_gpuva_unmap().
+ */
+static int
+pvr_vm_gpuva_remap(struct drm_gpuva_op *op, drm_gpuva_state_t state, void *op_ctx)
+{
+	struct pvr_vm_gpuva_op_ctx *ctx = op_ctx;
+	int err;
+
+	if (op->remap.unmap) {
+		const u64 va_start = op->remap.prev ?
+				     op->remap.prev->va.addr + op->remap.prev->va.range :
+				     op->remap.unmap->va->va.addr;
+		const u64 va_end = op->remap.next ?
+				   op->remap.next->va.addr :
+				   op->remap.unmap->va->va.addr + op->remap.unmap->va->va.range;
+
+		err = pvr_vm_context_unmap(ctx->vm_ctx, va_start,
+					   (va_end - va_start) >> PVR_DEVICE_PAGE_SHIFT);
+		if (err)
+			return err;
+	}
+
+	if (op->remap.prev)
+		pvr_vm_gpuva_mapping_init(ctx->prev_va, op->remap.prev->va.addr,
+					  op->remap.prev->va.range,
+					  to_pvr_gem_object(op->remap.prev->gem.obj),
+					  op->remap.prev->gem.offset);
+
+	if (op->remap.next)
+		pvr_vm_gpuva_mapping_init(ctx->next_va, op->remap.next->va.addr,
+					  op->remap.next->va.range,
+					  to_pvr_gem_object(op->remap.next->gem.obj),
+					  op->remap.next->gem.offset);
+
+	/* No actual remap required: the page table tree depth is fixed to 3, and we use 4k
+	 * page table entries only for now.
+	 */
+	err = drm_gpuva_remap(state, ctx->prev_va, ctx->next_va);
+	if (err)
+		return err;
+
+	if (op->remap.prev) {
+		pvr_gem_object_get(to_pvr_gem_object(ctx->prev_va->gem.obj));
+		drm_gpuva_link(ctx->prev_va);
+		ctx->prev_va = NULL;
+	}
+
+	if (op->remap.next) {
+		pvr_gem_object_get(to_pvr_gem_object(ctx->next_va->gem.obj));
+		drm_gpuva_link(ctx->next_va);
+		ctx->next_va = NULL;
+	}
+
+	if (op->remap.unmap) {
+		struct pvr_gem_object *pvr_gem = to_pvr_gem_object(op->remap.unmap->va->gem.obj);
+
+		drm_gpuva_unlink(op->unmap.va);
+		if (!pvr_gem->base.import_attach)
+			pvr_gem_object_put_pages(pvr_gem);
+
+		pvr_gem_object_put(pvr_gem);
+	}
 
 	return 0;
 }
@@ -2719,6 +2823,12 @@ pvr_device_addr_and_size_are_valid(u64 device_addr, u64 size)
 	       (device_addr + size <= PVR_PAGE_TABLE_ADDR_SPACE_SIZE);
 }
 
+static const struct drm_gpuva_fn_ops pvr_vm_gpuva_ops = {
+	.sm_step_map = pvr_vm_gpuva_map,
+	.sm_step_remap = pvr_vm_gpuva_remap,
+	.sm_step_unmap = pvr_vm_gpuva_unmap,
+};
+
 /**
  * pvr_vm_create_context() - Create a new VM context.
  * @pvr_dev: Target PowerVR device.
@@ -2771,7 +2881,7 @@ pvr_vm_create_context(struct pvr_device *pvr_dev, bool is_userspace_context)
 
 	drm_gpuva_manager_init(&vm_ctx->gpuva_mgr,
 			       is_userspace_context ? "PowerVR-user-VM" : "PowerVR-FW-VM",
-			       0, 1ULL << device_addr_bits, 0, 0, NULL);
+			       0, 1ULL << device_addr_bits, 0, 0, &pvr_vm_gpuva_ops);
 
 	err = pvr_page_table_l2_init(&vm_ctx->root_table, pvr_dev);
 	if (err)
@@ -2828,6 +2938,7 @@ pvr_vm_context_release(struct kref *ref_count)
 
 		if (can_release_gem_obj)
 			pvr_vm_gpuva_mapping_fini(va);
+		kfree(va);
 	}
 
 	drm_gpuva_manager_destroy(&vm_ctx->gpuva_mgr);
@@ -2910,8 +3021,6 @@ void pvr_destroy_vm_contexts_for_file(struct pvr_file *pvr_file)
  * @device_addr: Virtual device address at the start of the requested mapping.
  * @size: Size of the requested mapping.
  *
- * If you need to map an entire @pvr_obj, use pvr_vm_map() instead.
- *
  * No handle is returned to represent the mapping. Instead, callers should
  * remember @device_addr and use that as a handle.
  *
@@ -2921,54 +3030,48 @@ void pvr_destroy_vm_contexts_for_file(struct pvr_file *pvr_file)
  *    address; the region specified by @pvr_obj_offset and @size does not fall
  *    entirely within @pvr_obj, or any part of the specified region of @pvr_obj
  *    is not device-virtual page-aligned,
- *  * -%EEXIST if the requested mapping overlaps with an existing mapping,
- *  * -%ENOMEM if allocation of internally required CPU memory fails, or
  *  * Any error encountered while performing internal operations required to
- *    create the mapping.
+ *    destroy the mapping (returned from pvr_vm_gpuva_map or
+ *    pvr_vm_gpuva_remap).
  */
 int
 pvr_vm_map(struct pvr_vm_context *vm_ctx,
 	   struct pvr_gem_object *pvr_obj, u64 pvr_obj_offset,
 	   u64 device_addr, u64 size)
 {
-	size_t pvr_obj_size = pvr_gem_object_size(pvr_obj);
-
-	struct drm_gpuva *va;
+	const size_t pvr_obj_size = pvr_gem_object_size(pvr_obj);
+	struct pvr_vm_gpuva_op_ctx op_ctx = { .vm_ctx = vm_ctx };
 	int err;
 
 	if (!pvr_device_addr_and_size_are_valid(device_addr, size) ||
 	    pvr_obj_offset & ~PAGE_MASK || size & ~PAGE_MASK ||
 	    pvr_obj_offset + size > pvr_obj_size ||
 	    pvr_obj_offset > pvr_obj_size) {
-		err = -EINVAL;
-		goto err_out;
+		return -EINVAL;
 	}
 
-	va = kzalloc(sizeof(*va), GFP_KERNEL);
-	if (!va) {
+	op_ctx.pa = drm_gpuva_prealloc_create(&vm_ctx->gpuva_mgr);
+	if (!op_ctx.pa)
+		return -ENOMEM;
+
+	op_ctx.new_va = kzalloc(sizeof(*op_ctx.new_va), GFP_KERNEL);
+	op_ctx.prev_va = kzalloc(sizeof(*op_ctx.prev_va), GFP_KERNEL);
+	op_ctx.next_va = kzalloc(sizeof(*op_ctx.next_va), GFP_KERNEL);
+	if (!op_ctx.new_va || !op_ctx.prev_va || !op_ctx.next_va) {
 		err = -ENOMEM;
-		goto err_out;
+		goto out;
 	}
 
 	mutex_lock(&vm_ctx->lock);
-
-	pvr_vm_gpuva_mapping_init(va, device_addr, size, pvr_obj, pvr_obj_offset);
-
-	err = pvr_vm_gpuva_mapping_map(vm_ctx, va);
-	if (err)
-		goto err_fini_mapping;
-
-	err = 0;
-	goto err_unlock;
-
-err_fini_mapping:
-	pvr_vm_gpuva_mapping_fini(va);
-	kfree(va);
-
-err_unlock:
+	err = drm_gpuva_sm_map(&vm_ctx->gpuva_mgr, &op_ctx, device_addr, size,
+			       &pvr_obj->base, pvr_obj_offset);
 	mutex_unlock(&vm_ctx->lock);
 
-err_out:
+out:
+	kfree(op_ctx.next_va);
+	kfree(op_ctx.prev_va);
+	kfree(op_ctx.new_va);
+	drm_gpuva_prealloc_destroy(op_ctx.pa);
 	return err;
 }
 
@@ -2982,50 +3085,33 @@ err_out:
  *  * 0 on success,
  *  * -%EINVAL if @device_addr is not a valid page-aligned device-virtual
  *    address,
- *  * -%ENOENT if @device_addr is not a handle to an existing mapping, or
  *  * Any error encountered while performing internal operations required to
- *    destroy the mapping.
+ *    destroy the mapping (returned from pvr_vm_gpuva_unmap or
+ *    pvr_vm_gpuva_remap).
  */
 int
 pvr_vm_unmap(struct pvr_vm_context *vm_ctx, u64 device_addr, u64 size)
 {
-	struct drm_gpuva *va;
+	struct pvr_vm_gpuva_op_ctx op_ctx = { .vm_ctx = vm_ctx };
 	int err;
 
-	if (!pvr_device_addr_and_size_are_valid(device_addr, size)) {
-		err = -EINVAL;
-		goto err_out;
+	if (!pvr_device_addr_and_size_are_valid(device_addr, size))
+		return -EINVAL;
+
+	op_ctx.prev_va = kzalloc(sizeof(*op_ctx.prev_va), GFP_KERNEL);
+	op_ctx.next_va = kzalloc(sizeof(*op_ctx.next_va), GFP_KERNEL);
+	if (!op_ctx.prev_va || !op_ctx.next_va) {
+		err = -ENOMEM;
+		goto out;
 	}
 
 	mutex_lock(&vm_ctx->lock);
-
-	va = drm_gpuva_find_first(&vm_ctx->gpuva_mgr, device_addr,
-				  vm_ctx->gpuva_mgr.mm_range);
-	if (!va) {
-		err = -EFAULT;
-		goto err_unlock;
-	}
-
-	if (va->va.addr != device_addr ||
-	    va->va.range != size) {
-		err = -ENOENT;
-		goto err_unlock;
-	}
-
-	err = pvr_vm_gpuva_mapping_unmap(vm_ctx, va);
-	if (err)
-		goto err_unlock;
-
-	pvr_vm_gpuva_mapping_fini(va);
-	kfree(va);
-
-	err = 0;
-	goto err_unlock;
-
-err_unlock:
+	err = drm_gpuva_sm_unmap(&vm_ctx->gpuva_mgr, &op_ctx, device_addr, size);
 	mutex_unlock(&vm_ctx->lock);
 
-err_out:
+out:
+	kfree(op_ctx.next_va);
+	kfree(op_ctx.prev_va);
 	return err;
 }
 
@@ -3286,11 +3372,8 @@ pvr_vm_find_gem_object(struct pvr_vm_context *vm_ctx, u64 device_addr,
 	mutex_lock(&vm_ctx->lock);
 
 	va = drm_gpuva_find_first(&vm_ctx->gpuva_mgr, device_addr,
-				  vm_ctx->gpuva_mgr.mm_range);
+				  vm_ctx->gpuva_mgr.mm_range - device_addr);
 	if (!va)
-		goto err_unlock;
-
-	if (va->va.addr != device_addr)
 		goto err_unlock;
 
 	pvr_obj = to_pvr_gem_object(va->gem.obj);
