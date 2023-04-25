@@ -903,10 +903,8 @@ pvr_gem_create_fw_object_common(struct pvr_device *pvr_dev, size_t size,
 	flags |= DRM_PVR_BO_DEVICE_PM_FW_PROTECT;
 
 	fw_obj = kzalloc(sizeof(*fw_obj), GFP_KERNEL);
-	if (!fw_obj) {
-		err = -ENOMEM;
-		goto err_out;
-	}
+	if (!fw_obj)
+		return -ENOMEM;
 
 	/*
 	 * All firmware objects use the same mapping flags. See
@@ -914,8 +912,10 @@ pvr_gem_create_fw_object_common(struct pvr_device *pvr_dev, size_t size,
 	 */
 	err = pvr_gem_object_init(pvr_dev, &fw_obj->base, size, flags, &pvr_gem_fw_object_funcs,
 				  false);
-	if (err)
-		goto err_fw_obj_free;
+	if (err) {
+		kfree(fw_obj);
+		return err;
+	}
 
 	err = pvr_gem_fw_vmap(pvr_dev, fw_obj, dev_addr);
 	if (err)
@@ -927,11 +927,6 @@ pvr_gem_create_fw_object_common(struct pvr_device *pvr_dev, size_t size,
 
 err_release_object:
 	pvr_gem_object_put(&fw_obj->base);
-
-err_fw_obj_free:
-	kfree(fw_obj);
-
-err_out:
 	return err;
 }
 
