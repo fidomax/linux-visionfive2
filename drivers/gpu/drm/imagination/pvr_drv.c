@@ -1180,7 +1180,7 @@ pvr_ioctl_vm_unmap(struct drm_device *drm_dev, void *raw_args,
 	if (!vm_ctx)
 		return -EINVAL;
 
-	err = pvr_vm_unmap(vm_ctx, args->device_addr);
+	err = pvr_vm_unmap(vm_ctx, args->device_addr, args->size);
 
 	pvr_vm_context_put(vm_ctx);
 

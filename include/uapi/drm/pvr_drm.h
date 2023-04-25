@@ -771,6 +771,11 @@ struct drm_pvr_ioctl_vm_unmap_args {
 	 * mapping. This must be non-zero.
 	 */
 	__u64 device_addr;
+
+	/**
+	 * @size: Size in bytes of the target mapping. This must be non-zero.
+	 */
+	__u64 size;
 };
 
 /**

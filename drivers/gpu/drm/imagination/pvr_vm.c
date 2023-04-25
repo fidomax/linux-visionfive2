@@ -3458,6 +3458,7 @@ err_out:
  * pvr_vm_unmap() - Unmap an already mapped section of device-virtual memory.
  * @vm_ctx: Target VM context.
  * @device_addr: Virtual device address at the start of the target mapping.
+ * @size: Size of the target mapping.
  *
  * Return:
  *  * 0 on success,
@@ -3468,13 +3469,13 @@ err_out:
  *    destroy the mapping.
  */
 int
-pvr_vm_unmap(struct pvr_vm_context *vm_ctx, u64 device_addr)
+pvr_vm_unmap(struct pvr_vm_context *vm_ctx, u64 device_addr, u64 size)
 {
 	struct pvr_vm_mapping_tree_node *node;
 	struct pvr_vm_mapping *mapping;
 	int err;
 
-	if (!pvr_device_addr_is_valid(device_addr)) {
+	if (!pvr_device_addr_and_size_are_valid(device_addr, size)) {
 		err = -EINVAL;
 		goto err_out;
 	}
@@ -3488,7 +3489,8 @@ pvr_vm_unmap(struct pvr_vm_context *vm_ctx, u64 device_addr)
 	}
 
 	mapping = pvr_vm_mapping_from_node(node);
-	if (pvr_vm_mapping_start(mapping) != device_addr) {
+	if (pvr_vm_mapping_start(mapping) != device_addr ||
+	    pvr_vm_mapping_size(mapping) != size) {
 		err = -ENOENT;
 		goto err_unlock;
 	}
