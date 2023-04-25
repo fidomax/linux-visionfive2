@@ -342,31 +342,4 @@ pvr_gem_get_fw_addr(struct pvr_fw_object *fw_obj, u32 *fw_addr_out)
 	pvr_gem_get_fw_addr_offset(fw_obj, 0, fw_addr_out);
 }
 
-/**
- * pvr_gem_get_fw_gpu_addr() - Return address of object in GPU address space
- * @fw_obj: Pointer to object.
- * @gpu_addr_out: Location to store address to.
- *
- * Note that this function is not valid if firmware processor is MIPS.
- *
- * Returns :
- *  * %true on success, or
- *  * %false if object is not mapped to firmware address space.
- */
-static __always_inline bool
-pvr_gem_get_fw_gpu_addr(struct pvr_fw_object *fw_obj, u64 *gpu_addr_out)
-{
-	/* FIXME: Move to META-specific file */
-	struct pvr_gem_object *pvr_obj = from_pvr_fw_object(fw_obj);
-	struct pvr_device *pvr_dev = pvr_obj->pvr_dev;
-	struct pvr_fw_device *fw_dev = &pvr_dev->fw_dev;
-
-	if (fw_dev->processor_type != PVR_FW_PROCESSOR_TYPE_MIPS) {
-		*gpu_addr_out = fw_obj->fw_addr_offset + fw_dev->fw_heap_info.gpu_addr;
-		return true;
-	}
-
-	return false;
-}
-
 #endif /* PVR_GEM_H */
