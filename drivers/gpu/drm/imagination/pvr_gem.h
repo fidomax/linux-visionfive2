@@ -10,6 +10,7 @@
 #include <uapi/drm/pvr_drm.h>
 
 #include <drm/drm_gem.h>
+#include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_mm.h>
 
 #include <linux/bitfield.h>
@@ -85,39 +86,12 @@ struct pvr_file;
  */
 struct pvr_gem_object {
 	/**
-	 * @base: The underlying &struct drm_gem_object.
+	 * @base: The underlying &struct drm_gem_shmem_object.
 	 *
 	 * Do not access this member directly, instead call
-	 * from_pvr_gem_object().
+	 * shem_gem_from_pvr_gem().
 	 */
-	struct drm_gem_object base;
-
-	/**
-	 * @lock: Mutex protecting @pages_ref_count, @fw_mm_ref_count,
-	 *        @vmap_ref_count and @vmap_cpu_addr, and writes to @pages, @sgt
-	 *        and @mm_node.
-	 */
-	struct mutex lock;
-
-	/**
-	 * @pages_ref_count: Reference count for @pages. @lock must be held when
-	 *                   accessing.
-	 */
-	int pages_ref_count;
-
-	/**
-	 * @pages: Array of page structures representing the memory backing
-	 *         this object. @lock must be held when writing.
-	 *         pvr_gem_get_pages() must be called before reading.
-	 */
-	struct page **pages;
-
-	/**
-	 * @sgt: Scatter-gather table representing the memory backing this
-	 *       object. @lock must be held when writing. pvr_gem_get_pages()
-	 *       must be called before reading.
-	 */
-	struct sg_table *sgt;
+	struct drm_gem_shmem_object base;
 
 	/**
 	 * @flags: Options set at creation-time. Some of these options apply to
@@ -134,39 +108,39 @@ struct pvr_gem_object {
 	 *    options may change or be changed throughout the object's
 	 *    lifetime.
 	 */
-	const u64 flags;
-
-	/**
-	 * @vmap_ref_count: Reference count for @vmap_cpu_addr. @lock must be
-	 *                  held when accessing.
-	 */
-	int vmap_ref_count;
-
-	/**
-	 * @vmap_cpu_addr: CPU address of vmap mapping. Will be %NULL if object
-	 *                 is not mapped. @lock must be held when accessing.
-	 */
-	void *vmap_cpu_addr;
+	u64 flags;
 };
 
-static __always_inline struct drm_gem_object *
-from_pvr_gem_object(struct pvr_gem_object *pvr_obj)
+static_assert(offsetof(struct pvr_gem_object, base) == 0,
+	      "offsetof(struct pvr_gem_object, base) not zero");
+
+static __always_inline struct drm_gem_shmem_object *
+shmem_gem_from_pvr_gem(struct pvr_gem_object *pvr_obj)
 {
 	return &pvr_obj->base;
 }
 
 static __always_inline struct pvr_gem_object *
-to_pvr_gem_object(struct drm_gem_object *gem_obj)
+shmem_gem_to_pvr_gem(struct drm_gem_shmem_object *shmem_obj)
 {
-	return container_of(gem_obj, struct pvr_gem_object, base);
+	return container_of(shmem_obj, struct pvr_gem_object, base);
+}
+
+static __always_inline struct drm_gem_object *
+gem_from_pvr_gem(struct pvr_gem_object *pvr_obj)
+{
+	return &pvr_obj->base.base;
+}
+
+static __always_inline struct pvr_gem_object *
+gem_to_pvr_gem(struct drm_gem_object *gem_obj)
+{
+	return container_of(gem_obj, struct pvr_gem_object, base.base);
 }
 
 /* Functions defined in pvr_gem.c */
 
-struct drm_gem_object *
-pvr_gem_prime_import_sg_table(struct drm_device *drm_dev,
-			      struct dma_buf_attachment *attach,
-			      struct sg_table *sgt);
+struct drm_gem_object *pvr_gem_create_object(struct drm_device *drm_dev, size_t size);
 
 struct pvr_gem_object *pvr_gem_object_create(struct pvr_device *pvr_dev,
 					     size_t size, u64 flags);
@@ -176,8 +150,21 @@ int pvr_gem_object_into_handle(struct pvr_gem_object *pvr_obj,
 struct pvr_gem_object *pvr_gem_object_from_handle(struct pvr_file *pvr_file,
 						  u32 handle);
 
-int pvr_gem_object_get_pages(struct pvr_gem_object *pvr_obj);
-void pvr_gem_object_put_pages(struct pvr_gem_object *pvr_obj);
+static __always_inline struct sg_table *
+pvr_gem_object_get_pages_sgt(struct pvr_gem_object *pvr_obj)
+{
+	return drm_gem_shmem_get_pages_sgt(shmem_gem_from_pvr_gem(pvr_obj));
+}
+
+static __always_inline int pvr_gem_object_get_pages(struct pvr_gem_object *pvr_obj)
+{
+	return drm_gem_shmem_get_pages(shmem_gem_from_pvr_gem(pvr_obj));
+}
+
+static __always_inline void pvr_gem_object_put_pages(struct pvr_gem_object *pvr_obj)
+{
+	drm_gem_shmem_put_pages(shmem_gem_from_pvr_gem(pvr_obj));
+}
 
 void *pvr_gem_object_vmap(struct pvr_gem_object *pvr_obj, bool sync_to_cpu);
 void pvr_gem_object_vunmap(struct pvr_gem_object *pvr_obj, bool sync_to_device);
@@ -192,7 +179,7 @@ int pvr_gem_get_dma_addr(struct pvr_gem_object *pvr_obj, u32 offset,
 static __always_inline void
 pvr_gem_object_get(struct pvr_gem_object *pvr_obj)
 {
-	drm_gem_object_get(from_pvr_gem_object(pvr_obj));
+	drm_gem_object_get(gem_from_pvr_gem(pvr_obj));
 }
 
 /**
@@ -202,13 +189,13 @@ pvr_gem_object_get(struct pvr_gem_object *pvr_obj)
 static __always_inline void
 pvr_gem_object_put(struct pvr_gem_object *pvr_obj)
 {
-	drm_gem_object_put(from_pvr_gem_object(pvr_obj));
+	drm_gem_object_put(gem_from_pvr_gem(pvr_obj));
 }
 
 static __always_inline size_t
 pvr_gem_object_size(struct pvr_gem_object *pvr_obj)
 {
-	return from_pvr_gem_object(pvr_obj)->size;
+	return gem_from_pvr_gem(pvr_obj)->size;
 }
 
 #endif /* PVR_GEM_H */

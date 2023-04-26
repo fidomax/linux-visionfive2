@@ -2534,7 +2534,7 @@ pvr_vm_context_map_sgt(struct pvr_vm_context *vm_ctx,
 static __always_inline struct pvr_page_flags_raw
 pvr_vm_gpuva_mapping_page_flags_raw(const struct drm_gpuva_op_map *va)
 {
-	const u64 flags = to_pvr_gem_object(va->gem.obj)->flags;
+	const u64 flags = gem_to_pvr_gem(va->gem.obj)->flags;
 
 	/*
 	 * FIXME: There is currently no way to mark a mapping as read-only or
@@ -2574,7 +2574,7 @@ pvr_vm_gpuva_mapping_init(struct drm_gpuva *va, u64 device_addr, u64 size,
 {
 	va->va.addr = device_addr;
 	va->va.range = size;
-	va->gem.obj = &pvr_obj->base;
+	va->gem.obj = gem_from_pvr_gem(pvr_obj);
 	va->gem.offset = pvr_obj_offset;
 }
 
@@ -2595,7 +2595,7 @@ struct pvr_vm_gpuva_op_ctx {
 static void
 pvr_vm_gpuva_mapping_fini(struct drm_gpuva *va)
 {
-	pvr_gem_object_put(to_pvr_gem_object(va->gem.obj));
+	pvr_gem_object_put(gem_to_pvr_gem(va->gem.obj));
 }
 
 /**
@@ -2616,16 +2616,23 @@ static int
 pvr_vm_gpuva_map(struct drm_gpuva_op *op, void *op_ctx)
 {
 	struct pvr_vm_gpuva_op_ctx *ctx = op_ctx;
-	struct pvr_gem_object *pvr_gem = to_pvr_gem_object(op->map.gem.obj);
+	struct pvr_gem_object *pvr_gem = gem_to_pvr_gem(op->map.gem.obj);
+	struct sg_table *sgt;
 	int err;
 
-	if (!pvr_gem->base.import_attach) {
+	if (!gem_from_pvr_gem(pvr_gem)->import_attach) {
 		err = pvr_gem_object_get_pages(pvr_gem);
 		if (err)
 			return err;
 	}
 
-	err = pvr_vm_context_map_sgt(ctx->vm_ctx, pvr_gem->sgt, op->map.gem.offset,
+	sgt = pvr_gem_object_get_pages_sgt(pvr_gem);
+	if (IS_ERR(sgt)) {
+		err = PTR_ERR(sgt);
+		goto err_put_pages;
+	}
+
+	err = pvr_vm_context_map_sgt(ctx->vm_ctx, sgt, op->map.gem.offset,
 				     op->map.va.addr, op->map.va.range,
 				     pvr_vm_gpuva_mapping_page_flags_raw(&op->map));
 	if (err)
@@ -2653,7 +2660,7 @@ err_unmap:
 			     op->map.va.range >> PVR_DEVICE_PAGE_SHIFT);
 
 err_put_pages:
-	if (!pvr_gem->base.import_attach)
+	if (!gem_from_pvr_gem(pvr_gem)->import_attach)
 		pvr_gem_object_put_pages(pvr_gem);
 
 	return err;
@@ -2675,7 +2682,7 @@ err_put_pages:
 static int
 pvr_vm_gpuva_unmap(struct drm_gpuva_op *op, drm_gpuva_state_t state, void *op_ctx)
 {
-	struct pvr_gem_object *pvr_gem = to_pvr_gem_object(op->unmap.va->gem.obj);
+	struct pvr_gem_object *pvr_gem = gem_to_pvr_gem(op->unmap.va->gem.obj);
 	struct pvr_vm_gpuva_op_ctx *ctx = op_ctx;
 
 	int err = pvr_vm_context_unmap(ctx->vm_ctx, op->unmap.va->va.addr,
@@ -2686,7 +2693,7 @@ pvr_vm_gpuva_unmap(struct drm_gpuva_op *op, drm_gpuva_state_t state, void *op_ct
 	drm_gpuva_unmap(state);
 	drm_gpuva_unlink(op->unmap.va);
 
-	if (!pvr_gem->base.import_attach)
+	if (!gem_from_pvr_gem(pvr_gem)->import_attach)
 		pvr_gem_object_put_pages(pvr_gem);
 
 	pvr_gem_object_put(pvr_gem);
@@ -2731,13 +2738,13 @@ pvr_vm_gpuva_remap(struct drm_gpuva_op *op, drm_gpuva_state_t state, void *op_ct
 	if (op->remap.prev)
 		pvr_vm_gpuva_mapping_init(ctx->prev_va, op->remap.prev->va.addr,
 					  op->remap.prev->va.range,
-					  to_pvr_gem_object(op->remap.prev->gem.obj),
+					  gem_to_pvr_gem(op->remap.prev->gem.obj),
 					  op->remap.prev->gem.offset);
 
 	if (op->remap.next)
 		pvr_vm_gpuva_mapping_init(ctx->next_va, op->remap.next->va.addr,
 					  op->remap.next->va.range,
-					  to_pvr_gem_object(op->remap.next->gem.obj),
+					  gem_to_pvr_gem(op->remap.next->gem.obj),
 					  op->remap.next->gem.offset);
 
 	/* No actual remap required: the page table tree depth is fixed to 3, and we use 4k
@@ -2748,22 +2755,22 @@ pvr_vm_gpuva_remap(struct drm_gpuva_op *op, drm_gpuva_state_t state, void *op_ct
 		return err;
 
 	if (op->remap.prev) {
-		pvr_gem_object_get(to_pvr_gem_object(ctx->prev_va->gem.obj));
+		pvr_gem_object_get(gem_to_pvr_gem(ctx->prev_va->gem.obj));
 		drm_gpuva_link(ctx->prev_va);
 		ctx->prev_va = NULL;
 	}
 
 	if (op->remap.next) {
-		pvr_gem_object_get(to_pvr_gem_object(ctx->next_va->gem.obj));
+		pvr_gem_object_get(gem_to_pvr_gem(ctx->next_va->gem.obj));
 		drm_gpuva_link(ctx->next_va);
 		ctx->next_va = NULL;
 	}
 
 	if (op->remap.unmap) {
-		struct pvr_gem_object *pvr_gem = to_pvr_gem_object(op->remap.unmap->va->gem.obj);
+		struct pvr_gem_object *pvr_gem = gem_to_pvr_gem(op->remap.unmap->va->gem.obj);
 
 		drm_gpuva_unlink(op->unmap.va);
-		if (!pvr_gem->base.import_attach)
+		if (!gem_from_pvr_gem(pvr_gem)->import_attach)
 			pvr_gem_object_put_pages(pvr_gem);
 
 		pvr_gem_object_put(pvr_gem);
@@ -2932,7 +2939,7 @@ pvr_vm_context_release(struct kref *ref_count)
 		can_release_gem_obj = !WARN_ON(pvr_vm_context_unmap(vm_ctx, va->va.addr,
 					       va->va.range >> PVR_DEVICE_PAGE_SHIFT));
 		if (can_release_gem_obj && !va->gem.obj->import_attach)
-			pvr_gem_object_put_pages(to_pvr_gem_object(va->gem.obj));
+			pvr_gem_object_put_pages(gem_to_pvr_gem(va->gem.obj));
 		drm_gpuva_unlink(va);
 		drm_gem_gpuva_unlock(va->gem.obj);
 
@@ -3064,7 +3071,7 @@ pvr_vm_map(struct pvr_vm_context *vm_ctx,
 
 	mutex_lock(&vm_ctx->lock);
 	err = drm_gpuva_sm_map(&vm_ctx->gpuva_mgr, &op_ctx, device_addr, size,
-			       &pvr_obj->base, pvr_obj_offset);
+			       gem_from_pvr_gem(pvr_obj), pvr_obj_offset);
 	mutex_unlock(&vm_ctx->lock);
 
 out:
@@ -3376,7 +3383,7 @@ pvr_vm_find_gem_object(struct pvr_vm_context *vm_ctx, u64 device_addr,
 	if (!va)
 		goto err_unlock;
 
-	pvr_obj = to_pvr_gem_object(va->gem.obj);
+	pvr_obj = gem_to_pvr_gem(va->gem.obj);
 	pvr_gem_object_get(pvr_obj);
 
 	if (mapped_offset_out)

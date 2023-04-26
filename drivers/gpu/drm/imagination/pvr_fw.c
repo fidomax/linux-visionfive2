@@ -1124,7 +1124,7 @@ static int
 pvr_fw_object_fw_map(struct pvr_device *pvr_dev, struct pvr_fw_object *fw_obj, u64 dev_addr)
 {
 	struct pvr_gem_object *pvr_obj = fw_obj->gem;
-	struct drm_gem_object *gem_obj = from_pvr_gem_object(pvr_obj);
+	struct drm_gem_object *gem_obj = gem_from_pvr_gem(pvr_obj);
 	struct pvr_fw_device *fw_dev = &pvr_dev->fw_dev;
 
 	int err;
@@ -1196,7 +1196,7 @@ static int
 pvr_fw_object_fw_unmap(struct pvr_fw_object *fw_obj)
 {
 	struct pvr_gem_object *pvr_obj = fw_obj->gem;
-	struct drm_gem_object *gem_obj = from_pvr_gem_object(pvr_obj);
+	struct drm_gem_object *gem_obj = gem_from_pvr_gem(pvr_obj);
 	struct pvr_device *pvr_dev = to_pvr_device(gem_obj->dev);
 	struct pvr_fw_device *fw_dev = &pvr_dev->fw_dev;
 	int err;
@@ -1402,7 +1402,7 @@ void pvr_fw_object_destroy(struct pvr_fw_object *fw_obj)
 void pvr_fw_object_get_fw_addr_offset(struct pvr_fw_object *fw_obj, u32 offset, u32 *fw_addr_out)
 {
 	struct pvr_gem_object *pvr_obj = fw_obj->gem;
-	struct pvr_device *pvr_dev = to_pvr_device(from_pvr_gem_object(pvr_obj)->dev);
+	struct pvr_device *pvr_dev = to_pvr_device(gem_from_pvr_gem(pvr_obj)->dev);
 
 	*fw_addr_out = pvr_dev->fw_dev.funcs->get_fw_addr_with_offset(fw_obj, offset);
 }

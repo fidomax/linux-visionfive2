@@ -398,7 +398,7 @@ configure_seg_id(u64 seg_out_addr, u32 seg_base, u32 seg_limit, u32 seg_id,
 
 static u64 get_fw_obj_gpu_addr(struct pvr_fw_object *fw_obj)
 {
-	struct pvr_device *pvr_dev = to_pvr_device(from_pvr_gem_object(fw_obj->gem)->dev);
+	struct pvr_device *pvr_dev = to_pvr_device(gem_from_pvr_gem(fw_obj->gem)->dev);
 	struct pvr_fw_device *fw_dev = &pvr_dev->fw_dev;
 
 	return fw_obj->fw_addr_offset + fw_dev->fw_heap_info.gpu_addr;

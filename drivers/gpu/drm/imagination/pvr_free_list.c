@@ -285,6 +285,7 @@ static int
 pvr_free_list_insert_node_locked(struct pvr_free_list_node *free_list_node)
 {
 	struct pvr_free_list *free_list = free_list_node->free_list;
+	struct sg_table *sgt;
 	u32 start_page;
 	u32 offset;
 	int err;
@@ -296,7 +297,11 @@ pvr_free_list_insert_node_locked(struct pvr_free_list_node *free_list_node)
 	offset = (start_page * FREE_LIST_ENTRY_SIZE) &
 		  ~((u64)ROGUE_BIF_PM_FREELIST_BASE_ADDR_ALIGNSIZE - 1);
 
-	err = pvr_free_list_insert_pages_locked(free_list, free_list_node->mem_obj->sgt,
+	sgt = drm_gem_shmem_get_pages_sgt(&free_list_node->mem_obj->base);
+	if (WARN_ON(IS_ERR(sgt)))
+		return PTR_ERR(sgt);
+
+	err = pvr_free_list_insert_pages_locked(free_list, sgt,
 						offset, free_list_node->num_pages);
 	if (!err)
 		free_list->current_pages += free_list_node->num_pages;

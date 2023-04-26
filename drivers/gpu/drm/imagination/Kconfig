@@ -5,6 +5,7 @@ config DRM_POWERVR
 	tristate "Imagination Technologies PowerVR Graphics"
 	depends on ARM64
 	depends on DRM
+	select DRM_GEM_SHMEM_HELPER
 	select FW_LOADER
 	help
 	  Choose this option if you have a system that has an Imagination
