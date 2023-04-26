@@ -421,20 +421,32 @@ pvr_free_list_create(struct pvr_file *pvr_file,
 		       xa_limit_32b,
 		       GFP_KERNEL);
 	if (err)
-		goto err_free;
+		goto err_destroy_kernel_structure;
 
 	err = free_list_create_fw_structure(pvr_file, args, free_list);
 	if (err < 0)
-		goto err_free;
+		goto err_free_fw_id;
 
 	err = pvr_free_list_grow(free_list, args->initial_num_pages);
 	if (err < 0)
-		goto err_free;
+		goto err_fw_struct_cleanup;
 
 	return free_list;
 
+err_fw_struct_cleanup:
+	WARN_ON(pvr_fw_structure_cleanup(free_list->pvr_dev,
+					 ROGUE_FWIF_CLEANUP_FREELIST,
+					 free_list->fw_obj, 0));
+
+err_free_fw_id:
+	xa_erase(&free_list->pvr_dev->free_list_ids, free_list->fw_id);
+
+err_destroy_kernel_structure:
+	free_list_destroy_kernel_structure(free_list);
+
 err_free:
-	pvr_free_list_put(free_list);
+	mutex_destroy(&free_list->lock);
+	kfree(free_list);
 
 	return ERR_PTR(err);
 }
