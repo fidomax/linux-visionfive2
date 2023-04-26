@@ -398,8 +398,7 @@ configure_seg_id(u64 seg_out_addr, u32 seg_base, u32 seg_limit, u32 seg_id,
 
 static u64 get_fw_obj_gpu_addr(struct pvr_fw_object *fw_obj)
 {
-	struct pvr_gem_object *pvr_obj = from_pvr_fw_object(fw_obj);
-	struct pvr_fw_device *fw_dev = &pvr_obj->pvr_dev->fw_dev;
+	struct pvr_fw_device *fw_dev = &fw_obj->gem->pvr_dev->fw_dev;
 
 	return fw_obj->fw_addr_offset + fw_dev->fw_heap_info.gpu_addr;
 }
@@ -525,7 +524,7 @@ pvr_meta_fw_process(struct pvr_device *pvr_dev, const u8 *fw,
 	if (fw_dev->mem.core_code_obj) {
 		u32 core_code_fw_addr;
 
-		pvr_gem_get_fw_addr(fw_dev->mem.core_code_obj, &core_code_fw_addr);
+		pvr_fw_object_get_fw_addr(fw_dev->mem.core_code_obj, &core_code_fw_addr);
 		add_boot_arg(&boot_conf, core_code_fw_addr, core_code_alloc_size);
 	} else {
 		add_boot_arg(&boot_conf, 0, 0);
@@ -553,7 +552,7 @@ pvr_meta_get_fw_addr_with_offset(struct pvr_fw_object *fw_obj, u32 offset)
 	u32 fw_addr = fw_obj->fw_addr_offset + offset + ROGUE_FW_SEGMMU_DATA_BASE_ADDRESS;
 
 	/* META cacheability is determined by address. */
-	if (fw_obj->base.flags & PVR_BO_FW_FLAGS_DEVICE_UNCACHED)
+	if (fw_obj->gem->flags & PVR_BO_FW_FLAGS_DEVICE_UNCACHED)
 		fw_addr |= ROGUE_FW_SEGMMU_DATA_META_UNCACHED |
 			   ROGUE_FW_SEGMMU_DATA_VIVT_SLC_UNCACHED;
 
@@ -563,7 +562,7 @@ pvr_meta_get_fw_addr_with_offset(struct pvr_fw_object *fw_obj, u32 offset)
 static int
 pvr_meta_vm_map(struct pvr_device *pvr_dev, struct pvr_fw_object *fw_obj)
 {
-	struct pvr_gem_object *pvr_obj = from_pvr_fw_object(fw_obj);
+	struct pvr_gem_object *pvr_obj = fw_obj->gem;
 
 	return pvr_vm_map(pvr_dev->kernel_vm_ctx, pvr_obj, 0, fw_obj->fw_mm_node.start,
 			  pvr_gem_object_size(pvr_obj));

@@ -6,6 +6,7 @@
 
 #include "pvr_fw_info.h"
 #include "pvr_fw_trace.h"
+#include "pvr_gem.h"
 
 #include <drm/drm_mm.h>
 
@@ -15,15 +16,36 @@
 struct pvr_device;
 struct pvr_file;
 
-/* Forward declaration from "pvr_gem.h". */
-struct pvr_fw_object;
-
 /* Forward declaration from "pvr_vm.h". */
 struct pvr_vm_context;
 
 #define ROGUE_FWIF_FWCCB_NUMCMDS_LOG2 5
 
 #define ROGUE_FWIF_KCCB_NUMCMDS_LOG2_DEFAULT 7
+
+/**
+ * struct pvr_fw_object - container for firmware memory allocations
+ */
+struct pvr_fw_object {
+	/** @ref_count: FW object reference counter. */
+	struct kref ref_count;
+
+	/** @gem: GEM object backing the FW object. */
+	struct pvr_gem_object *gem;
+
+	/**
+	 * @fw_mm_node: Node representing mapping in FW address space. @pvr_obj->lock must
+	 *              be held when writing.
+	 */
+	struct drm_mm_node fw_mm_node;
+
+	/**
+	 * @fw_addr_offset: Virtual address offset of firmware mapping. Only
+	 *                  valid if @flags has %PVR_GEM_OBJECT_FLAGS_FW_MAPPED
+	 *                  set.
+	 */
+	u32 fw_addr_offset;
+};
 
 /**
  * struct pvr_fw_funcs - FW processor function table
@@ -341,5 +363,56 @@ pvr_fw_find_mmu_segment(u32 addr, u32 size, const struct pvr_fw_layout_entry *la
 int
 pvr_fw_structure_cleanup(struct pvr_device *pvr_dev, u32 type, struct pvr_fw_object *fw_obj,
 			 u32 offset);
+
+int pvr_fw_object_create(struct pvr_device *pvr_dev, size_t size, u64 flags,
+			 struct pvr_fw_object **pvr_obj_out);
+
+void *pvr_fw_object_create_and_map(struct pvr_device *pvr_dev, size_t size,
+				   u64 flags,
+				   struct pvr_fw_object **pvr_obj_out);
+
+void *
+pvr_fw_object_create_and_map_offset(struct pvr_device *pvr_dev,
+				    u32 dev_offset, size_t size, u64 flags,
+				    struct pvr_fw_object **pvr_obj_out);
+
+static __always_inline void *
+pvr_fw_object_vmap(struct pvr_fw_object *fw_obj, bool sync_to_cpu)
+{
+	return pvr_gem_object_vmap(fw_obj->gem, sync_to_cpu);
+}
+
+static __always_inline void
+pvr_fw_object_vunmap(struct pvr_fw_object *fw_obj, bool sync_to_device)
+{
+	pvr_gem_object_vunmap(fw_obj->gem, sync_to_device);
+}
+
+void pvr_fw_object_destroy(struct pvr_fw_object *fw_obj);
+
+/**
+ * pvr_fw_get_dma_addr() - Get DMA address for given offset in firmware object
+ * @fw_obj: Pointer to object to lookup address in.
+ * @offset: Offset within object to lookup address at.
+ * @dma_addr_out: Pointer to location to store DMA address.
+ *
+ * Returns:
+ *  * 0 on success, or
+ *  * -%EINVAL if object is not currently backed, or if @offset is out of valid
+ *    range for this object.
+ */
+static __always_inline int
+pvr_fw_object_get_dma_addr(struct pvr_fw_object *fw_obj, u32 offset, dma_addr_t *dma_addr_out)
+{
+	return pvr_gem_get_dma_addr(fw_obj->gem, offset, dma_addr_out);
+}
+
+void pvr_fw_object_get_fw_addr_offset(struct pvr_fw_object *fw_obj, u32 offset, u32 *fw_addr_out);
+
+static __always_inline void
+pvr_fw_object_get_fw_addr(struct pvr_fw_object *fw_obj, u32 *fw_addr_out)
+{
+	pvr_fw_object_get_fw_addr_offset(fw_obj, 0, fw_addr_out);
+}
 
 #endif /* PVR_FW_H */

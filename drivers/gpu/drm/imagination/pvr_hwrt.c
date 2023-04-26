@@ -88,7 +88,7 @@ hwrt_fini_kernel_structure(struct pvr_hwrt_dataset *hwrt)
 static void
 hwrt_fini_common_fw_structure(struct pvr_hwrt_dataset *hwrt)
 {
-	pvr_fw_object_release(hwrt->common_fw_obj);
+	pvr_fw_object_destroy(hwrt->common_fw_obj);
 }
 
 static int
@@ -284,10 +284,10 @@ hwrt_init_common_fw_structure(struct pvr_file *pvr_file,
 	 * is only for this function.
 	 */
 	hwrt_data_common_fw =
-		pvr_gem_create_and_map_fw_object(pvr_dev,
-						 sizeof(*hwrt_data_common_fw),
-						 PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
-						 DRM_PVR_BO_CREATE_ZEROED, &hwrt->common_fw_obj);
+		pvr_fw_object_create_and_map(pvr_dev,
+					     sizeof(*hwrt_data_common_fw),
+					     PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
+					     DRM_PVR_BO_CREATE_ZEROED, &hwrt->common_fw_obj);
 	if (IS_ERR(hwrt_data_common_fw)) {
 		err = PTR_ERR(hwrt_data_common_fw);
 		return err;
@@ -371,20 +371,21 @@ hwrt_data_init_fw_structure(struct pvr_file *pvr_file,
 	int free_list_i;
 	int err;
 
-	hwrt_data->fw_data = pvr_gem_create_and_map_fw_object(pvr_dev, sizeof(*hwrt_data->fw_data),
-							      PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
-							      DRM_PVR_BO_CREATE_ZEROED,
-							      &hwrt_data->fw_obj);
+	hwrt_data->fw_data = pvr_fw_object_create_and_map(pvr_dev, sizeof(*hwrt_data->fw_data),
+							  PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
+							  DRM_PVR_BO_CREATE_ZEROED,
+							  &hwrt_data->fw_obj);
 	if (IS_ERR(hwrt_data->fw_data)) {
 		err = PTR_ERR(hwrt_data->fw_data);
 		goto err_out;
 	}
 
-	pvr_gem_get_fw_addr(hwrt->common_fw_obj, &hwrt_data->fw_data->hwrt_data_common_fw_addr);
+	pvr_fw_object_get_fw_addr(hwrt->common_fw_obj,
+				  &hwrt_data->fw_data->hwrt_data_common_fw_addr);
 
 	for (free_list_i = 0; free_list_i < ARRAY_SIZE(hwrt->free_lists); free_list_i++) {
-		pvr_gem_get_fw_addr(hwrt->free_lists[free_list_i]->fw_obj,
-				    &hwrt_data->fw_data->freelists_fw_addr[free_list_i]);
+		pvr_fw_object_get_fw_addr(hwrt->free_lists[free_list_i]->fw_obj,
+					  &hwrt_data->fw_data->freelists_fw_addr[free_list_i]);
 	}
 
 	hwrt_data->fw_data->tail_ptrs_dev_addr = geom_data_args->tpc_dev_addr;
@@ -404,21 +405,23 @@ hwrt_data_init_fw_structure(struct pvr_file *pvr_file,
 	rta_ctl->max_rts = args->layers;
 
 	if (args->layers > 1) {
-		err = pvr_gem_create_fw_object(pvr_dev, args->layers * SRTC_ENTRY_SIZE,
-					       PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
-					       DRM_PVR_BO_CREATE_ZEROED,
-					       &hwrt_data->srtc_obj);
+		err = pvr_fw_object_create(pvr_dev, args->layers * SRTC_ENTRY_SIZE,
+					   PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
+					   DRM_PVR_BO_CREATE_ZEROED,
+					   &hwrt_data->srtc_obj);
 		if (err)
 			goto err_put_fw_obj;
-		pvr_gem_get_fw_addr(hwrt_data->srtc_obj, &rta_ctl->valid_render_targets_fw_addr);
+		pvr_fw_object_get_fw_addr(hwrt_data->srtc_obj,
+					  &rta_ctl->valid_render_targets_fw_addr);
 
-		err = pvr_gem_create_fw_object(pvr_dev, args->layers * RAA_ENTRY_SIZE,
-					       PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
-					       DRM_PVR_BO_CREATE_ZEROED,
-					       &hwrt_data->raa_obj);
+		err = pvr_fw_object_create(pvr_dev, args->layers * RAA_ENTRY_SIZE,
+					   PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
+					   DRM_PVR_BO_CREATE_ZEROED,
+					   &hwrt_data->raa_obj);
 		if (err)
 			goto err_put_shadow_rt_cache;
-		pvr_gem_get_fw_addr(hwrt_data->raa_obj, &rta_ctl->rta_num_partial_renders_fw_addr);
+		pvr_fw_object_get_fw_addr(hwrt_data->raa_obj,
+					  &rta_ctl->rta_num_partial_renders_fw_addr);
 	}
 
 	pvr_free_list_add_hwrt(hwrt->free_lists[0], hwrt_data);
@@ -426,11 +429,11 @@ hwrt_data_init_fw_structure(struct pvr_file *pvr_file,
 	return 0;
 
 err_put_shadow_rt_cache:
-	pvr_fw_object_release(hwrt_data->srtc_obj);
+	pvr_fw_object_destroy(hwrt_data->srtc_obj);
 
 err_put_fw_obj:
 	pvr_fw_object_vunmap(hwrt_data->fw_obj, false);
-	pvr_fw_object_release(hwrt_data->fw_obj);
+	pvr_fw_object_destroy(hwrt_data->fw_obj);
 
 err_out:
 	return err;
@@ -444,12 +447,12 @@ hwrt_data_fini_fw_structure(struct pvr_hwrt_dataset *hwrt, int hwrt_nr)
 	pvr_free_list_remove_hwrt(hwrt->free_lists[0], hwrt_data);
 
 	if (hwrt->max_rts > 1) {
-		pvr_fw_object_release(hwrt_data->raa_obj);
-		pvr_fw_object_release(hwrt_data->srtc_obj);
+		pvr_fw_object_destroy(hwrt_data->raa_obj);
+		pvr_fw_object_destroy(hwrt_data->srtc_obj);
 	}
 
 	pvr_fw_object_vunmap(hwrt_data->fw_obj, false);
-	pvr_fw_object_release(hwrt_data->fw_obj);
+	pvr_fw_object_destroy(hwrt_data->fw_obj);
 }
 
 /**

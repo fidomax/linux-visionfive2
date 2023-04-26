@@ -30,7 +30,7 @@ get_ccb_space(u32 w_off, u32 r_off, u32 ccb_size)
  *
  * Return:
  *  * Zero on success, or
- *  * Any error code returned by pvr_gem_create_and_map_fw_object().
+ *  * Any error code returned by pvr_fw_object_create_and_map().
  */
 int
 pvr_cccb_init(struct pvr_device *pvr_dev, struct pvr_cccb *pvr_cccb,
@@ -45,25 +45,25 @@ pvr_cccb_init(struct pvr_device *pvr_dev, struct pvr_cccb *pvr_cccb,
 	 * Map CCCB and control structure as uncached, so we don't have to flush
 	 * CPU cache repeatedly when polling for space.
 	 */
-	pvr_cccb->ctrl = pvr_gem_create_and_map_fw_object(pvr_dev, sizeof(*pvr_cccb->ctrl),
-							  PVR_BO_FW_FLAGS_DEVICE_UNCACHED,
-							  &pvr_cccb->ctrl_obj);
+	pvr_cccb->ctrl = pvr_fw_object_create_and_map(pvr_dev, sizeof(*pvr_cccb->ctrl),
+						      PVR_BO_FW_FLAGS_DEVICE_UNCACHED,
+						      &pvr_cccb->ctrl_obj);
 	if (IS_ERR(pvr_cccb->ctrl)) {
 		err = PTR_ERR(pvr_cccb->ctrl);
 		goto err_out;
 	}
 
-	pvr_cccb->cccb = pvr_gem_create_and_map_fw_object(pvr_dev, size,
-							  PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
-							  DRM_PVR_BO_CREATE_ZEROED,
-							  &pvr_cccb->cccb_obj);
+	pvr_cccb->cccb = pvr_fw_object_create_and_map(pvr_dev, size,
+						      PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
+						      DRM_PVR_BO_CREATE_ZEROED,
+						      &pvr_cccb->cccb_obj);
 	if (IS_ERR(pvr_cccb->cccb)) {
 		err = PTR_ERR(pvr_cccb->cccb);
 		goto err_free_ctrl;
 	}
 
-	pvr_gem_get_fw_addr(pvr_cccb->ctrl_obj, &pvr_cccb->ctrl_fw_addr);
-	pvr_gem_get_fw_addr(pvr_cccb->cccb_obj, &pvr_cccb->cccb_fw_addr);
+	pvr_fw_object_get_fw_addr(pvr_cccb->ctrl_obj, &pvr_cccb->ctrl_fw_addr);
+	pvr_fw_object_get_fw_addr(pvr_cccb->cccb_obj, &pvr_cccb->cccb_fw_addr);
 
 	WRITE_ONCE(pvr_cccb->ctrl->write_offset, 0);
 	WRITE_ONCE(pvr_cccb->ctrl->read_offset, 0);
@@ -77,7 +77,7 @@ pvr_cccb_init(struct pvr_device *pvr_dev, struct pvr_cccb *pvr_cccb,
 
 err_free_ctrl:
 	pvr_fw_object_vunmap(pvr_cccb->ctrl_obj, false);
-	pvr_fw_object_release(pvr_cccb->ctrl_obj);
+	pvr_fw_object_destroy(pvr_cccb->ctrl_obj);
 
 err_out:
 	return err;
@@ -91,10 +91,10 @@ void
 pvr_cccb_fini(struct pvr_cccb *pvr_cccb)
 {
 	pvr_fw_object_vunmap(pvr_cccb->cccb_obj, false);
-	pvr_fw_object_release(pvr_cccb->cccb_obj);
+	pvr_fw_object_destroy(pvr_cccb->cccb_obj);
 
 	pvr_fw_object_vunmap(pvr_cccb->ctrl_obj, false);
-	pvr_fw_object_release(pvr_cccb->ctrl_obj);
+	pvr_fw_object_destroy(pvr_cccb->ctrl_obj);
 }
 
 static void
@@ -369,9 +369,10 @@ pvr_cccb_unlock_send_kccb_kick(struct pvr_device *pvr_dev,
 	cmd_kick_data->num_cleanup_ctl = 0;
 	cleanup_ctl = cmd_kick_data->cleanup_ctl_fw_addr;
 	if (hwrt) {
-		pvr_gem_get_fw_addr_offset(hwrt->fw_obj,
-					   offsetof(struct rogue_fwif_hwrtdata, cleanup_state),
-					   cleanup_ctl);
+		u32 cleanup_state_offset = offsetof(struct rogue_fwif_hwrtdata, cleanup_state);
+
+		pvr_fw_object_get_fw_addr_offset(hwrt->fw_obj, cleanup_state_offset,
+						 cleanup_ctl);
 		cmd_kick_data->num_cleanup_ctl++;
 		cleanup_ctl++;
 	}

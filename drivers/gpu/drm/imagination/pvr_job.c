@@ -232,7 +232,7 @@ static u32 get_ctx_fw_addr(struct pvr_job *job)
 		return 0;
 	}
 
-	pvr_gem_get_fw_addr(ctx_fw_obj, &ctx_fw_addr);
+	pvr_fw_object_get_fw_addr(ctx_fw_obj, &ctx_fw_addr);
 
 	if (job->type == DRM_PVR_JOB_TYPE_FRAGMENT)
 		ctx_fw_addr += offsetof(struct rogue_fwif_fwrendercontext, frag_context);
@@ -291,7 +291,7 @@ void pvr_job_submit(struct pvr_job *job)
 	qfence = to_pvr_context_queue_fence(job->deps.cur);
 	WARN_ON(job->deps.cur && !qfence);
 	if (qfence) {
-		pvr_gem_get_fw_addr(qfence->ctx->timeline_ufo.fw_obj, &queue_ufo.addr);
+		pvr_fw_object_get_fw_addr(qfence->ctx->timeline_ufo.fw_obj, &queue_ufo.addr);
 		queue_ufo.value = job->deps.cur->seqno;
 		err = pvr_cccb_write_command_with_header(cccb, ROGUE_FWIF_CCB_CMD_TYPE_FENCE_PR,
 							 sizeof(queue_ufo), &queue_ufo, 0, 0);
@@ -304,7 +304,7 @@ void pvr_job_submit(struct pvr_job *job)
 		if (WARN_ON(!qfence))
 			continue;
 
-		pvr_gem_get_fw_addr(qfence->ctx->timeline_ufo.fw_obj, &queue_ufo.addr);
+		pvr_fw_object_get_fw_addr(qfence->ctx->timeline_ufo.fw_obj, &queue_ufo.addr);
 		queue_ufo.value = fence->seqno;
 		err = pvr_cccb_write_command_with_header(cccb, ROGUE_FWIF_CCB_CMD_TYPE_FENCE_PR,
 							 sizeof(queue_ufo), &queue_ufo, 0, 0);
@@ -318,7 +318,7 @@ void pvr_job_submit(struct pvr_job *job)
 	if (WARN_ON(err))
 		goto err_cccb_unlock_rollback;
 
-	pvr_gem_get_fw_addr(queue->fence_ctx->timeline_ufo.fw_obj, &queue_ufo.addr);
+	pvr_fw_object_get_fw_addr(queue->fence_ctx->timeline_ufo.fw_obj, &queue_ufo.addr);
 	queue_ufo.value = job->done_fence->seqno;
 	err = pvr_cccb_write_command_with_header(cccb, ROGUE_FWIF_CCB_CMD_TYPE_UPDATE,
 						 sizeof(queue_ufo), &queue_ufo, 0, 0);
@@ -842,7 +842,7 @@ pvr_geom_job_fw_cmd_init(struct pvr_job *job,
 	cmd = job->cmd;
 	cmd->cmd_shared.cmn.frame_num = 0;
 	cmd->flags = convert_geom_flags(args->flags);
-	pvr_gem_get_fw_addr(job->hwrt->fw_obj, &cmd->cmd_shared.hwrt_data_fw_addr);
+	pvr_fw_object_get_fw_addr(job->hwrt->fw_obj, &cmd->cmd_shared.hwrt_data_fw_addr);
 	return 0;
 }
 
@@ -871,7 +871,7 @@ pvr_frag_job_fw_cmd_init(struct pvr_job *job,
 	cmd = job->cmd;
 	cmd->cmd_shared.cmn.frame_num = 0;
 	cmd->flags = convert_frag_flags(args->flags);
-	pvr_gem_get_fw_addr(job->hwrt->fw_obj, &cmd->cmd_shared.hwrt_data_fw_addr);
+	pvr_fw_object_get_fw_addr(job->hwrt->fw_obj, &cmd->cmd_shared.hwrt_data_fw_addr);
 	return 0;
 }
 

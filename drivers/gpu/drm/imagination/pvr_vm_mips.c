@@ -120,14 +120,14 @@ get_mips_pte_flags(bool read, bool write, u32 cache_policy)
  * Returns:
  *  * 0 on success,
  *  * -%EINVAL if object does not reside within FW address space, or
- *  * Any error returned by pvr_fw_get_dma_addr().
+ *  * Any error returned by pvr_fw_object_get_dma_addr().
  */
 int
 pvr_vm_mips_map(struct pvr_device *pvr_dev, struct pvr_fw_object *fw_obj)
 {
 	struct pvr_fw_device *fw_dev = &pvr_dev->fw_dev;
 	struct pvr_fw_mips_data *mips_data = fw_dev->processor_data.mips_data;
-	struct pvr_gem_object *pvr_obj = &fw_obj->base;
+	struct pvr_gem_object *pvr_obj = fw_obj->gem;
 	u64 start = fw_obj->fw_mm_node.start;
 	u64 size = fw_obj->fw_mm_node.size;
 	u64 end;
@@ -167,9 +167,10 @@ pvr_vm_mips_map(struct pvr_device *pvr_dev, struct pvr_fw_object *fw_obj)
 		dma_addr_t dma_addr;
 		u32 pte;
 
-		err = pvr_fw_get_dma_addr(fw_obj,
-					  (pfn - start_pfn) << ROGUE_MIPSFW_LOG2_PAGE_SIZE_4K,
-					  &dma_addr);
+		err = pvr_fw_object_get_dma_addr(fw_obj,
+						 (pfn - start_pfn) <<
+						 ROGUE_MIPSFW_LOG2_PAGE_SIZE_4K,
+						 &dma_addr);
 		if (err)
 			goto err_unmap_pages;
 

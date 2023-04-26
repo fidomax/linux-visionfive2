@@ -189,10 +189,10 @@ free_list_create_fw_structure(struct pvr_file *pvr_file,
 	 * accessed on the CPU side post-initialisation so the mapping lifetime
 	 * is only for this function.
 	 */
-	free_list->fw_data = pvr_gem_create_and_map_fw_object(pvr_dev, sizeof(*free_list->fw_data),
-							      PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
-							      DRM_PVR_BO_CREATE_ZEROED,
-							      &free_list->fw_obj);
+	free_list->fw_data = pvr_fw_object_create_and_map(pvr_dev, sizeof(*free_list->fw_data),
+							  PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
+							  DRM_PVR_BO_CREATE_ZEROED,
+							  &free_list->fw_obj);
 	if (IS_ERR(free_list->fw_data)) {
 		err = PTR_ERR(free_list->fw_data);
 		goto err_out;
@@ -227,7 +227,7 @@ static void
 free_list_destroy_fw_structure(struct pvr_free_list *free_list)
 {
 	pvr_fw_object_vunmap(free_list->fw_obj, false);
-	pvr_fw_object_release(free_list->fw_obj);
+	pvr_fw_object_destroy(free_list->fw_obj);
 }
 
 static int

@@ -33,11 +33,11 @@ int pvr_fw_trace_init(struct pvr_device *pvr_dev)
 	int err;
 
 	fw_trace->tracebuf_ctrl =
-		pvr_gem_create_and_map_fw_object(pvr_dev,
-						 sizeof(*fw_trace->tracebuf_ctrl),
-						 PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
-						 DRM_PVR_BO_CREATE_ZEROED,
-						 &fw_trace->tracebuf_ctrl_obj);
+		pvr_fw_object_create_and_map(pvr_dev,
+					     sizeof(*fw_trace->tracebuf_ctrl),
+					     PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
+					     DRM_PVR_BO_CREATE_ZEROED,
+					     &fw_trace->tracebuf_ctrl_obj);
 	if (IS_ERR(fw_trace->tracebuf_ctrl)) {
 		drm_err(drm_dev, "Unable to allocate trace buffer control structure\n");
 		err = PTR_ERR(fw_trace->tracebuf_ctrl);
@@ -53,12 +53,12 @@ int pvr_fw_trace_init(struct pvr_device *pvr_dev)
 		struct pvr_fw_trace_buffer *trace_buffer = &fw_trace->buffers[thread_nr];
 
 		trace_buffer->buf =
-			pvr_gem_create_and_map_fw_object(pvr_dev,
-							 ROGUE_FW_TRACE_BUF_DEFAULT_SIZE_IN_DWORDS *
-							 sizeof(*trace_buffer->buf),
-							 PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
-							 DRM_PVR_BO_CREATE_ZEROED,
-							 &trace_buffer->buf_obj);
+			pvr_fw_object_create_and_map(pvr_dev,
+						     ROGUE_FW_TRACE_BUF_DEFAULT_SIZE_IN_DWORDS *
+						     sizeof(*trace_buffer->buf),
+						     PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
+						     DRM_PVR_BO_CREATE_ZEROED,
+						     &trace_buffer->buf_obj);
 		if (IS_ERR(trace_buffer->buf)) {
 			drm_err(drm_dev, "Unable to allocate trace buffer\n");
 			err = PTR_ERR(trace_buffer->buf);
@@ -67,7 +67,8 @@ int pvr_fw_trace_init(struct pvr_device *pvr_dev)
 		}
 		trace_buffer->tracebuf_space = tracebuf_space;
 
-		pvr_gem_get_fw_addr(trace_buffer->buf_obj, &tracebuf_space->trace_buffer_fw_addr);
+		pvr_fw_object_get_fw_addr(trace_buffer->buf_obj,
+					  &tracebuf_space->trace_buffer_fw_addr);
 
 		tracebuf_space->trace_buffer = trace_buffer->buf;
 		tracebuf_space->trace_pointer = 0;
@@ -92,12 +93,12 @@ err_free_buf:
 
 		if (trace_buffer->buf) {
 			pvr_fw_object_vunmap(trace_buffer->buf_obj, false);
-			pvr_fw_object_release(trace_buffer->buf_obj);
+			pvr_fw_object_destroy(trace_buffer->buf_obj);
 		}
 	}
 
 	pvr_fw_object_vunmap(fw_trace->tracebuf_ctrl_obj, false);
-	pvr_fw_object_release(fw_trace->tracebuf_ctrl_obj);
+	pvr_fw_object_destroy(fw_trace->tracebuf_ctrl_obj);
 
 err_out:
 	return err;
@@ -112,10 +113,10 @@ void pvr_fw_trace_fini(struct pvr_device *pvr_dev)
 		struct pvr_fw_trace_buffer *trace_buffer = &fw_trace->buffers[thread_nr];
 
 		pvr_fw_object_vunmap(trace_buffer->buf_obj, false);
-		pvr_fw_object_release(trace_buffer->buf_obj);
+		pvr_fw_object_destroy(trace_buffer->buf_obj);
 	}
 	pvr_fw_object_vunmap(fw_trace->tracebuf_ctrl_obj, false);
-	pvr_fw_object_release(fw_trace->tracebuf_ctrl_obj);
+	pvr_fw_object_destroy(fw_trace->tracebuf_ctrl_obj);
 }
 
 /**

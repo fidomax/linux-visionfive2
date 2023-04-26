@@ -4,7 +4,6 @@
 #ifndef PVR_GEM_H
 #define PVR_GEM_H
 
-#include "pvr_fw.h"
 #include "pvr_rogue_heap_config.h"
 #include "pvr_rogue_meta.h"
 
@@ -153,27 +152,6 @@ struct pvr_gem_object {
 	void *vmap_cpu_addr;
 };
 
-/**
- * struct pvr_fw_object - container for firmware memory allocations
- */
-struct pvr_fw_object {
-	/** @base: The underlying PVR GEM object backing this allocation. */
-	struct pvr_gem_object base;
-
-	/**
-	 * @fw_mm_node: Node representing mapping in FW address space. @pvr_obj->lock must
-	 *              be held when writing.
-	 */
-	struct drm_mm_node fw_mm_node;
-
-	/**
-	 * @fw_addr_offset: Virtual address offset of firmware mapping. Only
-	 *                  valid if @flags has %PVR_GEM_OBJECT_FLAGS_FW_MAPPED
-	 *                  set.
-	 */
-	u32 fw_addr_offset;
-};
-
 static __always_inline struct drm_gem_object *
 from_pvr_gem_object(struct pvr_gem_object *pvr_obj)
 {
@@ -184,18 +162,6 @@ static __always_inline struct pvr_gem_object *
 to_pvr_gem_object(struct drm_gem_object *gem_obj)
 {
 	return container_of(gem_obj, struct pvr_gem_object, base);
-}
-
-static __always_inline struct pvr_gem_object *
-from_pvr_fw_object(struct pvr_fw_object *fw_obj)
-{
-	return &fw_obj->base;
-}
-
-static __always_inline struct pvr_fw_object *
-to_pvr_fw_object(struct pvr_gem_object *pvr_obj)
-{
-	return container_of(pvr_obj, struct pvr_fw_object, base);
 }
 
 /* Functions defined in pvr_gem.c */
@@ -218,18 +184,6 @@ void pvr_gem_object_put_pages(struct pvr_gem_object *pvr_obj);
 
 void *pvr_gem_object_vmap(struct pvr_gem_object *pvr_obj, bool sync_to_cpu);
 void pvr_gem_object_vunmap(struct pvr_gem_object *pvr_obj, bool sync_to_device);
-
-int pvr_gem_create_fw_object(struct pvr_device *pvr_dev, size_t size, u64 flags,
-			     struct pvr_fw_object **pvr_obj_out);
-
-void *pvr_gem_create_and_map_fw_object(struct pvr_device *pvr_dev, size_t size,
-				       u64 flags,
-				       struct pvr_fw_object **pvr_obj_out);
-
-void *
-pvr_gem_create_and_map_fw_object_offset(struct pvr_device *pvr_dev,
-					u32 dev_offset, size_t size, u64 flags,
-					struct pvr_fw_object **pvr_obj_out);
 
 int pvr_gem_get_dma_addr(struct pvr_gem_object *pvr_obj, u32 offset,
 			 dma_addr_t *dma_addr_out);
@@ -258,88 +212,6 @@ static __always_inline size_t
 pvr_gem_object_size(struct pvr_gem_object *pvr_obj)
 {
 	return from_pvr_gem_object(pvr_obj)->size;
-}
-
-void pvr_fw_object_release(struct pvr_fw_object *fw_obj);
-
-static __always_inline void *
-pvr_fw_object_vmap(struct pvr_fw_object *fw_obj, bool sync_to_cpu)
-{
-	return pvr_gem_object_vmap(from_pvr_fw_object(fw_obj), sync_to_cpu);
-}
-
-static __always_inline void
-pvr_fw_object_vunmap(struct pvr_fw_object *fw_obj, bool sync_to_device)
-{
-	pvr_gem_object_vunmap(from_pvr_fw_object(fw_obj), sync_to_device);
-}
-
-/**
- * pvr_fw_object_get() - Acquire reference on pvr_fw_object
- * @fw_obj: Pointer to object to acquire reference on.
- */
-static __always_inline void
-pvr_fw_object_get(struct pvr_fw_object *fw_obj)
-{
-	pvr_gem_object_get(from_pvr_fw_object(fw_obj));
-}
-
-/**
- * pvr_fw_object_put() - Release reference on pvr_fw_object
- * @fw_obj: Pointer to object to release reference on.
- *
- * Note: This function must _not_ be used to release the reference obtained at
- * creation time via pvr_gem_create_fw_object(). Use pvr_fw_object_release()
- * instead.
- */
-static __always_inline void
-pvr_fw_object_put(struct pvr_fw_object *fw_obj)
-{
-	pvr_gem_object_put(from_pvr_fw_object(fw_obj));
-}
-
-/**
- * pvr_fw_get_dma_addr() - Get DMA address for given offset in firmware object
- * @fw_obj: Pointer to object to lookup address in.
- * @offset: Offset within object to lookup address at.
- * @dma_addr_out: Pointer to location to store DMA address.
- *
- * Returns:
- *  * 0 on success, or
- *  * -%EINVAL if object is not currently backed, or if @offset is out of valid
- *    range for this object.
- */
-static __always_inline int
-pvr_fw_get_dma_addr(struct pvr_fw_object *fw_obj, u32 offset, dma_addr_t *dma_addr_out)
-{
-	return pvr_gem_get_dma_addr(from_pvr_fw_object(fw_obj), offset, dma_addr_out);
-}
-
-/**
- * pvr_gem_get_fw_addr_offset() - Return address of object in firmware address space, with given
- *                                offset.
- * @fw_obj: Pointer to object.
- * @offset: Desired offset from start of object.
- * @fw_addr_out: Location to store address to.
- */
-static __always_inline void
-pvr_gem_get_fw_addr_offset(struct pvr_fw_object *fw_obj, u32 offset, u32 *fw_addr_out)
-{
-	struct pvr_gem_object *pvr_obj = from_pvr_fw_object(fw_obj);
-	struct pvr_device *pvr_dev = pvr_obj->pvr_dev;
-
-	*fw_addr_out = pvr_dev->fw_dev.funcs->get_fw_addr_with_offset(fw_obj, offset);
-}
-
-/**
- * pvr_gem_get_fw_addr() - Return address of object in firmware address space
- * @fw_obj: Pointer to object.
- * @fw_addr_out: Location to store address to.
- */
-static __always_inline void
-pvr_gem_get_fw_addr(struct pvr_fw_object *fw_obj, u32 *fw_addr_out)
-{
-	pvr_gem_get_fw_addr_offset(fw_obj, 0, fw_addr_out);
 }
 
 #endif /* PVR_GEM_H */

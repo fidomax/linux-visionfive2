@@ -29,7 +29,7 @@
  *
  * Return:
  *  * Zero on success, or
- *  * Any error code returned by pvr_gem_create_and_map_fw_object().
+ *  * Any error code returned by pvr_fw_object_create_and_map().
  */
 static int
 pvr_ccb_init(struct pvr_device *pvr_dev, struct pvr_ccb *pvr_ccb,
@@ -47,25 +47,25 @@ pvr_ccb_init(struct pvr_device *pvr_dev, struct pvr_ccb *pvr_ccb,
 	 * Map CCB and control structure as uncached, so we don't have to flush
 	 * CPU cache repeatedly when polling for space.
 	 */
-	pvr_ccb->ctrl = pvr_gem_create_and_map_fw_object(pvr_dev, sizeof(*pvr_ccb->ctrl),
-							 PVR_BO_FW_FLAGS_DEVICE_UNCACHED,
-							 &pvr_ccb->ctrl_obj);
+	pvr_ccb->ctrl = pvr_fw_object_create_and_map(pvr_dev, sizeof(*pvr_ccb->ctrl),
+						     PVR_BO_FW_FLAGS_DEVICE_UNCACHED,
+						     &pvr_ccb->ctrl_obj);
 	if (IS_ERR(pvr_ccb->ctrl)) {
 		err = PTR_ERR(pvr_ccb->ctrl);
 		goto err_out;
 	}
 
-	pvr_ccb->ccb = pvr_gem_create_and_map_fw_object(pvr_dev, ccb_size,
-							PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
-							DRM_PVR_BO_CREATE_ZEROED,
-							&pvr_ccb->ccb_obj);
+	pvr_ccb->ccb = pvr_fw_object_create_and_map(pvr_dev, ccb_size,
+						    PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
+						    DRM_PVR_BO_CREATE_ZEROED,
+						    &pvr_ccb->ccb_obj);
 	if (IS_ERR(pvr_ccb->ccb)) {
 		err = PTR_ERR(pvr_ccb->ccb);
 		goto err_free_ctrl;
 	}
 
-	pvr_gem_get_fw_addr(pvr_ccb->ctrl_obj, &pvr_ccb->ctrl_fw_addr);
-	pvr_gem_get_fw_addr(pvr_ccb->ccb_obj, &pvr_ccb->ccb_fw_addr);
+	pvr_fw_object_get_fw_addr(pvr_ccb->ctrl_obj, &pvr_ccb->ctrl_fw_addr);
+	pvr_fw_object_get_fw_addr(pvr_ccb->ccb_obj, &pvr_ccb->ccb_fw_addr);
 
 	pvr_ccb->ctrl->write_offset = 0;
 	pvr_ccb->ctrl->read_offset = 0;
@@ -76,7 +76,7 @@ pvr_ccb_init(struct pvr_device *pvr_dev, struct pvr_ccb *pvr_ccb,
 
 err_free_ctrl:
 	pvr_fw_object_vunmap(pvr_ccb->ctrl_obj, false);
-	pvr_fw_object_release(pvr_ccb->ctrl_obj);
+	pvr_fw_object_destroy(pvr_ccb->ctrl_obj);
 
 err_out:
 	return err;
@@ -90,10 +90,10 @@ void
 pvr_ccb_fini(struct pvr_ccb *pvr_ccb)
 {
 	pvr_fw_object_vunmap(pvr_ccb->ccb_obj, false);
-	pvr_fw_object_release(pvr_ccb->ccb_obj);
+	pvr_fw_object_destroy(pvr_ccb->ccb_obj);
 
 	pvr_fw_object_vunmap(pvr_ccb->ctrl_obj, false);
-	pvr_fw_object_release(pvr_ccb->ctrl_obj);
+	pvr_fw_object_destroy(pvr_ccb->ctrl_obj);
 }
 
 /**
