@@ -239,7 +239,7 @@ pvr_mips_wrapper_init(struct pvr_device *pvr_dev)
 static u32
 pvr_mips_get_fw_addr_with_offset(struct pvr_fw_object *fw_obj, u32 offset)
 {
-	struct pvr_device *pvr_dev = fw_obj->gem->pvr_dev;
+	struct pvr_device *pvr_dev = to_pvr_device(from_pvr_gem_object(fw_obj->gem)->dev);
 
 	/* MIPS cacheability is determined by page table. */
 	return ((fw_obj->fw_addr_offset + offset) & pvr_dev->fw_dev.fw_heap_info.offset_mask) |

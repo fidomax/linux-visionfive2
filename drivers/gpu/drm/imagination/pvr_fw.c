@@ -1402,7 +1402,7 @@ void pvr_fw_object_destroy(struct pvr_fw_object *fw_obj)
 void pvr_fw_object_get_fw_addr_offset(struct pvr_fw_object *fw_obj, u32 offset, u32 *fw_addr_out)
 {
 	struct pvr_gem_object *pvr_obj = fw_obj->gem;
-	struct pvr_device *pvr_dev = pvr_obj->pvr_dev;
+	struct pvr_device *pvr_dev = to_pvr_device(from_pvr_gem_object(pvr_obj)->dev);
 
 	*fw_addr_out = pvr_dev->fw_dev.funcs->get_fw_addr_with_offset(fw_obj, offset);
 }

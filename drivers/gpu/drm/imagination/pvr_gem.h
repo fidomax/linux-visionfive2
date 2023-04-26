@@ -92,9 +92,6 @@ struct pvr_gem_object {
 	 */
 	struct drm_gem_object base;
 
-	/** @pvr_dev: Owning PowerVR device. */
-	struct pvr_device *pvr_dev;
-
 	/**
 	 * @lock: Mutex protecting @pages_ref_count, @fw_mm_ref_count,
 	 *        @vmap_ref_count and @vmap_cpu_addr, and writes to @pages, @sgt

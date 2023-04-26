@@ -684,7 +684,6 @@ pvr_gem_object_init(struct pvr_device *pvr_dev, struct pvr_gem_object *pvr_obj, 
 	if (err)
 		goto err_release;
 
-	pvr_obj->pvr_dev = pvr_dev;
 	mutex_init(&pvr_obj->lock);
 
 	/* Safe to cast away the const-qualifier during initialization. */
