@@ -338,8 +338,7 @@ pvr_context_queue_fence_ctx_release(struct kref *kref)
 	struct pvr_context_queue_fence_ctx *ctx;
 
 	ctx =  container_of(kref, struct pvr_context_queue_fence_ctx, refcount);
-	pvr_fw_object_vunmap(ctx->timeline_ufo.fw_obj);
-	pvr_fw_object_destroy(ctx->timeline_ufo.fw_obj);
+	pvr_fw_object_unmap_and_destroy(ctx->timeline_ufo.fw_obj);
 	kfree(ctx);
 	module_put(THIS_MODULE);
 }
@@ -571,8 +570,7 @@ pvr_init_geom_context(struct pvr_file *pvr_file,
 	return 0;
 
 err_release_ctx_state:
-	pvr_fw_object_vunmap(ctx_geom->ctx_state_obj);
-	pvr_fw_object_destroy(ctx_geom->ctx_state_obj);
+	pvr_fw_object_unmap_and_destroy(ctx_geom->ctx_state_obj);
 
 err_cccb_fini:
 	pvr_cccb_fini(&ctx_geom->cccb);
@@ -833,8 +831,7 @@ pvr_init_fw_render_context(struct pvr_context_render *ctx_render,
 	return 0;
 
 err_destroy_gem_object:
-	pvr_fw_object_vunmap(ctx_render->fw_obj);
-	pvr_fw_object_destroy(ctx_render->fw_obj);
+	pvr_fw_object_unmap_and_destroy(ctx_render->fw_obj);
 
 err_out:
 	return err;
@@ -924,8 +921,7 @@ pvr_init_compute_context(struct pvr_file *pvr_file, struct pvr_context_compute *
 	return 0;
 
 err_destroy_gem_object:
-	pvr_fw_object_vunmap(ctx_compute->fw_obj);
-	pvr_fw_object_destroy(ctx_compute->fw_obj);
+	pvr_fw_object_unmap_and_destroy(ctx_compute->fw_obj);
 
 err_destroy_ctx_state_obj:
 	pvr_fw_object_destroy(ctx_compute->ctx_state_obj);

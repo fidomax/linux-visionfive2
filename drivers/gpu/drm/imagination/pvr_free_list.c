@@ -226,8 +226,7 @@ err_out:
 static void
 free_list_destroy_fw_structure(struct pvr_free_list *free_list)
 {
-	pvr_fw_object_vunmap(free_list->fw_obj);
-	pvr_fw_object_destroy(free_list->fw_obj);
+	pvr_fw_object_unmap_and_destroy(free_list->fw_obj);
 }
 
 static int

@@ -432,8 +432,7 @@ err_put_shadow_rt_cache:
 	pvr_fw_object_destroy(hwrt_data->srtc_obj);
 
 err_put_fw_obj:
-	pvr_fw_object_vunmap(hwrt_data->fw_obj);
-	pvr_fw_object_destroy(hwrt_data->fw_obj);
+	pvr_fw_object_unmap_and_destroy(hwrt_data->fw_obj);
 
 err_out:
 	return err;
@@ -451,8 +450,7 @@ hwrt_data_fini_fw_structure(struct pvr_hwrt_dataset *hwrt, int hwrt_nr)
 		pvr_fw_object_destroy(hwrt_data->srtc_obj);
 	}
 
-	pvr_fw_object_vunmap(hwrt_data->fw_obj);
-	pvr_fw_object_destroy(hwrt_data->fw_obj);
+	pvr_fw_object_unmap_and_destroy(hwrt_data->fw_obj);
 }
 
 /**

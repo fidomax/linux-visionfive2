@@ -75,8 +75,7 @@ pvr_ccb_init(struct pvr_device *pvr_dev, struct pvr_ccb *pvr_ccb,
 	return 0;
 
 err_free_ctrl:
-	pvr_fw_object_vunmap(pvr_ccb->ctrl_obj);
-	pvr_fw_object_destroy(pvr_ccb->ctrl_obj);
+	pvr_fw_object_unmap_and_destroy(pvr_ccb->ctrl_obj);
 
 err_out:
 	return err;
@@ -89,11 +88,8 @@ err_out:
 void
 pvr_ccb_fini(struct pvr_ccb *pvr_ccb)
 {
-	pvr_fw_object_vunmap(pvr_ccb->ccb_obj);
-	pvr_fw_object_destroy(pvr_ccb->ccb_obj);
-
-	pvr_fw_object_vunmap(pvr_ccb->ctrl_obj);
-	pvr_fw_object_destroy(pvr_ccb->ctrl_obj);
+	pvr_fw_object_unmap_and_destroy(pvr_ccb->ccb_obj);
+	pvr_fw_object_unmap_and_destroy(pvr_ccb->ctrl_obj);
 }
 
 /**

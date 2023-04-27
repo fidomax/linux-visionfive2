@@ -302,8 +302,7 @@ pvr_fw_fini_fwif_connection_ctl(struct pvr_device *pvr_dev)
 {
 	struct pvr_fw_device *fw_dev = &pvr_dev->fw_dev;
 
-	pvr_fw_object_vunmap(fw_dev->mem.fwif_connection_ctl_obj);
-	pvr_fw_object_destroy(fw_dev->mem.fwif_connection_ctl_obj);
+	pvr_fw_object_unmap_and_destroy(fw_dev->mem.fwif_connection_ctl_obj);
 }
 
 static int
@@ -397,20 +396,16 @@ pvr_fw_create_os_structures(struct pvr_device *pvr_dev)
 	return 0;
 
 err_release_hwrinfobuf:
-	pvr_fw_object_vunmap(fw_mem->hwrinfobuf_obj);
-	pvr_fw_object_destroy(fw_mem->hwrinfobuf_obj);
+	pvr_fw_object_unmap_and_destroy(fw_mem->hwrinfobuf_obj);
 
 err_release_power_sync:
-	pvr_fw_object_vunmap(fw_mem->power_sync_obj);
-	pvr_fw_object_destroy(fw_mem->power_sync_obj);
+	pvr_fw_object_unmap_and_destroy(fw_mem->power_sync_obj);
 
 err_release_osdata:
-	pvr_fw_object_vunmap(fw_mem->osdata_obj);
-	pvr_fw_object_destroy(fw_mem->osdata_obj);
+	pvr_fw_object_unmap_and_destroy(fw_mem->osdata_obj);
 
 err_release_osinit:
-	pvr_fw_object_vunmap(fw_mem->osinit_obj);
-	pvr_fw_object_destroy(fw_mem->osinit_obj);
+	pvr_fw_object_unmap_and_destroy(fw_mem->osinit_obj);
 
 err_out:
 	return err;
@@ -423,14 +418,10 @@ pvr_fw_destroy_os_structures(struct pvr_device *pvr_dev)
 	struct pvr_fw_mem *fw_mem = &fw_dev->mem;
 
 	pvr_fw_object_destroy(fw_mem->mmucache_sync_obj);
-	pvr_fw_object_vunmap(fw_mem->hwrinfobuf_obj);
-	pvr_fw_object_destroy(fw_mem->hwrinfobuf_obj);
-	pvr_fw_object_vunmap(fw_mem->power_sync_obj);
-	pvr_fw_object_destroy(fw_mem->power_sync_obj);
-	pvr_fw_object_vunmap(fw_mem->osdata_obj);
-	pvr_fw_object_destroy(fw_mem->osdata_obj);
-	pvr_fw_object_vunmap(fw_mem->osinit_obj);
-	pvr_fw_object_destroy(fw_mem->osinit_obj);
+	pvr_fw_object_unmap_and_destroy(fw_mem->hwrinfobuf_obj);
+	pvr_fw_object_unmap_and_destroy(fw_mem->power_sync_obj);
+	pvr_fw_object_unmap_and_destroy(fw_mem->osdata_obj);
+	pvr_fw_object_unmap_and_destroy(fw_mem->osinit_obj);
 }
 
 static int
@@ -583,12 +574,10 @@ err_release_fault_page:
 	pvr_fw_object_destroy(fw_mem->fault_page_obj);
 
 err_release_sysdata:
-	pvr_fw_object_vunmap(fw_mem->sysdata_obj);
-	pvr_fw_object_destroy(fw_mem->sysdata_obj);
+	pvr_fw_object_unmap_and_destroy(fw_mem->sysdata_obj);
 
 err_release_sysinit:
-	pvr_fw_object_vunmap(fw_mem->sysinit_obj);
-	pvr_fw_object_destroy(fw_mem->sysinit_obj);
+	pvr_fw_object_unmap_and_destroy(fw_mem->sysinit_obj);
 
 err_out:
 	return err;
@@ -604,10 +593,8 @@ pvr_fw_destroy_dev_structures(struct pvr_device *pvr_dev)
 	pvr_fw_object_destroy(fw_mem->runtime_cfg_obj);
 	pvr_fw_object_destroy(fw_mem->gpu_util_fwcb_obj);
 	pvr_fw_object_destroy(fw_mem->fault_page_obj);
-	pvr_fw_object_vunmap(fw_mem->sysdata_obj);
-	pvr_fw_object_destroy(fw_mem->sysdata_obj);
-	pvr_fw_object_vunmap(fw_mem->sysinit_obj);
-	pvr_fw_object_destroy(fw_mem->sysinit_obj);
+	pvr_fw_object_unmap_and_destroy(fw_mem->sysdata_obj);
+	pvr_fw_object_unmap_and_destroy(fw_mem->sysinit_obj);
 }
 
 /**
@@ -751,16 +738,12 @@ pvr_fw_process(struct pvr_device *pvr_dev)
 	return 0;
 
 err_free_fw_core_data_obj:
-	if (fw_core_data_ptr) {
-		pvr_fw_object_vunmap(fw_mem->core_data_obj);
-		pvr_fw_object_destroy(fw_mem->core_data_obj);
-	}
+	if (fw_core_data_ptr)
+		pvr_fw_object_unmap_and_destroy(fw_mem->core_data_obj);
 
 err_free_fw_core_code_obj:
-	if (fw_core_code_ptr) {
-		pvr_fw_object_vunmap(fw_mem->core_code_obj);
-		pvr_fw_object_destroy(fw_mem->core_code_obj);
-	}
+	if (fw_core_code_ptr)
+		pvr_fw_object_unmap_and_destroy(fw_mem->core_code_obj);
 
 err_free_fw_data_obj:
 	if (fw_data_ptr)
@@ -925,8 +908,7 @@ err_destroy_os_structures:
 	pvr_fw_destroy_os_structures(pvr_dev);
 
 err_kccb_rtn_release:
-	pvr_fw_object_vunmap(pvr_dev->kccb_rtn_obj);
-	pvr_fw_object_destroy(pvr_dev->kccb_rtn_obj);
+	pvr_fw_object_unmap_and_destroy(pvr_dev->kccb_rtn_obj);
 
 err_fwccb_fini:
 	pvr_ccb_fini(&pvr_dev->fwccb);
@@ -965,8 +947,7 @@ pvr_fw_fini(struct pvr_device *pvr_dev)
 
 	pvr_fw_destroy_dev_structures(pvr_dev);
 	pvr_fw_destroy_os_structures(pvr_dev);
-	pvr_fw_object_vunmap(pvr_dev->kccb_rtn_obj);
-	pvr_fw_object_destroy(pvr_dev->kccb_rtn_obj);
+	pvr_fw_object_unmap_and_destroy(pvr_dev->kccb_rtn_obj);
 	/*
 	 * Ensure FWCCB worker has finished executing before destroying FWCCB. The IRQ handler has
 	 * been unregistered at this point so no new work should be being submitted.
