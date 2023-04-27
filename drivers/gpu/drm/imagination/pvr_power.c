@@ -7,6 +7,7 @@
 #include "pvr_power.h"
 #include "pvr_rogue_fwif.h"
 
+#include <drm/drm_managed.h>
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include <linux/pm_runtime.h>
@@ -186,11 +187,23 @@ pvr_power_check_idle(struct pvr_device *pvr_dev)
 /**
  * pvr_power_init() - Initialise power management for device
  * @pvr_dev: Target PowerVR device.
+ *
+ * Returns:
+ *  * 0 on success, or
+ *  * -%ENOMEM on out of memory.
  */
-void
+int
 pvr_power_init(struct pvr_device *pvr_dev)
 {
-	mutex_init(&pvr_dev->power_lock);
+	int err;
+
+	err = drmm_mutex_init(from_pvr_device(pvr_dev), &pvr_dev->power_lock);
+	if (err)
+		goto err_out;
+
 	pvr_dev->power_state = PVR_POWER_STATE_OFF;
 	INIT_DELAYED_WORK(&pvr_dev->delayed_idle_work, pvr_delayed_idle_worker);
+
+err_out:
+	return err;
 }

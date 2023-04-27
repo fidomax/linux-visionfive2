@@ -8,7 +8,7 @@
 
 #include <linux/mutex.h>
 
-void pvr_power_init(struct pvr_device *pvr_dev);
+int pvr_power_init(struct pvr_device *pvr_dev);
 int pvr_power_set_state(struct pvr_device *pvr_dev, enum pvr_power_state new_state);
 void pvr_power_check_idle(struct pvr_device *pvr_dev);
 

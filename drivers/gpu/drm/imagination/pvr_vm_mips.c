@@ -7,6 +7,7 @@
 #include "pvr_rogue_mips.h"
 #include "pvr_vm_mips.h"
 
+#include <drm/drm_managed.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -40,7 +41,7 @@ pvr_vm_mips_init(struct pvr_device *pvr_dev)
 		goto err_out;
 	}
 
-	mips_data = kzalloc(sizeof(*mips_data), GFP_KERNEL);
+	mips_data = drmm_kzalloc(from_pvr_device(pvr_dev), sizeof(*mips_data), GFP_KERNEL);
 	if (!mips_data) {
 		err = -ENOMEM;
 		goto err_out;
@@ -51,7 +52,7 @@ pvr_vm_mips_init(struct pvr_device *pvr_dev)
 						  DRM_PVR_BO_CREATE_ZEROED);
 	if (IS_ERR(mips_data->pt_obj)) {
 		err = PTR_ERR(mips_data->pt_obj);
-		goto err_kfree;
+		goto err_out;
 	}
 
 	mips_data->pt = pvr_gem_object_vmap(mips_data->pt_obj, false);
@@ -73,9 +74,6 @@ pvr_vm_mips_init(struct pvr_device *pvr_dev)
 err_put_obj:
 	pvr_gem_object_put(mips_data->pt_obj);
 
-err_kfree:
-	kfree(mips_data);
-
 err_out:
 	return err;
 }
@@ -92,7 +90,6 @@ pvr_vm_mips_fini(struct pvr_device *pvr_dev)
 
 	pvr_gem_object_vunmap(mips_data->pt_obj, false);
 	pvr_gem_object_put(mips_data->pt_obj);
-	kfree(mips_data);
 	fw_dev->processor_data.mips_data = NULL;
 }
 

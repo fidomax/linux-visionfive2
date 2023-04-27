@@ -4,6 +4,7 @@
 #include "pvr_device.h"
 #include "pvr_vendor.h"
 
+#include <drm/drm_managed.h>
 #include <drm/drm_print.h>
 #include <linux/err.h>
 #include <linux/io.h>
@@ -34,7 +35,7 @@ mt8173_init(struct pvr_device *pvr_dev)
 	void __iomem *regs;
 	int err;
 
-	mt8173_data = kzalloc(sizeof(*mt8173_data), GFP_KERNEL);
+	mt8173_data = drmm_kzalloc(drm_dev, sizeof(*mt8173_data), GFP_KERNEL);
 	if (!mt8173_data) {
 		err = -ENOMEM;
 		goto err_out;
@@ -46,7 +47,7 @@ mt8173_init(struct pvr_device *pvr_dev)
 		drm_err(drm_dev,
 			"failed to ioremap mt8173 gpu registers (err=%d)\n",
 			err);
-		goto err_free;
+		goto err_out;
 	}
 
 	mt8173_data->regs = regs;
@@ -55,9 +56,6 @@ mt8173_init(struct pvr_device *pvr_dev)
 
 	return 0;
 
-err_free:
-	kfree(mt8173_data);
-
 err_out:
 	return err;
 }
@@ -65,9 +63,6 @@ err_out:
 static void
 mt8173_fini(struct pvr_device *pvr_dev)
 {
-	struct pvr_mt8173_data *mt8173_data = pvr_dev->vendor.data;
-
-	kfree(mt8173_data);
 	pvr_dev->vendor.data = NULL;
 }
 

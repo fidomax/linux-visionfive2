@@ -9,6 +9,7 @@
 #include "pvr_gem.h"
 #include "pvr_power.h"
 
+#include <drm/drm_managed.h>
 #include <linux/compiler.h>
 #include <linux/delay.h>
 #include <linux/jiffies.h>
@@ -38,7 +39,9 @@ pvr_ccb_init(struct pvr_device *pvr_dev, struct pvr_ccb *pvr_ccb,
 	u32 ccb_size = num_cmds * cmd_size;
 	int err;
 
-	mutex_init(&pvr_ccb->lock);
+	err = drmm_mutex_init(from_pvr_device(pvr_dev), &pvr_ccb->lock);
+	if (err)
+		goto err_out;
 
 	/*
 	 * Map CCB and control structure as uncached, so we don't have to flush
