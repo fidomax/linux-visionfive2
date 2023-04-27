@@ -55,7 +55,7 @@ pvr_vm_mips_init(struct pvr_device *pvr_dev)
 		goto err_out;
 	}
 
-	mips_data->pt = pvr_gem_object_vmap(mips_data->pt_obj, false);
+	mips_data->pt = pvr_gem_object_vmap(mips_data->pt_obj);
 	if (IS_ERR(mips_data->pt)) {
 		err = PTR_ERR(mips_data->pt);
 		goto err_put_obj;
@@ -88,7 +88,7 @@ pvr_vm_mips_fini(struct pvr_device *pvr_dev)
 	struct pvr_fw_device *fw_dev = &pvr_dev->fw_dev;
 	struct pvr_fw_mips_data *mips_data = fw_dev->processor_data.mips_data;
 
-	pvr_gem_object_vunmap(mips_data->pt_obj, false);
+	pvr_gem_object_vunmap(mips_data->pt_obj);
 	pvr_gem_object_put(mips_data->pt_obj);
 	fw_dev->processor_data.mips_data = NULL;
 }

@@ -226,7 +226,7 @@ err_out:
 static void
 free_list_destroy_fw_structure(struct pvr_free_list *free_list)
 {
-	pvr_fw_object_vunmap(free_list->fw_obj, false);
+	pvr_fw_object_vunmap(free_list->fw_obj);
 	pvr_fw_object_destroy(free_list->fw_obj);
 }
 
@@ -240,7 +240,7 @@ pvr_free_list_insert_pages_locked(struct pvr_free_list *free_list,
 
 	lockdep_assert_held(&free_list->lock);
 
-	page_list = pvr_gem_object_vmap(free_list->obj, false);
+	page_list = pvr_gem_object_vmap(free_list->obj);
 	if (IS_ERR(page_list)) {
 		err = PTR_ERR(page_list);
 		goto err_out;
@@ -273,7 +273,7 @@ pvr_free_list_insert_pages_locked(struct pvr_free_list *free_list,
 	};
 	/* clang-format on */
 
-	pvr_gem_object_vunmap(free_list->obj, true);
+	pvr_gem_object_vunmap(free_list->obj);
 
 	return 0;
 

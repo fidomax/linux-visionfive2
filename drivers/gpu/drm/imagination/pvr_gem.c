@@ -186,7 +186,8 @@ pvr_gem_object_from_handle(struct pvr_file *pvr_file, u32 handle)
  * Once the caller is finished with the CPU mapping, they must call
  * pvr_gem_object_vunmap() on @pvr_obj.
  *
- * If @pvr_obj is not using the CPU cache, @sync_to_cpu is ignored.
+ * If @pvr_obj is CPU-cached, drm_gem_shmem_begin_cpu_access() is called to make
+ * sure the CPU mapping is consistent.
  *
  * Return:
  *  * A pointer to the CPU mapping on success,
@@ -195,7 +196,7 @@ pvr_gem_object_from_handle(struct pvr_file *pvr_file, u32 handle)
  *    backing pages for @pvr_obj.
  */
 void *
-pvr_gem_object_vmap(struct pvr_gem_object *pvr_obj, bool sync_to_cpu)
+pvr_gem_object_vmap(struct pvr_gem_object *pvr_obj)
 {
 	struct drm_gem_shmem_object *shmem_obj = shmem_gem_from_pvr_gem(pvr_obj);
 	struct iosys_map map;
@@ -205,7 +206,7 @@ pvr_gem_object_vmap(struct pvr_gem_object *pvr_obj, bool sync_to_cpu)
 	if (err)
 		return ERR_PTR(err);
 
-	if (sync_to_cpu && (pvr_obj->flags & PVR_BO_CPU_CACHED)) {
+	if (pvr_obj->flags & PVR_BO_CPU_CACHED) {
 		err = drm_gem_shmem_begin_cpu_access(shmem_obj, DMA_BIDIRECTIONAL);
 		if (err) {
 			drm_gem_shmem_vunmap(shmem_obj, &map);
@@ -220,13 +221,12 @@ pvr_gem_object_vmap(struct pvr_gem_object *pvr_obj, bool sync_to_cpu)
  * pvr_gem_object_vunmap() - Unmap a PowerVR memory object from CPU virtual
  * address space.
  * @pvr_obj: Target PowerVR GEM object.
- * @sync_to_device: Specifies whether the buffer should be synced to the device
- * immediately before unmapping from the CPU.
  *
- * If @pvr_obj is not using the CPU cache, @sync_to_device is ignored.
+ * If @pvr_obj is CPU-cached, drm_gem_shmem_end_cpu_access() is called to make
+ * sure the GPU mapping is consistent.
  */
 void
-pvr_gem_object_vunmap(struct pvr_gem_object *pvr_obj, bool sync_to_device)
+pvr_gem_object_vunmap(struct pvr_gem_object *pvr_obj)
 {
 	struct drm_gem_shmem_object *shmem_obj = shmem_gem_from_pvr_gem(pvr_obj);
 	struct iosys_map map = IOSYS_MAP_INIT_VADDR(shmem_obj->vaddr);
@@ -234,7 +234,7 @@ pvr_gem_object_vunmap(struct pvr_gem_object *pvr_obj, bool sync_to_device)
 	if (WARN_ON(!map.vaddr))
 		return;
 
-	if (sync_to_device && (pvr_obj->flags & PVR_BO_CPU_CACHED))
+	if (pvr_obj->flags & PVR_BO_CPU_CACHED)
 		WARN_ON(drm_gem_shmem_end_cpu_access(shmem_obj, DMA_BIDIRECTIONAL));
 
 	drm_gem_shmem_vunmap(shmem_obj, &map);
@@ -255,11 +255,7 @@ pvr_gem_object_zero(struct pvr_gem_object *pvr_obj)
 	void *cpu_ptr;
 	int err;
 
-	/*
-	 * We always map writecombined here so there's no need to flush the
-	 * CPU cache afterwards.
-	 */
-	cpu_ptr = pvr_gem_object_vmap(pvr_obj, false);
+	cpu_ptr = pvr_gem_object_vmap(pvr_obj);
 	if (IS_ERR(cpu_ptr)) {
 		err = PTR_ERR(cpu_ptr);
 		goto err_out;
@@ -267,7 +263,7 @@ pvr_gem_object_zero(struct pvr_gem_object *pvr_obj)
 
 	memset(cpu_ptr, 0, pvr_gem_object_size(pvr_obj));
 
-	pvr_gem_object_vunmap(pvr_obj, false);
+	pvr_gem_object_vunmap(pvr_obj);
 
 	return 0;
 

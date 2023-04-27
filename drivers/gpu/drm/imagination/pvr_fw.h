@@ -377,15 +377,15 @@ pvr_fw_object_create_and_map_offset(struct pvr_device *pvr_dev,
 				    struct pvr_fw_object **pvr_obj_out);
 
 static __always_inline void *
-pvr_fw_object_vmap(struct pvr_fw_object *fw_obj, bool sync_to_cpu)
+pvr_fw_object_vmap(struct pvr_fw_object *fw_obj)
 {
-	return pvr_gem_object_vmap(fw_obj->gem, sync_to_cpu);
+	return pvr_gem_object_vmap(fw_obj->gem);
 }
 
 static __always_inline void
-pvr_fw_object_vunmap(struct pvr_fw_object *fw_obj, bool sync_to_device)
+pvr_fw_object_vunmap(struct pvr_fw_object *fw_obj)
 {
-	pvr_gem_object_vunmap(fw_obj->gem, sync_to_device);
+	pvr_gem_object_vunmap(fw_obj->gem);
 }
 
 void pvr_fw_object_destroy(struct pvr_fw_object *fw_obj);

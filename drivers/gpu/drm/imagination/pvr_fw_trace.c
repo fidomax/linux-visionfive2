@@ -92,12 +92,12 @@ err_free_buf:
 		struct pvr_fw_trace_buffer *trace_buffer = &fw_trace->buffers[thread_nr];
 
 		if (trace_buffer->buf) {
-			pvr_fw_object_vunmap(trace_buffer->buf_obj, false);
+			pvr_fw_object_vunmap(trace_buffer->buf_obj);
 			pvr_fw_object_destroy(trace_buffer->buf_obj);
 		}
 	}
 
-	pvr_fw_object_vunmap(fw_trace->tracebuf_ctrl_obj, false);
+	pvr_fw_object_vunmap(fw_trace->tracebuf_ctrl_obj);
 	pvr_fw_object_destroy(fw_trace->tracebuf_ctrl_obj);
 
 err_out:
@@ -112,10 +112,10 @@ void pvr_fw_trace_fini(struct pvr_device *pvr_dev)
 	for (thread_nr = 0; thread_nr < ARRAY_SIZE(fw_trace->buffers); thread_nr++) {
 		struct pvr_fw_trace_buffer *trace_buffer = &fw_trace->buffers[thread_nr];
 
-		pvr_fw_object_vunmap(trace_buffer->buf_obj, false);
+		pvr_fw_object_vunmap(trace_buffer->buf_obj);
 		pvr_fw_object_destroy(trace_buffer->buf_obj);
 	}
-	pvr_fw_object_vunmap(fw_trace->tracebuf_ctrl_obj, false);
+	pvr_fw_object_vunmap(fw_trace->tracebuf_ctrl_obj);
 	pvr_fw_object_destroy(fw_trace->tracebuf_ctrl_obj);
 }
 

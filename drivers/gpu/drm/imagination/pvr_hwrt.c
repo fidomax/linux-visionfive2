@@ -348,12 +348,12 @@ hwrt_init_common_fw_structure(struct pvr_file *pvr_file,
 
 	hwrt_data_common_fw->rgn_header_size = args->region_header_size;
 
-	pvr_fw_object_vunmap(hwrt->common_fw_obj, false);
+	pvr_fw_object_vunmap(hwrt->common_fw_obj);
 
 	return 0;
 
 err_put_fw_obj:
-	pvr_fw_object_vunmap(hwrt->common_fw_obj, false);
+	pvr_fw_object_vunmap(hwrt->common_fw_obj);
 
 	return err;
 }
@@ -432,7 +432,7 @@ err_put_shadow_rt_cache:
 	pvr_fw_object_destroy(hwrt_data->srtc_obj);
 
 err_put_fw_obj:
-	pvr_fw_object_vunmap(hwrt_data->fw_obj, false);
+	pvr_fw_object_vunmap(hwrt_data->fw_obj);
 	pvr_fw_object_destroy(hwrt_data->fw_obj);
 
 err_out:
@@ -451,7 +451,7 @@ hwrt_data_fini_fw_structure(struct pvr_hwrt_dataset *hwrt, int hwrt_nr)
 		pvr_fw_object_destroy(hwrt_data->srtc_obj);
 	}
 
-	pvr_fw_object_vunmap(hwrt_data->fw_obj, false);
+	pvr_fw_object_vunmap(hwrt_data->fw_obj);
 	pvr_fw_object_destroy(hwrt_data->fw_obj);
 }
 

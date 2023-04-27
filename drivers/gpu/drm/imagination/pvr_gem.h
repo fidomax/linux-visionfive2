@@ -166,8 +166,8 @@ static __always_inline void pvr_gem_object_put_pages(struct pvr_gem_object *pvr_
 	drm_gem_shmem_put_pages(shmem_gem_from_pvr_gem(pvr_obj));
 }
 
-void *pvr_gem_object_vmap(struct pvr_gem_object *pvr_obj, bool sync_to_cpu);
-void pvr_gem_object_vunmap(struct pvr_gem_object *pvr_obj, bool sync_to_device);
+void *pvr_gem_object_vmap(struct pvr_gem_object *pvr_obj);
+void pvr_gem_object_vunmap(struct pvr_gem_object *pvr_obj);
 
 int pvr_gem_get_dma_addr(struct pvr_gem_object *pvr_obj, u32 offset,
 			 dma_addr_t *dma_addr_out);
