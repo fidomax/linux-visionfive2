@@ -3265,14 +3265,14 @@ err_out:
 }
 
 /**
- * pvr_vm_context_fini() - Teardown a VM context.
+ * pvr_vm_context_release() - Teardown a VM context.
  * @ref_count: Pointer to reference counter of the VM context.
  *
  * This function ensures that no mappings are left dangling by unmapping them
  * all in order of ascending device-virtual address.
  */
 static void
-pvr_vm_context_fini(struct kref *ref_count)
+pvr_vm_context_release(struct kref *ref_count)
 {
 	struct pvr_vm_context *vm_ctx =
 		container_of(ref_count, struct pvr_vm_context, ref_count);
@@ -3328,7 +3328,7 @@ pvr_vm_context_put(struct pvr_vm_context *vm_ctx)
 	WARN_ON(!vm_ctx);
 
 	if (vm_ctx)
-		return kref_put(&vm_ctx->ref_count, pvr_vm_context_fini);
+		return kref_put(&vm_ctx->ref_count, pvr_vm_context_release);
 
 	return true;
 }
