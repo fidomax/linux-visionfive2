@@ -737,6 +737,92 @@ int drm_sched_job_init(struct drm_sched_job *job,
 EXPORT_SYMBOL(drm_sched_job_init);
 
 /**
+ * drm_sched_sort_native_deps - relocates all native dependencies to the
+ * tail end of @job->dependencies.
+ * @job: target scheduler job.
+ *
+ * Starts by marking all of the native dependencies, then, in a quick-sort
+ * like manner it swaps entries using a head and tail index counter. Only
+ * a single partition is required, as there are only two values.
+ */
+static void drm_sched_sort_native_deps(struct drm_sched_job *job)
+{
+	struct dma_fence *entry, *head = NULL, *tail = NULL;
+	unsigned long h = 0, t = 0, native_dep_count = 0;
+	XA_STATE(xas_head, &job->dependencies, 0);
+	XA_STATE(xas_tail, &job->dependencies, 0);
+	bool already_sorted = true;
+
+	if (!job->sched->ops->dependency_is_native)
+		/* Driver doesn't support native deps. */
+		return;
+
+	/* Mark all the native dependencies as we walk xas_tail to the end. */
+	xa_lock(&job->dependencies);
+	xas_for_each(&xas_tail, entry, ULONG_MAX) {
+		/* Keep track of the index. */
+		t++;
+
+		if (job->sched->ops->dependency_is_native(entry)) {
+			xas_set_mark(&xas_tail, XA_MARK_0);
+			native_dep_count++;
+		} else if (native_dep_count) {
+			/*
+			 * As a native dep has been encountered before, we can
+			 * infer the array is not already sorted.
+			 */
+			already_sorted = false;
+		}
+	}
+	xa_unlock(&job->dependencies);
+
+	if (already_sorted)
+		return;
+
+	/* xas_tail and t are now at the end of the array. */
+	xa_lock(&job->dependencies);
+	while (h < t) {
+		if (!head) {
+			/* Find a marked entry. */
+			if (xas_get_mark(&xas_head, XA_MARK_0)) {
+				head = xas_load(&xas_head);
+			} else {
+				xas_next(&xas_head);
+				h++;
+			}
+		}
+		if (!tail) {
+			/* Find an unmarked entry. */
+			if (xas_get_mark(&xas_tail, XA_MARK_0)) {
+				xas_prev(&xas_tail);
+				t--;
+			} else {
+				tail = xas_load(&xas_tail);
+			}
+		}
+		if (head && tail) {
+			/*
+			 * Swap!
+			 * These stores should never allocate, since they both
+			 * already exist, hence they never fail.
+			 */
+			xas_store(&xas_head, tail);
+			xas_store(&xas_tail, head);
+
+			/* Also swap the mark. */
+			xas_clear_mark(&xas_head, XA_MARK_0);
+			xas_set_mark(&xas_tail, XA_MARK_0);
+
+			head = NULL;
+			tail = NULL;
+			h++;
+			t--;
+		}
+	}
+	xa_unlock(&job->dependencies);
+}
+
+/**
  * drm_sched_job_arm - arm a scheduler job for execution
  * @job: scheduler job to arm
  *
@@ -766,6 +852,7 @@ void drm_sched_job_arm(struct drm_sched_job *job)
 		job->s_priority = entity->rq - sched->sched_rq;
 	job->id = atomic64_inc_return(&sched->job_id_count);
 
+	drm_sched_sort_native_deps(job);
 	drm_sched_fence_init(job->s_fence, job->entity);
 }
 EXPORT_SYMBOL(drm_sched_job_arm);

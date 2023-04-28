@@ -475,6 +475,17 @@ struct drm_sched_backend_ops {
          * and it's time to clean it up.
 	 */
 	void (*free_job)(struct drm_sched_job *sched_job);
+
+	/**
+	 * @dependency_is_native: When arming a job for this scheduler, this
+	 * function will be called to determine whether to treat it as a
+	 * native dependency. A native dependency is awaited and cleaned up
+	 * when the job is cancelled, but responsibility is otherwise delegated
+	 * to a native scheduler in the calling driver code.
+	 *
+	 * Optional - implies support for native dependencies.
+	 */
+	bool (*dependency_is_native)(struct dma_fence *fence);
 };
 
 /**
