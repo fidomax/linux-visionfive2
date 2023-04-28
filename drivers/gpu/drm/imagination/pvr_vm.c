@@ -2536,54 +2536,6 @@ dma_addr_t pvr_vm_get_page_table_root_addr(struct pvr_vm_context *vm_ctx)
 }
 
 /**
- * pvr_vm_context_init() - Initialize a VM context for the specified device.
- * @vm_ctx: Target VM context.
- * @pvr_dev: Target PowerVR device.
- * @is_userspace_context: %true if this context is for userspace. This will
- *                        create a firmware memory context for the VM context
- *                        and disable warnings when tearing down mappings.
- *
- * Returns:
- *  * 0 on success,
- *  * -%ENOMEM on out of memory, or
- *  * Any error returned by pvr_fw_mem_context_create().
- */
-static int
-pvr_vm_context_init(struct pvr_vm_context *vm_ctx, struct pvr_device *pvr_dev,
-		    bool is_userspace_context)
-{
-	int err;
-
-	err = pvr_page_table_l2_init(&vm_ctx->root_table, pvr_dev);
-	if (err)
-		goto err_out;
-
-	pvr_vm_mapping_tree_init(&vm_ctx->mappings);
-
-	mutex_init(&vm_ctx->lock);
-
-	kref_init(&vm_ctx->ref_count);
-
-	vm_ctx->pvr_dev = pvr_dev;
-
-	if (is_userspace_context) {
-		err = pvr_fw_mem_context_create(pvr_dev, vm_ctx, &vm_ctx->fw_mem_ctx_obj);
-		if (err)
-			goto err_free;
-	} else {
-		vm_ctx->enable_warnings = true;
-	}
-
-	return 0;
-
-err_free:
-	pvr_vm_context_put(vm_ctx);
-
-err_out:
-	return err;
-}
-
-/**
  * pvr_vm_context_teardown_mappings() - Teardown any remaining mappings on this VM context
  * @vm_ctx: Target VM context.
  */
@@ -3251,14 +3203,27 @@ pvr_vm_create_context(struct pvr_device *pvr_dev, bool is_userspace_context)
 		goto err_out;
 	}
 
-	err = pvr_vm_context_init(vm_ctx, pvr_dev, is_userspace_context);
+	vm_ctx->pvr_dev = pvr_dev;
+	kref_init(&vm_ctx->ref_count);
+	mutex_init(&vm_ctx->lock);
+	pvr_vm_mapping_tree_init(&vm_ctx->mappings);
+
+	err = pvr_page_table_l2_init(&vm_ctx->root_table, pvr_dev);
 	if (err)
-		goto err_free_vm_ctx;
+		goto err_put_ctx;
+
+	if (is_userspace_context) {
+		err = pvr_fw_mem_context_create(pvr_dev, vm_ctx, &vm_ctx->fw_mem_ctx_obj);
+		if (err)
+			goto err_put_ctx;
+	} else {
+		vm_ctx->enable_warnings = true;
+	}
 
 	return vm_ctx;
 
-err_free_vm_ctx:
-	kfree(vm_ctx);
+err_put_ctx:
+	pvr_vm_context_put(vm_ctx);
 
 err_out:
 	return ERR_PTR(err);
