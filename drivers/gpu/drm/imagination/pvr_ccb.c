@@ -349,6 +349,33 @@ pvr_kccb_wait_for_completion(struct pvr_device *pvr_dev, u32 slot_nr,
 }
 
 /**
+ * pvr_kccb_is_idle() - Returns whether the device's KCCB is idle
+ * @pvr_dev: Device pointer
+ *
+ * Caller must hold @pvr_dev->power_lock.
+ *
+ * Returns:
+ *  * %true if the KCCB is idle (contains no commands), or
+ *  * %false if the KCCB contains pending commands.
+ */
+bool
+pvr_kccb_is_idle(struct pvr_device *pvr_dev)
+{
+	struct rogue_fwif_ccb_ctl *ctrl = pvr_dev->kccb.ctrl;
+	bool idle;
+
+	lockdep_assert_held(&pvr_dev->power_lock);
+
+	mutex_lock(&pvr_dev->kccb.lock);
+
+	idle = (ctrl->write_offset == ctrl->read_offset);
+
+	mutex_unlock(&pvr_dev->kccb.lock);
+
+	return idle;
+}
+
+/**
  * pvr_kccb_init() - Initialise device KCCB
  * @pvr_dev: Target PowerVR device
  *

@@ -149,6 +149,19 @@ err_out:
 	return err;
 }
 
+static bool
+pvr_device_is_idle(struct pvr_device *pvr_dev)
+{
+	/*
+	 * FW power state can be out of date if a KCCB command has been submitted but the FW hasn't
+	 * started processing it yet. So also check the KCCB status.
+	 */
+	enum rogue_fwif_pow_state pow_state = READ_ONCE(pvr_dev->fw_dev.fwif_sysdata->pow_state);
+	bool kccb_idle = pvr_kccb_is_idle(pvr_dev);
+
+	return (pow_state == ROGUE_FWIF_POW_IDLE) && kccb_idle;
+}
+
 static void
 pvr_delayed_idle_worker(struct work_struct *work)
 {
@@ -157,7 +170,7 @@ pvr_delayed_idle_worker(struct work_struct *work)
 
 	mutex_lock(&pvr_dev->power_lock);
 
-	if (pvr_dev->fw_dev.fwif_sysdata->pow_state == ROGUE_FWIF_POW_IDLE)
+	if (pvr_device_is_idle(pvr_dev))
 		pvr_power_set_state(pvr_dev, PVR_POWER_STATE_OFF);
 
 	mutex_unlock(&pvr_dev->power_lock);
