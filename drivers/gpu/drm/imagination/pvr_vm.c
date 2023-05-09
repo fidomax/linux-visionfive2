@@ -2852,7 +2852,7 @@ pvr_vm_context_map_sgt(struct pvr_vm_context *vm_ctx,
 		}
 
 		sgl_offset = sgt_offset;
-		map_sgl_len = min_t(u64, sgl_len - sgl_offset, size);
+		map_sgl_len = min_t(u64, sgl_len - sgl_offset, size - mapped_size);
 
 		err = pvr_vm_context_map_sgl(vm_ctx, sgl,
 					     sgl_offset,
