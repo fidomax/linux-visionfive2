@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_DEVICE_H__
-#define __PVR_DEVICE_H__
+#ifndef PVR_DEVICE_H
+#define PVR_DEVICE_H
 
 #include "pvr_ccb.h"
 #include "pvr_device_info.h"
@@ -476,26 +476,26 @@ pvr_device_has_feature(struct pvr_device *pvr_dev, u32 feature);
  * @pvr_dev: Target PowerVR device.
  * @reg: Target register.
  *
- * This macro is a wrapper around __pvr_cr_read32(). It applies ROGUE_CR_ prefix
+ * This macro is a wrapper around pvr_cr_read32(). It applies ROGUE_CR_ prefix
  * to the provided @reg name, making it behave comparably to the
  * PVR_CR_FIELD_GET() macro.
  *
  * Return: The value of the requested register.
  */
-#define PVR_CR_READ32(pvr_dev, reg) __pvr_cr_read32(pvr_dev, ROGUE_CR_##reg)
+#define PVR_CR_READ32(pvr_dev, reg) pvr_cr_read32(pvr_dev, ROGUE_CR_##reg)
 
 /**
  * PVR_CR_READ64() - Read a 64-bit register from a PowerVR device
  * @pvr_dev: Target PowerVR device.
  * @reg: Target register.
  *
- * This macro is a wrapper around __pvr_cr_read64(). It applies ROGUE_CR_ prefix
+ * This macro is a wrapper around pvr_cr_read64(). It applies ROGUE_CR_ prefix
  * to the provided @reg name, making it behave comparably to the
  * PVR_CR_FIELD_GET() macro.
  *
  * Return: The value of the requested register.
  */
-#define PVR_CR_READ64(pvr_dev, reg) __pvr_cr_read64(pvr_dev, ROGUE_CR_##reg)
+#define PVR_CR_READ64(pvr_dev, reg) pvr_cr_read64(pvr_dev, ROGUE_CR_##reg)
 
 /**
  * PVR_CR_WRITE32() - Write to a 32-bit register in a PowerVR device
@@ -503,12 +503,12 @@ pvr_device_has_feature(struct pvr_device *pvr_dev, u32 feature);
  * @reg: Target register.
  * @val: Value to write.
  *
- * This macro is a wrapper around __pvr_cr_write32(). It applies ROGUE_CR_
+ * This macro is a wrapper around pvr_cr_write32(). It applies ROGUE_CR_
  * prefix to the provided @reg name, making it behave comparably to the
  * PVR_CR_FIELD_GET() macro.
  */
 #define PVR_CR_WRITE32(pvr_dev, reg, val) \
-	__pvr_cr_write32(pvr_dev, ROGUE_CR_##reg, val)
+	pvr_cr_write32(pvr_dev, ROGUE_CR_##reg, val)
 
 /**
  * PVR_CR_WRITE64() - Write to a 64-bit register in a PowerVR device
@@ -516,12 +516,12 @@ pvr_device_has_feature(struct pvr_device *pvr_dev, u32 feature);
  * @reg: Target register.
  * @val: Value to write.
  *
- * This macro is a wrapper around __pvr_cr_write64(). It applies ROGUE_CR_
+ * This macro is a wrapper around pvr_cr_write64(). It applies ROGUE_CR_
  * prefix to the provided @reg name, making it behave comparably to the
  * PVR_CR_FIELD_GET() macro.
  */
 #define PVR_CR_WRITE64(pvr_dev, reg, val) \
-	__pvr_cr_write64(pvr_dev, ROGUE_CR_##reg, val)
+	pvr_cr_write64(pvr_dev, ROGUE_CR_##reg, val)
 
 /**
  * PVR_CR_FIELD_GET() - Extract a single field from a PowerVR control register
@@ -533,59 +533,63 @@ pvr_device_has_feature(struct pvr_device *pvr_dev, u32 feature);
 #define PVR_CR_FIELD_GET(val, field) FIELD_GET(~ROGUE_CR_##field##_CLRMSK, val)
 
 /**
- * __pvr_cr_read32() - Read a 32-bit register from a PowerVR device
+ * pvr_cr_read32() - Read a 32-bit register from a PowerVR device
  * @pvr_dev: Target PowerVR device.
  * @reg: Target register.
  *
- * Do not call this function directly; use the PVR_CR_READ32() macro instead.
+ * The wrapper macro PVR_CR_READ32() may be used instead to simplify the
+ * selection of @reg.
  *
  * Return: The value of the requested register.
  */
 static __always_inline u32
-__pvr_cr_read32(struct pvr_device *pvr_dev, u32 reg)
+pvr_cr_read32(struct pvr_device *pvr_dev, u32 reg)
 {
 	return ioread32(pvr_dev->regs + reg);
 }
 
 /**
- * __pvr_cr_read64() - Read a 64-bit register from a PowerVR device
+ * pvr_cr_read64() - Read a 64-bit register from a PowerVR device
  * @pvr_dev: Target PowerVR device.
  * @reg: Target register.
  *
- * Do not call this function directly; use the PVR_CR_READ64() macro instead.
+ * The wrapper macro PVR_CR_READ64() may be used instead to simplify the
+ * selection of @reg.
  *
  * Return: The value of the requested register.
  */
 static __always_inline u64
-__pvr_cr_read64(struct pvr_device *pvr_dev, u32 reg)
+pvr_cr_read64(struct pvr_device *pvr_dev, u32 reg)
 {
 	return ioread64(pvr_dev->regs + reg);
 }
 
 /**
- * __pvr_cr_write32() - Write to a 32-bit register in a PowerVR device
+ * pvr_cr_write32() - Write to a 32-bit register in a PowerVR device
  * @pvr_dev: Target PowerVR device.
  * @reg: Target register.
  * @val: Value to write.
  *
- * Do not call this function directly; use the PVR_CR_WRITE32() macro instead.
+ * The wrapper macro PVR_CR_WRITE32() may be used instead to simplify the
+ * selection of @reg.
  */
 static __always_inline void
-__pvr_cr_write32(struct pvr_device *pvr_dev, u32 reg, u32 val)
+pvr_cr_write32(struct pvr_device *pvr_dev, u32 reg, u32 val)
 {
 	iowrite32(val, pvr_dev->regs + reg);
 }
 
 /**
- * __pvr_cr_write64() - Write to a 64-bit register in a PowerVR device
+ * pvr_cr_write64() - Write to a 64-bit register in a PowerVR device
  * @pvr_dev: Target PowerVR device.
  * @reg: Target register.
  * @val: Value to write.
  *
- * Do not call this function directly; use the PVR_CR_WRITE64() macro instead.
+ * The wrapper macro PVR_CR_WRITE64() may be used instead to simplify the
+ * selection of @reg.
  */
 static __always_inline void
-__pvr_cr_write64(struct pvr_device *pvr_dev, u32 reg, u64 val)
+pvr_cr_write64(struct pvr_device *pvr_dev, u32 reg, u64 val)
 {
 	iowrite64(val, pvr_dev->regs + reg);
 }
@@ -757,4 +761,4 @@ pvr_ioctl_union_padding_check(void *instance, size_t union_offset,
 #define PVR_FW_PROCESSOR_TYPE_MIPS  1
 #define PVR_FW_PROCESSOR_TYPE_RISCV 2
 
-#endif /* __PVR_DEVICE_H__ */
+#endif /* PVR_DEVICE_H */

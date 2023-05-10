@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_DEVICE_INFO_H__
-#define __PVR_DEVICE_INFO_H__
+#ifndef PVR_DEVICE_INFO_H
+#define PVR_DEVICE_INFO_H
 
 #include <linux/types.h>
 
@@ -130,4 +130,4 @@ enum {
 	PVR_FEATURE_ZLS_SUBTILE,
 };
 
-#endif /* __PVR_DEVICE_INFO_H__ */
+#endif /* PVR_DEVICE_INFO_H */

@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_ROGUE_FWIF_COMMON_H__
-#define __PVR_ROGUE_FWIF_COMMON_H__
+#ifndef PVR_ROGUE_FWIF_COMMON_H
+#define PVR_ROGUE_FWIF_COMMON_H
 
 #include <linux/build_bug.h>
 
@@ -57,4 +57,4 @@
  */
 #define PVR_MAX_NUM_REGISTER_PROGRAMMER_WRITES 128U
 
-#endif /* __PVR_ROGUE_FWIF_COMMON_H__ */
+#endif /* PVR_ROGUE_FWIF_COMMON_H */

@@ -1,16 +1,16 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_ROGUE_FWIF_CHECK_H__
-#define __PVR_ROGUE_FWIF_CHECK_H__
+#ifndef PVR_ROGUE_FWIF_CHECK_H
+#define PVR_ROGUE_FWIF_CHECK_H
 
 #include <linux/build_bug.h>
 
 #define OFFSET_CHECK(type, member, offset) \
-	static_assert(offsetof(type, member) == offset, "offsetof(" #type ", " #member ") incorrect");
+	static_assert(offsetof(type, member) == (offset), "offsetof(" #type ", " #member ") incorrect");
 
 #define SIZE_CHECK(type, size) \
-	static_assert(sizeof(type) == size, #type " is incorrect size");
+	static_assert(sizeof(type) == (size), #type " is incorrect size");
 
 OFFSET_CHECK(struct rogue_fwif_file_info_buf, path, 0);
 OFFSET_CHECK(struct rogue_fwif_file_info_buf, info, 200);
@@ -488,4 +488,4 @@ OFFSET_CHECK(struct rogue_fwif_sync_checkpoint, state, 0);
 OFFSET_CHECK(struct rogue_fwif_sync_checkpoint, fw_ref_count, 4);
 SIZE_CHECK(struct rogue_fwif_sync_checkpoint, 8);
 
-#endif /* __PVR_ROGUE_FWIF_CHECK_H__ */
+#endif /* PVR_ROGUE_FWIF_CHECK_H */

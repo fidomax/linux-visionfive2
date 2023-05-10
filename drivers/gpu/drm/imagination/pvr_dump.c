@@ -96,11 +96,11 @@ pvr_coredump_write_registers(struct pvr_device *pvr_dev, u8 **p)
 
 		switch (reg->flags & PVR_COREDUMP_REGISTER_FLAG_SIZE_MASK) {
 		case PVR_COREDUMP_REGISTER_FLAG_SIZE_32BIT:
-			reg->value = cpu_to_le32(__pvr_cr_read32(pvr_dev, reg->offset));
+			reg->value = cpu_to_le32(pvr_cr_read32(pvr_dev, reg->offset));
 			break;
 
 		case PVR_COREDUMP_REGISTER_FLAG_SIZE_64BIT:
-			reg->value = cpu_to_le64(__pvr_cr_read64(pvr_dev, reg->offset));
+			reg->value = cpu_to_le64(pvr_cr_read64(pvr_dev, reg->offset));
 			break;
 
 		default:

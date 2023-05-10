@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_ROGUE_META_H__
-#define __PVR_ROGUE_META_H__
+#ifndef PVR_ROGUE_META_H
+#define PVR_ROGUE_META_H
 
 /***** The META HW register definitions in the file are updated manually *****/
 
@@ -353,4 +353,4 @@ struct rogue_meta_ldr_cfg_blk {
 
 #define ROGUE_FW_PROCESSOR_META "META"
 
-#endif /* __PVR_ROGUE_META_H__ */
+#endif /* PVR_ROGUE_META_H */

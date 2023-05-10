@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_ROGUE_FWIF_H__
-#define __PVR_ROGUE_FWIF_H__
+#ifndef PVR_ROGUE_FWIF_H
+#define PVR_ROGUE_FWIF_H
 
 #include <linux/bits.h>
 #include <linux/build_bug.h>
@@ -2268,4 +2268,4 @@ struct rogue_fwif_hwrtdata {
 
 #include "pvr_rogue_fwif_check.h"
 
-#endif /* __PVR_ROGUE_FWIF_H__ */
+#endif /* PVR_ROGUE_FWIF_H */

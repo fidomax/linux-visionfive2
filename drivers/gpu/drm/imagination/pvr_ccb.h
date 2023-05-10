@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_CCB_H__
-#define __PVR_CCB_H__
+#ifndef PVR_CCB_H
+#define PVR_CCB_H
 
 #include "pvr_rogue_fwif.h"
 
@@ -49,4 +49,4 @@ int pvr_kccb_wait_for_completion(struct pvr_device *pvr_dev, u32 slot_nr, u32 ti
 				 u32 *rtn_out);
 bool pvr_kccb_is_idle(struct pvr_device *pvr_dev);
 
-#endif /* __PVR_CCB_H__ */
+#endif /* PVR_CCB_H */

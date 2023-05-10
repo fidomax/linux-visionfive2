@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_PARAMS_H__
-#define __PVR_PARAMS_H__
+#ifndef PVR_PARAMS_H
+#define PVR_PARAMS_H
 
 #include "pvr_rogue_fwif.h"
 
@@ -69,4 +69,4 @@ struct dentry;
 void pvr_params_debugfs_init(struct pvr_device *pvr_dev, struct dentry *dir);
 #endif /* defined(CONFIG_DEBUG_FS) */
 
-#endif /* __PVR_PARAMS_H__ */
+#endif /* PVR_PARAMS_H */

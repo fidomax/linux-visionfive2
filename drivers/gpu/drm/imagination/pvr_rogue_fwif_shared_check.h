@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_ROGUE_FWIF_SHARED_CHECK_H__
-#define __PVR_ROGUE_FWIF_SHARED_CHECK_H__
+#ifndef PVR_ROGUE_FWIF_SHARED_CHECK_H
+#define PVR_ROGUE_FWIF_SHARED_CHECK_H
 
 #include <linux/build_bug.h>
 
@@ -104,4 +104,4 @@ OFFSET_CHECK(struct rogue_fwif_cmd_geom_frag_shared, hwrt_data_fw_addr, 4);
 OFFSET_CHECK(struct rogue_fwif_cmd_geom_frag_shared, pr_buffer_fw_addr, 8);
 SIZE_CHECK(struct rogue_fwif_cmd_geom_frag_shared, 16);
 
-#endif /* __PVR_ROGUE_FWIF_SHARED_CHECK_H__ */
+#endif /* PVR_ROGUE_FWIF_SHARED_CHECK_H */

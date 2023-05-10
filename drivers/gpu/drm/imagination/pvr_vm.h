@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_VM_H__
-#define __PVR_VM_H__
+#ifndef PVR_VM_H
+#define PVR_VM_H
 
 #include "pvr_rogue_mmu_defs.h"
 
@@ -96,4 +96,4 @@ struct pvr_vm_context *pvr_vm_context_lookup(struct pvr_file *pvr_file, u32 hand
 bool pvr_vm_context_put(struct pvr_vm_context *vm_ctx);
 void pvr_destroy_vm_contexts_for_file(struct pvr_file *pvr_file);
 
-#endif /* __PVR_VM_H__ */
+#endif /* PVR_VM_H */

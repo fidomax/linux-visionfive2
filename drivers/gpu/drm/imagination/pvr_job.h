@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_JOB_H__
-#define __PVR_JOB_H__
+#ifndef PVR_JOB_H
+#define PVR_JOB_H
 
 #include <uapi/drm/pvr_drm.h>
 
@@ -113,4 +113,4 @@ void pvr_job_submit(struct pvr_job *job);
 int pvr_submit_jobs(struct pvr_device *pvr_dev, struct pvr_file *pvr_file,
 		    struct drm_pvr_ioctl_submit_jobs_args *args);
 
-#endif /* __PVR_JOB_H__ */
+#endif /* PVR_JOB_H */

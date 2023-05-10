@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_FW_MIPS_H__
-#define __PVR_FW_MIPS_H__
+#ifndef PVR_FW_MIPS_H
+#define PVR_FW_MIPS_H
 
 #include <linux/types.h>
 
@@ -35,4 +35,4 @@ struct pvr_fw_mips_data {
 	u32 pfn_mask;
 };
 
-#endif /* __PVR_FW_MIPS_H__ */
+#endif /* PVR_FW_MIPS_H */

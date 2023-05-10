@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_FW_H__
-#define __PVR_FW_H__
+#ifndef PVR_FW_H
+#define PVR_FW_H
 
 #include "pvr_fw_info.h"
 #include "pvr_fw_trace.h"
@@ -342,4 +342,4 @@ int
 pvr_fw_structure_cleanup(struct pvr_device *pvr_dev, u32 type, struct pvr_fw_object *fw_obj,
 			 u32 offset);
 
-#endif /* __PVR_FW_H__ */
+#endif /* PVR_FW_H */

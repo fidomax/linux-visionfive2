@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_HWRT_H__
-#define __PVR_HWRT_H__
+#ifndef PVR_HWRT_H
+#define PVR_HWRT_H
 
 #include <linux/compiler_attributes.h>
 #include <linux/kref.h>
@@ -160,4 +160,4 @@ pvr_hwrt_data_get(struct pvr_hwrt_data *hwrt)
 	return hwrt;
 }
 
-#endif /* __PVR_HWRT_H__ */
+#endif /* PVR_HWRT_H */

@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_DRV_H__
-#define __PVR_DRV_H__
+#ifndef PVR_DRV_H
+#define PVR_DRV_H
 
 #include "linux/compiler_attributes.h"
 #include <uapi/drm/pvr_drm.h>
@@ -125,4 +125,4 @@ int pvr_set_uobj_array(const struct drm_pvr_obj_array *out, u32 min_stride, u32 
 			   PVR_UOBJ_MIN_SIZE(_src_array[0]), \
 			   sizeof(_src_array[0]), _src_array)
 
-#endif /* __PVR_DRV_H__ */
+#endif /* PVR_DRV_H */

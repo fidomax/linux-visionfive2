@@ -1458,7 +1458,7 @@ static struct drm_driver pvr_drm_driver = {
 	 * dma_set_max_seg_size() is not strictly required, but prevents some
 	 * warnings from appearing when CONFIG_DMA_API_DEBUG_SG is enabled.
 	 */
-	.gem_prime_import_sg_table = __pvr_gem_prime_import_sg_table,
+	.gem_prime_import_sg_table = pvr_gem_prime_import_sg_table,
 	/* .gem_prime_import = drm_gem_prime_import, */
 };
 

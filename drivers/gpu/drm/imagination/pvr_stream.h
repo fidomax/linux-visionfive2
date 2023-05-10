@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_STREAM_H__
-#define __PVR_STREAM_H__
+#ifndef PVR_STREAM_H
+#define PVR_STREAM_H
 
 #include <linux/bits.h>
 #include <linux/limits.h>
@@ -72,4 +72,4 @@ pvr_stream_process(struct pvr_device *pvr_dev, const struct pvr_stream_cmd_defs 
 void
 pvr_stream_create_musthave_masks(struct pvr_device *pvr_dev);
 
-#endif /* __PVR_STREAM_H__ */
+#endif /* PVR_STREAM_H */

@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_DEBUGFS_H__
-#define __PVR_DEBUGFS_H__
+#ifndef PVR_DEBUGFS_H
+#define PVR_DEBUGFS_H
 
 /* Forward declaration from <drm/drm_drv.h>. */
 struct drm_minor;
@@ -26,4 +26,4 @@ void pvr_debugfs_init(struct drm_minor *minor);
 static __always_inline void pvr_debugfs_init(struct drm_minor *minor) {}
 #endif /* defined(CONFIG_DEBUG_FS) */
 
-#endif /* __PVR_DEBUGFS_H__ */
+#endif /* PVR_DEBUGFS_H */

@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_ROGUE_DEFS_H__
-#define __PVR_ROGUE_DEFS_H__
+#ifndef PVR_ROGUE_DEFS_H
+#define PVR_ROGUE_DEFS_H
 
 #include "pvr_rogue_cr_defs.h"
 
@@ -176,4 +176,4 @@
  */
 #define ROGUE_TRP_MAX_NUM_CORES (4U)
 
-#endif /* __PVR_ROGUE_DEFS_H__ */
+#endif /* PVR_ROGUE_DEFS_H */

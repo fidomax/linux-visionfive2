@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_ROGUE_FWIF_SF_H__
-#define __PVR_ROGUE_FWIF_SF_H__
+#ifndef PVR_ROGUE_FWIF_SF_H
+#define PVR_ROGUE_FWIF_SF_H
 
 /*
  ******************************************************************************
@@ -887,4 +887,4 @@ enum rogue_fw_log_sfids {
 /* Returns how many arguments the SF(string format) for the given (enum generated) id requires */
 #define ROGUE_FW_SF_PARAMNUM(x) (((u32)(x)>>16) & 0xfU)
 
-#endif /* __PVR_ROGUE_FWIF_SF_H__ */
+#endif /* PVR_ROGUE_FWIF_SF_H */

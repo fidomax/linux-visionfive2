@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_GEM_H__
-#define __PVR_GEM_H__
+#ifndef PVR_GEM_H
+#define PVR_GEM_H
 
 #include "pvr_fw.h"
 #include "pvr_rogue_heap_config.h"
@@ -201,9 +201,9 @@ to_pvr_fw_object(struct pvr_gem_object *pvr_obj)
 /* Functions defined in pvr_gem.c */
 
 struct drm_gem_object *
-__pvr_gem_prime_import_sg_table(struct drm_device *drm_dev,
-				struct dma_buf_attachment *attach,
-				struct sg_table *sgt);
+pvr_gem_prime_import_sg_table(struct drm_device *drm_dev,
+			      struct dma_buf_attachment *attach,
+			      struct sg_table *sgt);
 
 struct pvr_gem_object *pvr_gem_object_create(struct pvr_device *pvr_dev,
 					     size_t size, u64 flags);
@@ -369,4 +369,4 @@ pvr_gem_get_fw_gpu_addr(struct pvr_fw_object *fw_obj, u64 *gpu_addr_out)
 	return false;
 }
 
-#endif /* __PVR_GEM_H__ */
+#endif /* PVR_GEM_H */

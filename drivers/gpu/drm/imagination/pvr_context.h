@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_CONTEXT_H__
-#define __PVR_CONTEXT_H__
+#ifndef PVR_CONTEXT_H
+#define PVR_CONTEXT_H
 
 #include <linux/compiler_attributes.h>
 #include <linux/dma-fence.h>
@@ -410,4 +410,4 @@ void pvr_context_pending_job_event(struct pvr_context *ctx);
 
 void pvr_context_device_init(struct pvr_device *pvr_dev);
 
-#endif /* __PVR_CONTEXT_H__ */
+#endif /* PVR_CONTEXT_H */

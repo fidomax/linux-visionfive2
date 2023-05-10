@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_POWER_H__
-#define __PVR_POWER_H__
+#ifndef PVR_POWER_H
+#define PVR_POWER_H
 
 #include "pvr_device.h"
 
@@ -34,4 +34,4 @@ pvr_power_unlock(struct pvr_device *pvr_dev)
 	mutex_unlock(&pvr_dev->power_lock);
 }
 
-#endif /* __PVR_POWER_H__ */
+#endif /* PVR_POWER_H */

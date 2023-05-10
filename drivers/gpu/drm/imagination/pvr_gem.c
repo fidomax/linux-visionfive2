@@ -1104,9 +1104,9 @@ void pvr_fw_object_release(struct pvr_fw_object *fw_obj)
 }
 
 struct drm_gem_object *
-__pvr_gem_prime_import_sg_table(struct drm_device *drm_dev,
-				struct dma_buf_attachment *attach,
-				struct sg_table *sgt)
+pvr_gem_prime_import_sg_table(struct drm_device *drm_dev,
+			      struct dma_buf_attachment *attach,
+			      struct sg_table *sgt)
 {
 	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
 	size_t size = attach->dmabuf->size;

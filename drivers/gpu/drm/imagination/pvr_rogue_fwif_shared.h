@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_ROGUE_FWIF_SHARED_H__
-#define __PVR_ROGUE_FWIF_SHARED_H__
+#ifndef PVR_ROGUE_FWIF_SHARED_H
+#define PVR_ROGUE_FWIF_SHARED_H
 
 #include <linux/compiler.h>
 #include <linux/types.h>
@@ -255,4 +255,4 @@ struct rogue_context_reset_reason_data {
 
 #include "pvr_rogue_fwif_shared_check.h"
 
-#endif /* __PVR_ROGUE_FWIF_SHARED_H__ */
+#endif /* PVR_ROGUE_FWIF_SHARED_H */

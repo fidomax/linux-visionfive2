@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_FREE_LIST_H__
-#define __PVR_FREE_LIST_H__
+#ifndef PVR_FREE_LIST_H
+#define PVR_FREE_LIST_H
 
 #include <linux/compiler_attributes.h>
 #include <linux/kref.h>
@@ -182,4 +182,4 @@ pvr_free_list_remove_hwrt(struct pvr_free_list *free_list, struct pvr_hwrt_data 
 void
 pvr_free_list_reconstruct(struct pvr_device *pvr_dev, u32 freelist_id);
 
-#endif /* __PVR_FREE_LIST_H__ */
+#endif /* PVR_FREE_LIST_H */

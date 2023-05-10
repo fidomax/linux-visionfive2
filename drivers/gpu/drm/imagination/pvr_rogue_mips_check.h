@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_ROGUE_MIPS_CHECK_H__
-#define __PVR_ROGUE_MIPS_CHECK_H__
+#ifndef PVR_ROGUE_MIPS_CHECK_H
+#define PVR_ROGUE_MIPS_CHECK_H
 
 static_assert(offsetof(struct rogue_mips_tlb_entry, tlb_page_mask) == 0,
 				"offsetof(struct rogue_mips_tlb_entry, tlb_page_mask) incorrect");
@@ -53,4 +53,4 @@ static_assert(offsetof(struct rogue_mips_state, remap) == 300,
 static_assert(sizeof(struct rogue_mips_state) == 684,
 				"struct rogue_mips_state is incorrect size");
 
-#endif /* __PVR_ROGUE_MIPS_CHECK_H__ */
+#endif /* PVR_ROGUE_MIPS_CHECK_H */

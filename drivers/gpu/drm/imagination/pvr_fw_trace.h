@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_FW_TRACE_H__
-#define __PVR_FW_TRACE_H__
+#ifndef PVR_FW_TRACE_H
+#define PVR_FW_TRACE_H
 
 #include <drm/drm_file.h>
 #include <linux/types.h>
@@ -75,4 +75,4 @@ void pvr_fw_trace_mask_update(struct pvr_device *pvr_dev, u32 old_mask,
 void pvr_fw_trace_debugfs_init(struct pvr_device *pvr_dev, struct dentry *dir);
 #endif /* defined(CONFIG_DEBUG_FS) */
 
-#endif /* __PVR_FW_TRACE_H__ */
+#endif /* PVR_FW_TRACE_H */

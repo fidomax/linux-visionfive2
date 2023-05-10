@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_ROGUE_HEAP_CONFIG_H__
-#define __PVR_ROGUE_HEAP_CONFIG_H__
+#ifndef PVR_ROGUE_HEAP_CONFIG_H
+#define PVR_ROGUE_HEAP_CONFIG_H
 
 #include <linux/sizes.h>
 
@@ -110,4 +110,4 @@
 
 /* 0xFF_FFFF_FFFF ************************************************************/
 
-#endif /* __PVR_ROGUE_HEAP_CONFIG_H__ */
+#endif /* PVR_ROGUE_HEAP_CONFIG_H */

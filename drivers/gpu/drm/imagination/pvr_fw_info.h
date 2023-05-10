@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_FW_INFO_H__
-#define __PVR_FW_INFO_H__
+#ifndef PVR_FW_INFO_H
+#define PVR_FW_INFO_H
 
 #include <linux/bits.h>
 #include <linux/sizes.h>
@@ -112,4 +112,4 @@ struct pvr_fw_layout_entry {
 	u32 alloc_offset;
 };
 
-#endif /* __PVR_FW_INFO_H__ */
+#endif /* PVR_FW_INFO_H */

@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_VENDOR_H__
-#define __PVR_VENDOR_H__
+#ifndef PVR_VENDOR_H
+#define PVR_VENDOR_H
 
 /* Forward declaration from "pvr_device.h". */
 struct pvr_device;
@@ -74,4 +74,4 @@ struct pvr_vendor_callbacks {
 
 extern const struct pvr_vendor_callbacks pvr_mt8173_callbacks;
 
-#endif /* __PVR_VENDOR_H__ */
+#endif /* PVR_VENDOR_H */

@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_ROGUE_FWIF_CLIENT_H__
-#define __PVR_ROGUE_FWIF_CLIENT_H__
+#ifndef PVR_ROGUE_FWIF_CLIENT_H
+#define PVR_ROGUE_FWIF_CLIENT_H
 
 #include <linux/bits.h>
 #include <linux/kernel.h>
@@ -366,4 +366,4 @@ struct rogue_fwif_cmd_transfer {
 
 #include "pvr_rogue_fwif_client_check.h"
 
-#endif /* __PVR_ROGUE_FWIF_CLIENT_H__ */
+#endif /* PVR_ROGUE_FWIF_CLIENT_H */

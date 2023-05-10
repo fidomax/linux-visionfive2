@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_ROGUE_FWIF_RESETFRAMEWORK_H__
-#define __PVR_ROGUE_FWIF_RESETFRAMEWORK_H__
+#ifndef PVR_ROGUE_FWIF_RESETFRAMEWORK_H
+#define PVR_ROGUE_FWIF_RESETFRAMEWORK_H
 
 #include <linux/bits.h>
 #include <linux/types.h>
@@ -26,4 +26,4 @@ struct rogue_fwif_rf_cmd {
 
 #define ROGUE_FWIF_RF_CMD_SIZE sizeof(struct rogue_fwif_rf_cmd)
 
-#endif /* __PVR_ROGUE_FWIF_RESETFRAMEWORK_H__ */
+#endif /* PVR_ROGUE_FWIF_RESETFRAMEWORK_H */

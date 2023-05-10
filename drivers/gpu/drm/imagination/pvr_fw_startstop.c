@@ -46,8 +46,8 @@ rogue_bif_init(struct pvr_device *pvr_dev)
 		    << ROGUE_CR_BIF_CAT_BASE0_ADDR_SHIFT) &
 		   ~ROGUE_CR_BIF_CAT_BASE0_ADDR_CLRMSK);
 
-	__pvr_cr_write64(pvr_dev, BIF_CAT_BASEX(MMU_CONTEXT_MAPPING_FWPRIV),
-			 pc_addr);
+	pvr_cr_write64(pvr_dev, BIF_CAT_BASEX(MMU_CONTEXT_MAPPING_FWPRIV),
+		       pc_addr);
 }
 
 static int

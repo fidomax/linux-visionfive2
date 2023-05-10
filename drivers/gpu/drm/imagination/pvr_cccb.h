@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef __PVR_CCCB_H__
-#define __PVR_CCCB_H__
+#ifndef PVR_CCCB_H
+#define PVR_CCCB_H
 
 #include "pvr_rogue_fwif.h"
 #include "pvr_rogue_fwif_shared.h"
@@ -109,4 +109,4 @@ pvr_cccb_get_size_of_cmd_with_hdr(u32 cmd_size)
 	return sizeof(struct rogue_fwif_ccb_cmd_header) + cmd_size;
 }
 
-#endif /* __PVR_CCCB_H__ */
+#endif /* PVR_CCCB_H */
