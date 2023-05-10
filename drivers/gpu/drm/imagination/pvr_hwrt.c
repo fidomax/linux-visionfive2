@@ -158,19 +158,18 @@ get_cr_multisamplectl_val(u32 samples, bool y_flip, u64 *value_out)
 			.y = { 5, 11, 9, 3, 13, 7, 15, 1 },
 		},
 	};
-	int idx = fls(samples) - 1;
+	const int idx = fls(samples) - 1;
 	u64 value = 0;
-	u32 i;
 
 	if (idx < 0 || idx > 3)
 		return -EINVAL;
 
-	for (i = 0; i < 8; i++) {
+	for (u32 i = 0; i < 8; i++) {
 		value |= sample_positions[idx].x[i] << (i * 8);
 		if (y_flip)
-			value = ((16 - sample_positions[idx].y[i]) & 0xf) << (i * 8 + 4);
+			value |= ((16 - sample_positions[idx].y[i]) & 0xf) << (i * 8 + 4);
 		else
-			value = (sample_positions[idx].y[i]) << (i * 8 + 4);
+			value |= (sample_positions[idx].y[i]) << (i * 8 + 4);
 	}
 
 	*value_out = value;
