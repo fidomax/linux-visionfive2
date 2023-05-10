@@ -339,11 +339,15 @@ process_ldr_command_stream(struct pvr_device *pvr_dev, const u8 *fw,
 						   fw_code_ptr, fw_data_ptr,
 						   fw_core_code_ptr,
 						   fw_core_data_ptr);
+			if (err)
+				goto err_out;
 			break;
 
 		case ROGUE_META_LDR_CMD_CONFIG:
 			err = meta_ldr_cmd_config(drm_dev, fw, l1_data, fw_size,
 						  &boot_conf);
+			if (err)
+				goto err_out;
 			break;
 
 		default:

@@ -421,12 +421,14 @@ static int fw_trace_open(struct inode *inode, struct file *file)
 
 	trace_seq_data = kzalloc(sizeof(*trace_seq_data), GFP_KERNEL);
 	if (!trace_seq_data)
-		goto err_out;
+		return -ENOMEM;
 
 	trace_seq_data->buffer = kcalloc(ROGUE_FW_TRACE_BUF_DEFAULT_SIZE_IN_DWORDS,
 					 sizeof(*trace_seq_data->buffer), GFP_KERNEL);
-	if (!trace_seq_data->buffer)
+	if (!trace_seq_data->buffer) {
+		err = -ENOMEM;
 		goto err_free_data;
+	}
 
 	/*
 	 * Take a local copy of the trace buffer, as firmware may still be
@@ -452,7 +454,6 @@ err_free_buffer:
 err_free_data:
 	kfree(trace_seq_data);
 
-err_out:
 	return err;
 }
 
