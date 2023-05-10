@@ -1892,8 +1892,8 @@ static int
 pvr_page_table_ptr_load_tables(struct pvr_page_table_ptr *ptr,
 			       bool should_create, s8 load_level_required)
 {
-	bool did_create_l1;
-	bool did_create_l0;
+	bool did_create_l1 = false;
+	bool did_create_l0 = false;
 	int err;
 
 	/* Clear tables we're about to fetch in case of error states. */

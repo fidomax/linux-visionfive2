@@ -172,10 +172,14 @@ static int
 pvr_mips_wrapper_init(struct pvr_device *pvr_dev)
 {
 	struct pvr_fw_mips_data *mips_data = pvr_dev->fw_dev.processor_data.mips_data;
-	u64 remap_settings = ROGUE_MIPSFW_BOOT_REMAP_LOG2_SEGMENT_SIZE;
+	const u64 remap_settings = ROGUE_MIPSFW_BOOT_REMAP_LOG2_SEGMENT_SIZE;
 	u32 phys_bus_width;
 
-	WARN_ON(PVR_FEATURE_VALUE(pvr_dev, phys_bus_width, &phys_bus_width));
+	int err = PVR_FEATURE_VALUE(pvr_dev, phys_bus_width, &phys_bus_width);
+
+	if (WARN_ON(err))
+		return err;
+
 	/* Currently MIPS FW only supported with physical bus width > 32 bits. */
 	if (WARN_ON(phys_bus_width <= 32))
 		return -EINVAL;

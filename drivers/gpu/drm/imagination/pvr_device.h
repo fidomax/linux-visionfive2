@@ -325,6 +325,7 @@ struct pvr_file {
  * @value_out: [OUT] Feature value.
  *
  * This macro will get a feature value for those features that have values.
+ * If the feature is not present, nothing will be stored to @value_out.
  *
  * Feature names are derived from those found in &struct pvr_device_features by
  * dropping the 'has_' prefix.
@@ -333,15 +334,15 @@ struct pvr_file {
  *  * 0 on success, or
  *  * -%EINVAL if the named feature is not present in the hardware
  */
-#define PVR_FEATURE_VALUE(pvr_dev, feature, value_out)              \
-	({                                                          \
-		struct pvr_device *__pvr_dev = pvr_dev;             \
-		int __ret = -EINVAL;                                \
-		if (__pvr_dev->features.has_##feature) {            \
-			*(value_out) = __pvr_dev->features.feature; \
-			__ret = 0;                                  \
-		}                                                   \
-		__ret;                                              \
+#define PVR_FEATURE_VALUE(pvr_dev, feature, value_out)             \
+	({                                                         \
+		struct pvr_device *_pvr_dev = pvr_dev;             \
+		int _ret = -EINVAL;                                \
+		if (_pvr_dev->features.has_##feature) {            \
+			*(value_out) = _pvr_dev->features.feature; \
+			_ret = 0;                                  \
+		}                                                  \
+		_ret;                                              \
 	})
 
 /**

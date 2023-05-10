@@ -235,8 +235,13 @@ hwrt_init_common_fw_structure(struct pvr_file *pvr_file,
 	struct pvr_rt_mtile_info info;
 	int err;
 
-	PVR_FEATURE_VALUE(pvr_dev, tile_size_x, &info.tile_size_x);
-	PVR_FEATURE_VALUE(pvr_dev, tile_size_y, &info.tile_size_y);
+	err = PVR_FEATURE_VALUE(pvr_dev, tile_size_x, &info.tile_size_x);
+	if (WARN_ON(err))
+		return err;
+
+	err = PVR_FEATURE_VALUE(pvr_dev, tile_size_y, &info.tile_size_y);
+	if (WARN_ON(err))
+		return err;
 
 	info.num_tiles_x = DIV_ROUND_UP(args->width, info.tile_size_x);
 	info.num_tiles_y = DIV_ROUND_UP(args->height, info.tile_size_y);
@@ -283,7 +288,7 @@ hwrt_init_common_fw_structure(struct pvr_file *pvr_file,
 						 DRM_PVR_BO_CREATE_ZEROED, &hwrt->common_fw_obj);
 	if (IS_ERR(hwrt_data_common_fw)) {
 		err = PTR_ERR(hwrt_data_common_fw);
-		goto err_out;
+		return err;
 	}
 
 	hwrt_data_common_fw->geom_caches_need_zeroing = false;
@@ -348,7 +353,6 @@ hwrt_init_common_fw_structure(struct pvr_file *pvr_file,
 err_put_fw_obj:
 	pvr_fw_object_vunmap(hwrt->common_fw_obj, false);
 
-err_out:
 	return err;
 }
 

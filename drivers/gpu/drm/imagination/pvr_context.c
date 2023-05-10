@@ -617,20 +617,26 @@ pvr_init_frag_context(struct pvr_file *pvr_file,
 
 	err = pvr_cccb_init(pvr_dev, &ctx_frag->cccb, CTX_FRAG_CCCB_SIZE_LOG2, "fragment");
 	if (err)
-		goto err_out;
+		return err;
 
 	if (PVR_HAS_FEATURE(pvr_dev, xe_memory_hierarchy)) {
-		WARN_ON(PVR_FEATURE_VALUE(pvr_dev, num_raster_pipes, &num_isp_store_registers));
+		err = PVR_FEATURE_VALUE(pvr_dev, num_raster_pipes, &num_isp_store_registers);
+		if (WARN_ON(err))
+			return err;
 
 		if (PVR_HAS_FEATURE(pvr_dev, gpu_multicore_support)) {
 			u32 xpu_max_slaves;
 
-			WARN_ON(PVR_FEATURE_VALUE(pvr_dev, xpu_max_slaves, &xpu_max_slaves));
+			err = PVR_FEATURE_VALUE(pvr_dev, xpu_max_slaves, &xpu_max_slaves);
+			if (WARN_ON(err))
+				return err;
 
 			num_isp_store_registers *= (1 + xpu_max_slaves);
 		}
 	} else {
-		WARN_ON(PVR_FEATURE_VALUE(pvr_dev, num_isp_ipp_pipes, &num_isp_store_registers));
+		err = PVR_FEATURE_VALUE(pvr_dev, num_isp_ipp_pipes, &num_isp_store_registers);
+		if (WARN_ON(err))
+			return err;
 	}
 
 	frag_ctx_state_size = sizeof(struct rogue_fwif_frag_ctx_state) + num_isp_store_registers *
@@ -654,7 +660,6 @@ err_release_ctx_state:
 err_cccb_fini:
 	pvr_cccb_fini(&ctx_frag->cccb);
 
-err_out:
 	return err;
 }
 
@@ -967,12 +972,15 @@ pvr_init_transfer_context(struct pvr_file *pvr_file, struct pvr_context_transfer
 	err = pvr_cccb_init(pvr_dev, &ctx_transfer->cccb, CTX_TRANSFER_CCCB_SIZE_LOG2,
 			    "transfer_frag");
 	if (err)
-		goto err_out;
+		return err;
 
 	if (PVR_HAS_FEATURE(pvr_dev, xe_memory_hierarchy))
 		num_isp_store_registers = 1;
-	else
-		WARN_ON(PVR_FEATURE_VALUE(pvr_dev, num_isp_ipp_pipes, &num_isp_store_registers));
+	else {
+		err = PVR_FEATURE_VALUE(pvr_dev, num_isp_ipp_pipes, &num_isp_store_registers);
+		if (WARN_ON(err))
+			return err;
+	}
 
 	transfer_ctx_state_size = sizeof(struct rogue_fwif_frag_ctx_state) +
 				  num_isp_store_registers *
@@ -1013,7 +1021,6 @@ err_destroy_ctx_state_obj:
 err_cccb_fini:
 	pvr_cccb_fini(&ctx_transfer->cccb);
 
-err_out:
 	return err;
 }
 

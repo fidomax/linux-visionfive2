@@ -416,7 +416,7 @@ configure_seg_mmu(struct pvr_device *pvr_dev,
 		 */
 		if (layout_entries[i].type == FW_DATA) {
 			u32 seg_id = ROGUE_FW_SEGMMU_DATA_ID;
-			u64 seg_out_addr;
+			u64 seg_out_addr = 0;
 
 			WARN_ON(!pvr_gem_get_fw_gpu_addr(pvr_dev->fw_dev.mem.data_obj,
 							 &seg_out_addr));
