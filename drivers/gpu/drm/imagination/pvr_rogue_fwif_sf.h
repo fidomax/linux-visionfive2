@@ -871,7 +871,7 @@ X(65535, ROGUE_FW_GROUP_NULL, ROGUE_FW_SF_LAST, "You should not use this string"
  *   The following macro assigns those values to the enum generated SF ids list.
  */
 #define ROGUE_FW_LOG_IDMARKER (0x70000000U)
-#define ROGUE_FW_LOG_CREATESFID(a, b, e) ((u32)(a) | ((u32)(b)<<12U) | ((u32)(e)<<16U)) | ROGUE_FW_LOG_IDMARKER
+#define ROGUE_FW_LOG_CREATESFID(a, b, e) ((u32)(a) | ((u32)(b)<<12U) | ((u32)(e)<<16U) | ROGUE_FW_LOG_IDMARKER)
 
 #define ROGUE_FW_LOG_IDMASK (0xFFF00000)
 #define ROGUE_FW_LOG_VALIDID(I) (((I) & ROGUE_FW_LOG_IDMASK) == ROGUE_FW_LOG_IDMARKER)

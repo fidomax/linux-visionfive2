@@ -3154,7 +3154,7 @@ static const struct drm_pvr_static_data_area static_data_areas[] = {
 	},
 };
 
-#define GET_RESERVED_SIZE(last_offset, last_size) round_up(last_offset + last_size, PAGE_SIZE)
+#define GET_RESERVED_SIZE(last_offset, last_size) round_up((last_offset) + (last_size), PAGE_SIZE)
 
 /*
  * The values given to GET_RESERVED_SIZE() are taken from the last entry in the corresponding

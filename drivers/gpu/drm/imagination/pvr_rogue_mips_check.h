@@ -4,6 +4,8 @@
 #ifndef PVR_ROGUE_MIPS_CHECK_H
 #define PVR_ROGUE_MIPS_CHECK_H
 
+#include <linux/build_bug.h>
+
 static_assert(offsetof(struct rogue_mips_tlb_entry, tlb_page_mask) == 0,
 				"offsetof(struct rogue_mips_tlb_entry, tlb_page_mask) incorrect");
 static_assert(offsetof(struct rogue_mips_tlb_entry, tlb_hi) == 4,

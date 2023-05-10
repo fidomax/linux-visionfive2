@@ -30,8 +30,10 @@ int pvr_set_uobj_array(const struct drm_pvr_obj_array *out, u32 min_stride, u32 
 	(offsetof(_typename, _last_mandatory_field) + \
 	 sizeof(((_typename *)NULL)->_last_mandatory_field))
 
+/* NOLINTBEGIN(bugprone-macro-parentheses) */
 #define PVR_UOBJ_DECL(_typename, _last_mandatory_field) \
 	, _typename : PVR_UOBJ_MIN_SIZE_INTERNAL(_typename, _last_mandatory_field)
+/* NOLINTEND(bugprone-macro-parentheses) */
 
 /**
  * DOC: PVR user objects.
@@ -81,7 +83,7 @@ int pvr_set_uobj_array(const struct drm_pvr_obj_array *out, u32 min_stride, u32 
 #define PVR_UOBJ_GET(_dest_obj, _usr_size, _src_usr_ptr) \
 	pvr_get_uobj(_src_usr_ptr, _usr_size, \
 		     PVR_UOBJ_MIN_SIZE(_dest_obj), \
-		     sizeof(_dest_obj), &_dest_obj)
+		     sizeof(_dest_obj), &(_dest_obj))
 
 /**
  * PVR_UOBJ_SET() - Copies from &_src_obj to _dest_usr_ptr.
@@ -94,7 +96,7 @@ int pvr_set_uobj_array(const struct drm_pvr_obj_array *out, u32 min_stride, u32 
 #define PVR_UOBJ_SET(_dest_usr_ptr, _usr_size, _src_obj) \
 	pvr_set_uobj(_dest_usr_ptr, _usr_size, \
 		     PVR_UOBJ_MIN_SIZE(_src_obj), \
-		     sizeof(_src_obj), &_src_obj)
+		     sizeof(_src_obj), &(_src_obj))
 
 /**
  * PVR_UOBJ_GET_ARRAY() - Copies from @_src_drm_pvr_obj_array.array to
@@ -108,8 +110,8 @@ int pvr_set_uobj_array(const struct drm_pvr_obj_array *out, u32 min_stride, u32 
  */
 #define PVR_UOBJ_GET_ARRAY(_dest_array, _src_drm_pvr_obj_array) \
 	pvr_get_uobj_array(_src_drm_pvr_obj_array, \
-			   PVR_UOBJ_MIN_SIZE(_dest_array[0]), \
-			   sizeof(_dest_array[0]), (void **)&_dest_array)
+			   PVR_UOBJ_MIN_SIZE((_dest_array)[0]), \
+			   sizeof((_dest_array)[0]), (void **)&(_dest_array))
 
 /**
  * PVR_UOBJ_SET_ARRAY() - Copies from _src_array to @_dest_drm_pvr_obj_array.array.
@@ -122,7 +124,7 @@ int pvr_set_uobj_array(const struct drm_pvr_obj_array *out, u32 min_stride, u32 
  */
 #define PVR_UOBJ_SET_ARRAY(_dest_drm_pvr_obj_array, _src_array) \
 	pvr_set_uobj_array(_dest_drm_pvr_obj_array, \
-			   PVR_UOBJ_MIN_SIZE(_src_array[0]), \
-			   sizeof(_src_array[0]), _src_array)
+			   PVR_UOBJ_MIN_SIZE((_src_array)[0]), \
+			   sizeof((_src_array)[0]), _src_array)
 
 #endif /* PVR_DRV_H */

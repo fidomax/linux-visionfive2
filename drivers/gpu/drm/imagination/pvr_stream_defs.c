@@ -12,9 +12,9 @@
 
 #define PVR_STREAM_DEF_SET(owner, member, _size, _array_size, _feature) \
 	{ .offset = offsetof(struct owner, member), \
-	  .size = _size,  \
-	  .array_size = _array_size, \
-	  .feature = _feature }
+	  .size = (_size),  \
+	  .array_size = (_array_size), \
+	  .feature = (_feature) }
 
 #define PVR_STREAM_DEF(owner, member, member_size)  \
 	PVR_STREAM_DEF_SET(owner, member, PVR_STREAM_SIZE_ ## member_size, 0, PVR_FEATURE_NONE)
