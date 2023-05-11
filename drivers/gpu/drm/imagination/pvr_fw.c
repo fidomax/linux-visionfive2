@@ -373,9 +373,9 @@ pvr_fw_create_os_structures(struct pvr_device *pvr_dev)
 
 	pvr_fw_object_get_fw_addr(fw_mem->power_sync_obj, &fw_dev->fwif_osdata->power_sync_fw_addr);
 
-	fwif_osinit->kernel_ccbctl_fw_addr = pvr_dev->kccb.ctrl_fw_addr;
-	fwif_osinit->kernel_ccb_fw_addr = pvr_dev->kccb.ccb_fw_addr;
-	pvr_fw_object_get_fw_addr(pvr_dev->kccb_rtn_obj,
+	fwif_osinit->kernel_ccbctl_fw_addr = pvr_dev->kccb.ccb.ctrl_fw_addr;
+	fwif_osinit->kernel_ccb_fw_addr = pvr_dev->kccb.ccb.ccb_fw_addr;
+	pvr_fw_object_get_fw_addr(pvr_dev->kccb.rtn_obj,
 				  &fwif_osinit->kernel_ccb_rtn_slots_fw_addr);
 
 	fwif_osinit->firmware_ccbctl_fw_addr = pvr_dev->fwccb.ctrl_fw_addr;
@@ -835,7 +835,7 @@ int
 pvr_fw_init(struct pvr_device *pvr_dev)
 {
 	u32 kccb_size_log2 = ROGUE_FWIF_KCCB_NUMCMDS_LOG2_DEFAULT;
-	u32 kccb_rtn_size = (1 << kccb_size_log2) * sizeof(*pvr_dev->kccb_rtn);
+	u32 kccb_rtn_size = (1 << kccb_size_log2) * sizeof(*pvr_dev->kccb.rtn);
 	struct pvr_fw_device *fw_dev = &pvr_dev->fw_dev;
 	int err;
 
@@ -870,12 +870,12 @@ pvr_fw_init(struct pvr_device *pvr_dev)
 		goto err_kccb_fini;
 
 	/* Allocate memory for KCCB return slots. */
-	pvr_dev->kccb_rtn = pvr_fw_object_create_and_map(pvr_dev, kccb_rtn_size,
+	pvr_dev->kccb.rtn = pvr_fw_object_create_and_map(pvr_dev, kccb_rtn_size,
 							 PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
 							 DRM_PVR_BO_CREATE_ZEROED,
-							 &pvr_dev->kccb_rtn_obj);
-	if (IS_ERR(pvr_dev->kccb_rtn)) {
-		err = PTR_ERR(pvr_dev->kccb_rtn);
+							 &pvr_dev->kccb.rtn_obj);
+	if (IS_ERR(pvr_dev->kccb.rtn)) {
+		err = PTR_ERR(pvr_dev->kccb.rtn);
 		goto err_fwccb_fini;
 	}
 
@@ -908,13 +908,13 @@ err_destroy_os_structures:
 	pvr_fw_destroy_os_structures(pvr_dev);
 
 err_kccb_rtn_release:
-	pvr_fw_object_unmap_and_destroy(pvr_dev->kccb_rtn_obj);
+	pvr_fw_object_unmap_and_destroy(pvr_dev->kccb.rtn_obj);
 
 err_fwccb_fini:
 	pvr_ccb_fini(&pvr_dev->fwccb);
 
 err_kccb_fini:
-	pvr_ccb_fini(&pvr_dev->kccb);
+	pvr_ccb_fini(&pvr_dev->kccb.ccb);
 
 err_fw_cleanup:
 	pvr_fw_cleanup(pvr_dev);
@@ -947,14 +947,14 @@ pvr_fw_fini(struct pvr_device *pvr_dev)
 
 	pvr_fw_destroy_dev_structures(pvr_dev);
 	pvr_fw_destroy_os_structures(pvr_dev);
-	pvr_fw_object_unmap_and_destroy(pvr_dev->kccb_rtn_obj);
+	pvr_fw_object_unmap_and_destroy(pvr_dev->kccb.rtn_obj);
 	/*
 	 * Ensure FWCCB worker has finished executing before destroying FWCCB. The IRQ handler has
 	 * been unregistered at this point so no new work should be being submitted.
 	 */
 	flush_work(&pvr_dev->fwccb_work);
 	pvr_ccb_fini(&pvr_dev->fwccb);
-	pvr_ccb_fini(&pvr_dev->kccb);
+	pvr_ccb_fini(&pvr_dev->kccb.ccb);
 	pvr_fw_cleanup(pvr_dev);
 
 	drm_mm_takedown(&fw_dev->fw_mm);

@@ -247,12 +247,14 @@ int
 pvr_kccb_send_cmd_power_locked(struct pvr_device *pvr_dev, struct rogue_fwif_kccb_cmd *cmd,
 			       u32 *kccb_slot)
 {
-	struct pvr_ccb *pvr_ccb = &pvr_dev->kccb;
+	struct pvr_ccb *pvr_ccb = &pvr_dev->kccb.ccb;
 	struct rogue_fwif_kccb_cmd *kccb = pvr_ccb->ccb;
 	struct rogue_fwif_ccb_ctl *ctrl = pvr_ccb->ctrl;
 	u32 old_write_offset;
 	u32 new_write_offset;
 	int err;
+
+	WARN_ON(pvr_dev->lost);
 
 	lockdep_assert_held(&pvr_dev->power_lock);
 	WARN_ON(pvr_dev->power_state != PVR_POWER_STATE_ON);
@@ -270,7 +272,7 @@ pvr_kccb_send_cmd_power_locked(struct pvr_device *pvr_dev, struct rogue_fwif_kcc
 	if (kccb_slot) {
 		*kccb_slot = old_write_offset;
 		/* Clear return status for this slot. */
-		WRITE_ONCE(pvr_dev->kccb_rtn[old_write_offset],
+		WRITE_ONCE(pvr_dev->kccb.rtn[old_write_offset],
 			   ROGUE_FWIF_KCCB_RTN_SLOT_NO_RESPONSE);
 	}
 	mb(); /* memory barrier */
@@ -335,11 +337,11 @@ int
 pvr_kccb_wait_for_completion(struct pvr_device *pvr_dev, u32 slot_nr,
 			     u32 timeout, u32 *rtn_out)
 {
-	int ret = wait_event_timeout(pvr_dev->kccb_rtn_q, READ_ONCE(pvr_dev->kccb_rtn[slot_nr]) &
+	int ret = wait_event_timeout(pvr_dev->kccb.rtn_q, READ_ONCE(pvr_dev->kccb.rtn[slot_nr]) &
 				     ROGUE_FWIF_KCCB_RTN_SLOT_CMD_EXECUTED, timeout);
 
 	if (ret && rtn_out)
-		*rtn_out = READ_ONCE(pvr_dev->kccb_rtn[slot_nr]);
+		*rtn_out = READ_ONCE(pvr_dev->kccb.rtn[slot_nr]);
 
 	return ret ? 0 : -ETIMEDOUT;
 }
@@ -357,16 +359,16 @@ pvr_kccb_wait_for_completion(struct pvr_device *pvr_dev, u32 slot_nr,
 bool
 pvr_kccb_is_idle(struct pvr_device *pvr_dev)
 {
-	struct rogue_fwif_ccb_ctl *ctrl = pvr_dev->kccb.ctrl;
+	struct rogue_fwif_ccb_ctl *ctrl = pvr_dev->kccb.ccb.ctrl;
 	bool idle;
 
 	lockdep_assert_held(&pvr_dev->power_lock);
 
-	mutex_lock(&pvr_dev->kccb.lock);
+	mutex_lock(&pvr_dev->kccb.ccb.lock);
 
 	idle = (ctrl->write_offset == ctrl->read_offset);
 
-	mutex_unlock(&pvr_dev->kccb.lock);
+	mutex_unlock(&pvr_dev->kccb.ccb.lock);
 
 	return idle;
 }
@@ -382,7 +384,7 @@ pvr_kccb_is_idle(struct pvr_device *pvr_dev)
 int
 pvr_kccb_init(struct pvr_device *pvr_dev)
 {
-	return pvr_ccb_init(pvr_dev, &pvr_dev->kccb,
+	return pvr_ccb_init(pvr_dev, &pvr_dev->kccb.ccb,
 			    ROGUE_FWIF_KCCB_NUMCMDS_LOG2_DEFAULT,
 			    sizeof(struct rogue_fwif_kccb_cmd));
 }

@@ -1460,6 +1460,87 @@ bool pvr_context_has_in_flight_jobs(struct pvr_context *ctx)
 }
 
 /**
+ * pvr_context_queue_collect_active_jobs() - Collect all active jobs and add them to the list
+ * @queue: Queue to collect active jobs on.
+ * @active_jobs: List to queue these active jobs to.
+ */
+static void
+pvr_context_queue_collect_active_jobs(struct pvr_context_queue *queue,
+				      struct list_head *active_jobs)
+{
+	struct pvr_job *job, *tmp_job;
+
+	spin_lock(&queue->jobs.lock);
+	list_for_each_entry_safe(job, tmp_job, &queue->jobs.in_flight, node) {
+		list_move_tail(&job->node, active_jobs);
+	}
+	spin_unlock(&queue->jobs.lock);
+}
+
+/**
+ * pvr_context_collect_active_jobs() - Collect all active jobs and add them to the list
+ * @ctx: Context to collect active jobs on.
+ * @done_jobs: List to queue these done jobs to.
+ *
+ * Collect all jobs on all queues belonging to this context.
+ */
+static void
+pvr_context_collect_active_jobs(struct pvr_context *ctx, struct list_head *active_jobs)
+{
+	switch (ctx->type) {
+	case DRM_PVR_CTX_TYPE_RENDER:
+		pvr_context_queue_collect_active_jobs(&to_pvr_context_render(ctx)->ctx_geom.queue,
+						      active_jobs);
+		pvr_context_queue_collect_active_jobs(&to_pvr_context_render(ctx)->ctx_frag.queue,
+						      active_jobs);
+		break;
+
+	case DRM_PVR_CTX_TYPE_COMPUTE:
+		pvr_context_queue_collect_active_jobs(&to_pvr_context_compute(ctx)->queue,
+						      active_jobs);
+		break;
+
+	case DRM_PVR_CTX_TYPE_TRANSFER_FRAG:
+		pvr_context_queue_collect_active_jobs(&to_pvr_context_transfer_frag(ctx)->queue,
+						      active_jobs);
+		break;
+	}
+}
+
+/**
+ * pvr_context_cancel_active_jobs() - Cancel all jobs from active contexts
+ * @pvr_dev: Device pointer
+ *
+ * This function is intended to be called on device loss. At the point of device loss it can be
+ * assumed that no jobs currently submitted to the GPU will ever be completed and no fences will
+ * ever be signaled.
+ */
+void
+pvr_context_cancel_active_jobs(struct pvr_device *pvr_dev)
+{
+	struct pvr_context *ctx, *tmp_ctx;
+	struct pvr_job *job, *tmp_job;
+	LIST_HEAD(active_jobs);
+
+	WARN_ON(!pvr_dev->lost);
+
+	spin_lock(&pvr_dev->active_contexts.lock);
+
+	list_for_each_entry_safe(ctx, tmp_ctx, &pvr_dev->active_contexts.list, active_node) {
+		pvr_context_collect_active_jobs(ctx, &active_jobs);
+	}
+
+	spin_unlock(&pvr_dev->active_contexts.lock);
+
+	list_for_each_entry_safe(job, tmp_job, &active_jobs, node) {
+		list_del(&job->node);
+		dma_fence_set_error(job->done_fence, -ECANCELED);
+		dma_fence_signal(job->done_fence);
+		pvr_job_put(job);
+	}
+}
+
+/**
  * pvr_context_device_init() - Context-related device initialization
  * @pvr_dev: Device object being initialized.
  *

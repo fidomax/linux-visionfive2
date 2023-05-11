@@ -251,7 +251,7 @@ static irqreturn_t pvr_meta_irq_handler(int irq, void *data)
 	/* Only process IRQ work if FW is currently running. */
 	if (pvr_dev->fw_dev.booted) {
 		queue_work(pvr_dev->irq_wq, &pvr_dev->fwccb_work);
-		wake_up(&pvr_dev->kccb_rtn_q);
+		wake_up(&pvr_dev->kccb.rtn_q);
 		queue_work(pvr_dev->irq_wq, &pvr_dev->context_work);
 		pvr_power_check_idle(pvr_dev);
 	}
@@ -275,7 +275,7 @@ pvr_device_irq_init(struct pvr_device *pvr_dev)
 	struct platform_device *plat_dev = to_platform_device(drm_dev->dev);
 	int err;
 
-	init_waitqueue_head(&pvr_dev->kccb_rtn_q);
+	init_waitqueue_head(&pvr_dev->kccb.rtn_q);
 
 	pvr_dev->irq_wq = alloc_workqueue("powervr-irq", WQ_UNBOUND, 0);
 	if (!pvr_dev->irq_wq) {

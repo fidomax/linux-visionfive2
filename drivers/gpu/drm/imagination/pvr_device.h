@@ -25,6 +25,7 @@
 #include <linux/kernel.h>
 #include <linux/math.h>
 #include <linux/mutex.h>
+#include <linux/timer.h>
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
@@ -152,14 +153,8 @@ struct pvr_device {
 	/** @irq_wq: Workqueue for actions triggered off the IRQ handler. */
 	struct workqueue_struct *irq_wq;
 
-	/** @kccb_rtn_q: Waitqueue for KCCB command return waiters. */
-	wait_queue_head_t kccb_rtn_q;
-
 	/** @vendor: Vendor specific device data. */
 	struct pvr_vendor vendor;
-
-	/** @kccb: Kernel CCB. */
-	struct pvr_ccb kccb;
 
 	/** @fwccb: Firmware CCB. */
 	struct pvr_ccb fwccb;
@@ -169,15 +164,6 @@ struct pvr_device {
 
 	/** @delayed_idle_work: Delayed work item for idle checking. */
 	struct delayed_work delayed_idle_work;
-
-	/** @kccb_rtn_obj: Object representing KCCB return slots. */
-	struct pvr_fw_object *kccb_rtn_obj;
-
-	/**
-	 * @kccb_rtn: Pointer to CPU mapping of KCCB return slots. Must be
-	 *            accessed by READ_ONCE()/WRITE_ONCE().
-	 */
-	u32 *kccb_rtn;
 
 	/**
 	 * @kernel_vm_ctx: Virtual memory context used for kernel mappings.
@@ -247,6 +233,37 @@ struct pvr_device {
 
 	/** @context_work: Work item for context processing. */
 	struct work_struct context_work;
+
+	struct {
+		/** @work: Work item for watchdog callback. */
+		struct delayed_work work;
+
+		/** @old_kccb_cmds_executed: KCCB command execution count at last watchdog poll. */
+		u32 old_kccb_cmds_executed;
+
+		/** @kccb_stall_count: Number of watchdog polls KCCB has been stalled for. */
+		u32 kccb_stall_count;
+	} watchdog;
+
+	struct {
+		/** @ccb: Kernel CCB. */
+		struct pvr_ccb ccb;
+
+		/** @rtn_q: Waitqueue for KCCB command return waiters. */
+		wait_queue_head_t rtn_q;
+
+		/** @rtn_obj: Object representing KCCB return slots. */
+		struct pvr_fw_object *rtn_obj;
+
+		/**
+		 * @rtn: Pointer to CPU mapping of KCCB return slots. Must be accessed by
+		 *       READ_ONCE()/WRITE_ONCE().
+		 */
+		u32 *rtn;
+	} kccb;
+
+	/** @lost: %true if the device has been lost. */
+	bool lost;
 };
 
 /**

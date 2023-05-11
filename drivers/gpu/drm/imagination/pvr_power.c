@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
+#include "pvr_context.h"
 #include "pvr_device.h"
 #include "pvr_fw.h"
 #include "pvr_fw_startstop.h"
@@ -11,12 +12,24 @@
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include <linux/pm_runtime.h>
+#include <linux/timer.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
 #define POWER_SYNC_TIMEOUT_US (1000000) /* 1s */
 
 #define POWER_IDLE_DELAY_JIFFIES (1)
+
+#define WATCHDOG_TIME_MS (500)
+
+static void
+pvr_device_lost(struct pvr_device *pvr_dev)
+{
+	if (!pvr_dev->lost) {
+		pvr_dev->lost = true;
+		pvr_context_cancel_active_jobs(pvr_dev);
+	}
+}
 
 static int
 pvr_power_send_command(struct pvr_device *pvr_dev, struct rogue_fwif_kccb_cmd *pow_cmd)
@@ -101,37 +114,64 @@ pvr_power_set_state(struct pvr_device *pvr_dev, enum pvr_power_state new_state)
 
 	switch (new_state) {
 	case PVR_POWER_STATE_OFF:
+		/*
+		 * Allow power off if the device is lost. If the device is lost then we expect the
+		 * firmware power requests to fail, but we should still proceed with (forcibly)
+		 * powering off the device.
+		 */
+		cancel_delayed_work(&pvr_dev->watchdog.work);
+
 		/* Force idle */
 		err = pvr_power_request_idle(pvr_dev);
-		if (err)
-			goto err_out;
+		if (err == -ETIMEDOUT) {
+			drm_err(drm_dev, "Firmware idle timed out\n");
+			pvr_device_lost(pvr_dev);
+		}
 
 		err = pvr_power_request_pwr_off(pvr_dev);
-		if (err)
-			goto err_out;
+		if (err == -ETIMEDOUT) {
+			drm_err(drm_dev, "Firmware power off timed out\n");
+			pvr_device_lost(pvr_dev);
+		}
 
 		err = pvr_fw_stop(pvr_dev);
-		if (err)
-			goto err_out;
+		if (err == -ETIMEDOUT) {
+			drm_err(drm_dev, "Failed to stop firmware\n");
+			pvr_device_lost(pvr_dev);
+		}
 
 		pm_runtime_put_sync_suspend(dev);
 		break;
 
 	case PVR_POWER_STATE_ON:
+		/* Don't try to power on if the device is lost. */
+		if (pvr_dev->lost) {
+			err = -EIO;
+			goto err_out;
+		}
+
 		err = pm_runtime_resume_and_get(dev);
 		if (err)
 			goto err_out;
 
 		/* Restart FW */
 		err = pvr_fw_start(pvr_dev);
-		if (err)
+		if (err) {
+			drm_err(drm_dev, "Firmware failed to boot\n");
+			pvr_device_lost(pvr_dev);
 			goto err_out;
+		}
 
 		err = pvr_wait_for_fw_boot(pvr_dev);
 		if (err) {
 			drm_err(drm_dev, "Firmware failed to boot\n");
+			pvr_device_lost(pvr_dev);
 			goto err_out;
 		}
+
+		pvr_dev->watchdog.kccb_stall_count = 0;
+		queue_delayed_work(pvr_dev->irq_wq, &pvr_dev->watchdog.work,
+				   msecs_to_jiffies(WATCHDOG_TIME_MS));
 		break;
 
 	default:
@@ -197,6 +237,82 @@ pvr_power_check_idle(struct pvr_device *pvr_dev)
 	}
 }
 
+static bool
+pvr_watchdog_kccb_stalled(struct pvr_device *pvr_dev)
+{
+	/* Check KCCB commands are progressing. */
+	u32 kccb_cmds_executed = pvr_dev->fw_dev.fwif_osdata->kccb_cmds_executed;
+	bool kccb_is_idle = pvr_kccb_is_idle(pvr_dev);
+
+	if (pvr_dev->watchdog.old_kccb_cmds_executed == kccb_cmds_executed && !kccb_is_idle) {
+		pvr_dev->watchdog.kccb_stall_count++;
+
+		/*
+		 * If we have commands pending with no progress for 2 consecutive polls then
+		 * consider KCCB command processing stalled.
+		 */
+		if (pvr_dev->watchdog.kccb_stall_count == 2)
+			return true;
+	} else if (pvr_dev->watchdog.old_kccb_cmds_executed == kccb_cmds_executed) {
+		bool has_active_contexts;
+
+		spin_lock(&pvr_dev->active_contexts.lock);
+		has_active_contexts = list_empty(&pvr_dev->active_contexts.list);
+		spin_unlock(&pvr_dev->active_contexts.lock);
+
+		if (has_active_contexts) {
+			/* Send a HEALTH_CHECK command so we can verify FW is still alive. */
+			struct rogue_fwif_kccb_cmd health_check_cmd;
+
+			health_check_cmd.cmd_type = ROGUE_FWIF_KCCB_CMD_HEALTH_CHECK;
+
+			pvr_kccb_send_cmd_power_locked(pvr_dev, &health_check_cmd, NULL);
+		}
+
+		pvr_dev->watchdog.kccb_stall_count = 0;
+	} else {
+		pvr_dev->watchdog.old_kccb_cmds_executed = kccb_cmds_executed;
+		pvr_dev->watchdog.kccb_stall_count = 0;
+	}
+
+	return false;
+}
+
+static void
+pvr_watchdog_worker(struct work_struct *work)
+{
+	struct pvr_device *pvr_dev = container_of(work, struct pvr_device,
+						  watchdog.work.work);
+	bool stalled;
+
+	mutex_lock(&pvr_dev->power_lock);
+
+	if (pvr_dev->lost)
+		goto out_unlock;
+
+	if (pvr_dev->power_state != PVR_POWER_STATE_ON)
+		goto out_unlock;
+
+	if (!pvr_dev->fw_dev.booted)
+		goto out_requeue;
+
+	stalled = pvr_watchdog_kccb_stalled(pvr_dev);
+
+	if (stalled) {
+		drm_err(from_pvr_device(pvr_dev), "GPU device lost");
+		pvr_device_lost(pvr_dev);
+	}
+
+out_requeue:
+	if (!pvr_dev->lost) {
+		queue_delayed_work(pvr_dev->irq_wq, &pvr_dev->watchdog.work,
+				   msecs_to_jiffies(WATCHDOG_TIME_MS));
+	}
+
+out_unlock:
+	mutex_unlock(&pvr_dev->power_lock);
+}
+
 /**
  * pvr_power_init() - Initialise power management for device
  * @pvr_dev: Target PowerVR device.
@@ -216,7 +332,18 @@ pvr_power_init(struct pvr_device *pvr_dev)
 
 	pvr_dev->power_state = PVR_POWER_STATE_OFF;
 	INIT_DELAYED_WORK(&pvr_dev->delayed_idle_work, pvr_delayed_idle_worker);
+	INIT_DELAYED_WORK(&pvr_dev->watchdog.work, pvr_watchdog_worker);
 
 err_out:
 	return err;
+}
+
+/**
+ * pvr_power_fini() - Shutdown power management for device
+ * @pvr_dev: Target PowerVR device.
+ */
+void
+pvr_power_fini(struct pvr_device *pvr_dev)
+{
+	cancel_delayed_work_sync(&pvr_dev->watchdog.work);
 }

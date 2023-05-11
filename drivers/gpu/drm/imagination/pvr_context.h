@@ -410,4 +410,6 @@ void pvr_context_pending_job_event(struct pvr_context *ctx);
 
 void pvr_context_device_init(struct pvr_device *pvr_dev);
 
+void pvr_context_cancel_active_jobs(struct pvr_device *pvr_dev);
+
 #endif /* PVR_CONTEXT_H */

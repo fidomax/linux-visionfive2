@@ -87,6 +87,9 @@ pvr_ioctl_create_bo(struct drm_device *drm_dev, void *raw_args,
 
 	int err;
 
+	if (pvr_dev->lost)
+		return -EIO;
+
 	/* All padding fields must be zeroed. */
 	if (args->_padding_c != 0)
 		return -EINVAL;
@@ -173,11 +176,14 @@ pvr_ioctl_get_bo_mmap_offset(__always_unused struct drm_device *drm_dev,
 			     void *raw_args, struct drm_file *file)
 {
 	struct drm_pvr_ioctl_get_bo_mmap_offset_args *args = raw_args;
+	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
 	struct pvr_file *pvr_file = to_pvr_file(file);
-
 	struct pvr_gem_object *pvr_obj;
 	struct drm_gem_object *gem_obj;
 	int ret;
+
+	if (pvr_dev->lost)
+		return -EIO;
 
 	/* All padding fields must be zeroed. */
 	if (args->_padding_4 != 0)
@@ -663,6 +669,9 @@ pvr_ioctl_dev_query(struct drm_device *drm_dev, void *raw_args,
 	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
 	struct drm_pvr_ioctl_dev_query_args *args = raw_args;
 
+	if (pvr_dev->lost)
+		return -EIO;
+
 	switch ((enum drm_pvr_dev_query)args->type) {
 	case DRM_PVR_DEV_QUERY_GPU_INFO_GET:
 		return pvr_dev_query_gpu_info_get(pvr_dev, args);
@@ -716,6 +725,9 @@ pvr_ioctl_create_context(struct drm_device *drm_dev, void *raw_args,
 	void *old;
 	int err;
 	u32 id;
+
+	if (pvr_dev->lost)
+		return -EIO;
 
 	if (args->flags) {
 		/* Context creation flags are currently unused and must be zero. */
@@ -839,9 +851,13 @@ pvr_ioctl_create_free_list(struct drm_device *drm_dev, void *raw_args,
 			   struct drm_file *file)
 {
 	struct drm_pvr_ioctl_create_free_list_args *args = raw_args;
+	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
 	struct pvr_file *pvr_file = to_pvr_file(file);
 	struct pvr_free_list *free_list;
 	int err;
+
+	if (pvr_dev->lost)
+		return -EIO;
 
 	free_list = pvr_free_list_create(pvr_file, args);
 	if (IS_ERR(free_list)) {
@@ -917,9 +933,13 @@ pvr_ioctl_create_hwrt_dataset(struct drm_device *drm_dev, void *raw_args,
 			      struct drm_file *file)
 {
 	struct drm_pvr_ioctl_create_hwrt_dataset_args *args = raw_args;
+	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
 	struct pvr_file *pvr_file = to_pvr_file(file);
 	struct pvr_hwrt_dataset *hwrt;
 	int err;
+
+	if (pvr_dev->lost)
+		return -EIO;
 
 	hwrt = pvr_hwrt_dataset_create(pvr_file, args);
 	if (IS_ERR(hwrt)) {
@@ -995,9 +1015,13 @@ pvr_ioctl_create_vm_context(struct drm_device *drm_dev, void *raw_args,
 			    struct drm_file *file)
 {
 	struct drm_pvr_ioctl_create_vm_context_args *args = raw_args;
+	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
 	struct pvr_file *pvr_file = to_pvr_file(file);
 	struct pvr_vm_context *vm_ctx;
 	int err;
+
+	if (pvr_dev->lost)
+		return -EIO;
 
 	if (args->_padding_4)
 		return -EINVAL;
@@ -1092,6 +1116,9 @@ pvr_ioctl_vm_map(struct drm_device *drm_dev, void *raw_args,
 
 	u64 offset_plus_size;
 	int err;
+
+	if (pvr_dev->lost)
+		return -EIO;
 
 	/* Initial validation of args. */
 	if (args->_padding_14)
@@ -1207,6 +1234,9 @@ pvr_ioctl_submit_jobs(struct drm_device *drm_dev, void *raw_args,
 	struct drm_pvr_ioctl_submit_jobs_args *args = raw_args;
 	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
 	struct pvr_file *pvr_file = to_pvr_file(file);
+
+	if (pvr_dev->lost)
+		return -EIO;
 
 	return pvr_submit_jobs(pvr_dev, pvr_file, args);
 }
@@ -1483,14 +1513,16 @@ pvr_probe(struct platform_device *plat_dev)
 	pvr_context_device_init(pvr_dev);
 
 	pm_runtime_enable(&plat_dev->dev);
-	pvr_power_init(pvr_dev);
+	err = pvr_power_init(pvr_dev);
+	if (err)
+		goto err_pm_runtime_disable;
 
 	pvr_dev->vendor.callbacks = of_device_get_match_data(&plat_dev->dev);
 
 	if (pvr_dev->vendor.callbacks && pvr_dev->vendor.callbacks->init) {
 		err = pvr_dev->vendor.callbacks->init(pvr_dev);
 		if (err)
-			goto err_pm_runtime_disable;
+			goto err_power_fini;
 	}
 
 	err = pvr_device_init(pvr_dev);
@@ -1513,6 +1545,9 @@ err_device_fini:
 err_vendor_fini:
 	if (pvr_dev->vendor.callbacks && pvr_dev->vendor.callbacks->fini)
 		pvr_dev->vendor.callbacks->fini(pvr_dev);
+
+err_power_fini:
+	pvr_power_fini(pvr_dev);
 
 err_pm_runtime_disable:
 	pm_runtime_disable(&plat_dev->dev);
@@ -1539,6 +1574,7 @@ pvr_remove(struct platform_device *plat_dev)
 	pvr_device_fini(pvr_dev);
 	if (pvr_dev->vendor.callbacks && pvr_dev->vendor.callbacks->fini)
 		pvr_dev->vendor.callbacks->fini(pvr_dev);
+	pvr_power_fini(pvr_dev);
 	pm_runtime_disable(&plat_dev->dev);
 
 	return 0;
