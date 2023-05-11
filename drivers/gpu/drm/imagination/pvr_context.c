@@ -296,7 +296,7 @@ void pvr_context_pending_job_event(struct pvr_context *ctx)
 
 static int
 pvr_init_context_common(struct pvr_device *pvr_dev, struct pvr_file *pvr_file,
-			struct pvr_context *ctx, int type,
+			struct pvr_context *ctx, u32 type,
 			enum pvr_context_priority priority,
 			struct drm_pvr_ioctl_create_context_args *args,
 			u32 id)

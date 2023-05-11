@@ -179,7 +179,7 @@ static ssize_t fw_trace_group_mask_write(struct file *file, const char __user *u
 	pvr_dev->fw_dev.fw_trace.group_mask = new_group_mask;
 
 err_out:
-	return err ? err : len;
+	return err ? err : (ssize_t)len;
 }
 
 static const struct file_operations pvr_fw_trace_group_mask_fops = {

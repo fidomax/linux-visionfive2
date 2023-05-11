@@ -94,7 +94,7 @@ pvr_vm_mips_fini(struct pvr_device *pvr_dev)
 }
 
 static u32
-get_mips_pte_flags(bool read, bool write, int cache_policy)
+get_mips_pte_flags(bool read, bool write, u32 cache_policy)
 {
 	u32 flags = 0;
 

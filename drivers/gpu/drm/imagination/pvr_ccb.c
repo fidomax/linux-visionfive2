@@ -142,7 +142,7 @@ pvr_ccb_acquire_slot_locked(struct pvr_ccb *pvr_ccb, u32 *write_offset)
 
 	lockdep_assert_held(&pvr_ccb->lock);
 
-	while ((jiffies - start_timestamp) < ACQUIRE_SLOT_TIMEOUT) {
+	while ((jiffies - start_timestamp) < (u32)ACQUIRE_SLOT_TIMEOUT) {
 		if (pvr_ccb_slot_available_locked(pvr_ccb, write_offset))
 			return 0;
 		usleep_range(1, 50);

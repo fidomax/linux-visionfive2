@@ -29,7 +29,7 @@ static vm_fault_t pvr_gem_vm_fault(struct vm_fault *vmf)
 	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *gem_obj = vma->vm_private_data;
 	struct pvr_gem_object *pvr_obj = to_pvr_gem_object(gem_obj);
-	loff_t num_pages = gem_obj->size >> PAGE_SHIFT;
+	loff_t num_pages = (loff_t)(gem_obj->size >> PAGE_SHIFT);
 	pgoff_t page_offset;
 	struct page *page;
 	vm_fault_t ret;

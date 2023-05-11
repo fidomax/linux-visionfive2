@@ -1254,7 +1254,8 @@ pvr_get_uobj_array(const struct drm_pvr_obj_array *in, u32 min_stride, u32 obj_s
 		return -ENOMEM;
 
 	if (obj_size == in->stride) {
-		if (copy_from_user(out_alloc, u64_to_user_ptr(in->array), obj_size * in->count))
+		if (copy_from_user(out_alloc, u64_to_user_ptr(in->array),
+				   (unsigned long)obj_size * in->count))
 			ret = -EFAULT;
 	} else {
 		void __user *in_ptr = u64_to_user_ptr(in->array);
@@ -1290,7 +1291,8 @@ pvr_set_uobj_array(const struct drm_pvr_obj_array *out, u32 min_stride, u32 obj_
 		return 0;
 
 	if (obj_size == out->stride) {
-		if (copy_to_user(u64_to_user_ptr(out->array), in, obj_size * out->count))
+		if (copy_to_user(u64_to_user_ptr(out->array), in,
+				 (unsigned long)obj_size * out->count))
 			return -EFAULT;
 	} else {
 		u32 cpy_elem_size = min_t(u32, out->stride, obj_size);

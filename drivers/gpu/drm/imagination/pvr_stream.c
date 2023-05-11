@@ -31,7 +31,7 @@ stream_def_is_supported(struct pvr_device *pvr_dev, const struct pvr_stream_def 
 }
 
 static int
-pvr_stream_get_data(u8 *stream, u32 *stream_offset, u32 stream_size, int data_size, int align_size,
+pvr_stream_get_data(u8 *stream, u32 *stream_offset, u32 stream_size, u32 data_size, u32 align_size,
 		    void *dest)
 {
 	int err = 0;
