@@ -219,6 +219,7 @@ pvr_context_queue_check_pending_jobs(struct pvr_context_queue *queue)
 		struct pvr_job *job;
 
 		spin_lock(&queue->jobs.lock);
+		/* NOLINTNEXTLINE(bugprone-sizeof-expression) */
 		job = list_first_entry_or_null(&queue->jobs.pending,
 					       struct pvr_job, node);
 		pvr_job_get(job);

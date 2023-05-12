@@ -1101,6 +1101,7 @@ pvr_submit_jobs(struct pvr_device *pvr_dev,
 	if (err)
 		return err;
 
+	/* NOLINTNEXTLINE(bugprone-sizeof-expression) */
 	jobs = kvmalloc_array(args->jobs.count, sizeof(*jobs), GFP_KERNEL | __GFP_ZERO);
 	if (!jobs) {
 		err = -ENOMEM;
