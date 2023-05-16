@@ -182,6 +182,9 @@ struct pvr_context {
 	/** @priority: Context priority*/
 	enum pvr_context_priority priority;
 
+	/** @fw_obj: FW object representing FW-side context data. */
+	struct pvr_fw_object *fw_obj;
+
 	/** @ctx_id: FW context ID. */
 	u32 ctx_id;
 
@@ -210,9 +213,6 @@ struct pvr_context_render {
 
 	/** @ctx_frag: Fragment context data. */
 	struct pvr_context_frag ctx_frag;
-
-	/** @fw_obj: FW object representing FW-side context data. */
-	struct pvr_fw_object *fw_obj;
 };
 
 /**
@@ -221,9 +221,6 @@ struct pvr_context_render {
 struct pvr_context_compute {
 	/** @base: Base context structure. */
 	struct pvr_context base;
-
-	/** @fw_obj: FW object representing FW-side context data. */
-	struct pvr_fw_object *fw_obj;
 
 	/** @queue: Compute queue. */
 	struct pvr_context_queue queue;
@@ -243,9 +240,6 @@ struct pvr_context_compute {
 struct pvr_context_transfer {
 	/** @base: Base context structure. */
 	struct pvr_context base;
-
-	/** @fw_obj: FW object representing FW-side context data. */
-	struct pvr_fw_object *fw_obj;
 
 	/** @queue: Transfer queue. */
 	struct pvr_context_queue queue;

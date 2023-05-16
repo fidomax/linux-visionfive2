@@ -139,27 +139,23 @@ static int
 pvr_context_queue_fw_cleanup(struct pvr_context_queue *queue)
 {
 	struct pvr_context *ctx = queue_to_ctx(queue);
-	struct pvr_fw_object *fw_obj;
+	struct pvr_fw_object *fw_obj = ctx->fw_obj;
 	u32 fw_obj_offset;
 
 	switch (queue->fence_ctx->type) {
 	case PVR_CONTEXT_QUEUE_TYPE_GEOMETRY:
-		fw_obj = to_pvr_context_render(ctx)->fw_obj;
 		fw_obj_offset = offsetof(struct rogue_fwif_fwrendercontext, geom_context);
 		break;
 
 	case PVR_CONTEXT_QUEUE_TYPE_FRAGMENT:
-		fw_obj = to_pvr_context_render(ctx)->fw_obj;
 		fw_obj_offset = offsetof(struct rogue_fwif_fwrendercontext, frag_context);
 		break;
 
 	case PVR_CONTEXT_QUEUE_TYPE_COMPUTE:
-		fw_obj = to_pvr_context_compute(ctx)->fw_obj;
 		fw_obj_offset = offsetof(struct rogue_fwif_fwcomputecontext, cdm_context);
 		break;
 
 	case PVR_CONTEXT_QUEUE_TYPE_TRANSFER:
-		fw_obj = to_pvr_context_transfer_frag(ctx)->fw_obj;
 		fw_obj_offset = offsetof(struct rogue_fwif_fwtransfercontext, tq_context);
 		break;
 
@@ -801,7 +797,7 @@ pvr_init_fw_render_context(struct pvr_context_render *ctx_render,
 							 sizeof(*fw_render_context),
 							 PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
 							 DRM_PVR_BO_CREATE_ZEROED,
-							 &ctx_render->fw_obj);
+							 &ctx_render->base.fw_obj);
 	if (IS_ERR(fw_render_context)) {
 		err = PTR_ERR(fw_render_context);
 		goto err_out;
@@ -828,11 +824,11 @@ pvr_init_fw_render_context(struct pvr_context_render *ctx_render,
 				   ctx_render->base.ctx_id, ctx_render->ctx_frag.ctx_state_obj,
 				   &ctx_render->ctx_frag.cccb);
 
-	pvr_fw_object_vunmap(ctx_render->fw_obj);
+	pvr_fw_object_vunmap(ctx_render->base.fw_obj);
 	return 0;
 
 err_destroy_gem_object:
-	pvr_fw_object_unmap_and_destroy(ctx_render->fw_obj);
+	pvr_fw_object_unmap_and_destroy(ctx_render->base.fw_obj);
 
 err_out:
 	return err;
@@ -850,7 +846,7 @@ pvr_fini_fw_render_context(struct pvr_context_render *ctx_render)
 	pvr_fini_fw_common_context(ctx);
 	pvr_fini_fw_common_context(ctx);
 
-	pvr_fw_object_destroy(ctx_render->fw_obj);
+	pvr_fw_object_destroy(ctx_render->base.fw_obj);
 }
 
 /**
@@ -891,7 +887,7 @@ pvr_init_compute_context(struct pvr_file *pvr_file, struct pvr_context_compute *
 							  sizeof(*fw_compute_context),
 							  PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
 							  DRM_PVR_BO_CREATE_ZEROED,
-							  &ctx_compute->fw_obj);
+							  &ctx_compute->base.fw_obj);
 	if (IS_ERR(fw_compute_context)) {
 		err = PTR_ERR(fw_compute_context);
 		goto err_destroy_ctx_state_obj;
@@ -918,11 +914,11 @@ pvr_init_compute_context(struct pvr_file *pvr_file, struct pvr_context_compute *
 				   ctx_compute->base.ctx_id, ctx_compute->ctx_state_obj,
 				   &ctx_compute->cccb);
 
-	pvr_fw_object_vunmap(ctx_compute->fw_obj);
+	pvr_fw_object_vunmap(ctx_compute->base.fw_obj);
 	return 0;
 
 err_destroy_gem_object:
-	pvr_fw_object_unmap_and_destroy(ctx_compute->fw_obj);
+	pvr_fw_object_unmap_and_destroy(ctx_compute->base.fw_obj);
 
 err_destroy_ctx_state_obj:
 	pvr_fw_object_destroy(ctx_compute->ctx_state_obj);
@@ -945,7 +941,7 @@ pvr_fini_compute_context(struct pvr_context_compute *ctx_compute)
 
 	pvr_fini_fw_common_context(ctx);
 	pvr_context_queue_fini(&ctx_compute->queue);
-	pvr_fw_object_destroy(ctx_compute->fw_obj);
+	pvr_fw_object_destroy(ctx_compute->base.fw_obj);
 	pvr_fw_object_destroy(ctx_compute->ctx_state_obj);
 	pvr_cccb_fini(&ctx_compute->cccb);
 }
@@ -997,7 +993,7 @@ pvr_init_transfer_context(struct pvr_file *pvr_file, struct pvr_context_transfer
 							   sizeof(*fw_transfer_context),
 							   PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
 							   DRM_PVR_BO_CREATE_ZEROED,
-							   &ctx_transfer->fw_obj);
+							   &ctx_transfer->base.fw_obj);
 	if (IS_ERR(fw_transfer_context)) {
 		err = PTR_ERR(fw_transfer_context);
 		goto err_destroy_ctx_state_obj;
@@ -1013,7 +1009,7 @@ pvr_init_transfer_context(struct pvr_file *pvr_file, struct pvr_context_transfer
 				   ctx_transfer->base.ctx_id, ctx_transfer->ctx_state_obj,
 				   &ctx_transfer->cccb);
 
-	pvr_fw_object_vunmap(ctx_transfer->fw_obj);
+	pvr_fw_object_vunmap(ctx_transfer->base.fw_obj);
 	return 0;
 
 err_destroy_ctx_state_obj:
@@ -1036,7 +1032,7 @@ pvr_fini_transfer_context(struct pvr_context_transfer *ctx_transfer)
 
 	pvr_fini_fw_common_context(ctx);
 	pvr_context_queue_fini(&ctx_transfer->queue);
-	pvr_fw_object_destroy(ctx_transfer->fw_obj);
+	pvr_fw_object_destroy(ctx_transfer->base.fw_obj);
 	pvr_fw_object_destroy(ctx_transfer->ctx_state_obj);
 	pvr_cccb_fini(&ctx_transfer->cccb);
 }

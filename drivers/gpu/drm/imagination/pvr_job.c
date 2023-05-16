@@ -211,29 +211,9 @@ get_ctx_queue(struct pvr_job *job)
 
 static u32 get_ctx_fw_addr(struct pvr_job *job)
 {
-	struct pvr_fw_object *ctx_fw_obj = NULL;
 	u32 ctx_fw_addr;
 
-	switch (job->type) {
-	case DRM_PVR_JOB_TYPE_GEOMETRY:
-	case DRM_PVR_JOB_TYPE_FRAGMENT:
-		ctx_fw_obj = container_of(job->ctx, struct pvr_context_render, base)->fw_obj;
-		break;
-
-	case DRM_PVR_JOB_TYPE_COMPUTE:
-		ctx_fw_obj = container_of(job->ctx, struct pvr_context_compute, base)->fw_obj;
-		break;
-
-	case DRM_PVR_JOB_TYPE_TRANSFER_FRAG:
-		ctx_fw_obj = container_of(job->ctx, struct pvr_context_transfer, base)->fw_obj;
-		break;
-
-	default:
-		WARN_ON(1);
-		return 0;
-	}
-
-	pvr_fw_object_get_fw_addr(ctx_fw_obj, &ctx_fw_addr);
+	pvr_fw_object_get_fw_addr(job->ctx->fw_obj, &ctx_fw_addr);
 
 	if (job->type == DRM_PVR_JOB_TYPE_FRAGMENT)
 		ctx_fw_addr += offsetof(struct rogue_fwif_fwrendercontext, frag_context);
