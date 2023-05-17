@@ -564,7 +564,7 @@ pvr_init_geom_context(struct pvr_file *pvr_file,
 	if (err)
 		goto err_release_ctx_state;
 
-	geom_ctx_state_fw->geom_core[0].geom_reg_vdm_call_stack_pointer = args->callstack_addr;
+	geom_ctx_state_fw->geom_core[0].geom_reg_vdm_call_stack_pointer_init = args->callstack_addr;
 
 	pvr_fw_object_vunmap(ctx_geom->ctx_state_obj);
 
