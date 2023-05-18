@@ -887,21 +887,24 @@ pvr_fw_init(struct pvr_device *pvr_dev)
 	if (err)
 		goto err_destroy_os_structures;
 
-	pvr_power_lock(pvr_dev);
-
-	err = pvr_power_set_state(pvr_dev, PVR_POWER_STATE_ON);
+	err = pvr_fw_start(pvr_dev);
 	if (err)
-		goto err_power_unlock;
+		goto err_destroy_dev_structures;
+
+	err = pvr_wait_for_fw_boot(pvr_dev);
+	if (err) {
+		drm_err(from_pvr_device(pvr_dev), "Firmware failed to boot\n");
+		goto err_fw_stop;
+	}
 
 	fw_dev->booted = true;
 
-	pvr_power_unlock(pvr_dev);
-
 	return 0;
 
-err_power_unlock:
-	pvr_power_unlock(pvr_dev);
+err_fw_stop:
+	pvr_fw_stop(pvr_dev);
 
+err_destroy_dev_structures:
 	pvr_fw_destroy_dev_structures(pvr_dev);
 
 err_destroy_os_structures:
@@ -938,12 +941,7 @@ pvr_fw_fini(struct pvr_device *pvr_dev)
 {
 	struct pvr_fw_device *fw_dev = &pvr_dev->fw_dev;
 
-	pvr_power_lock(pvr_dev);
-
 	fw_dev->booted = false;
-	pvr_power_set_state(pvr_dev, PVR_POWER_STATE_OFF);
-
-	pvr_power_unlock(pvr_dev);
 
 	pvr_fw_destroy_dev_structures(pvr_dev);
 	pvr_fw_destroy_os_structures(pvr_dev);

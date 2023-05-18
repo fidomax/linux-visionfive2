@@ -7,6 +7,7 @@
 #include "pvr_drv.h"
 #include "pvr_gem.h"
 #include "pvr_job.h"
+#include "pvr_power.h"
 #include "pvr_rogue_fwif.h"
 #include "pvr_rogue_fwif_common.h"
 #include "pvr_rogue_fwif_resetframework.h"
@@ -1424,6 +1425,7 @@ pvr_context_process_worker(struct work_struct *work)
 		list_del(&job->node);
 		dma_fence_signal(job->done_fence);
 		pvr_job_put(job);
+		pvr_power_put(pvr_dev);
 	}
 }
 

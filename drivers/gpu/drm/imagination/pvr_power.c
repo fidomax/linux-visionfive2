@@ -9,9 +9,12 @@
 #include "pvr_rogue_fwif.h"
 
 #include <drm/drm_managed.h>
+#include <linux/clk.h>
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/regulator/consumer.h>
 #include <linux/timer.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
@@ -57,7 +60,7 @@ err_out:
 	return err;
 }
 
-static int
+int
 pvr_power_request_idle(struct pvr_device *pvr_dev)
 {
 	struct rogue_fwif_kccb_cmd pow_cmd;
@@ -70,7 +73,7 @@ pvr_power_request_idle(struct pvr_device *pvr_dev)
 	return pvr_power_send_command(pvr_dev, &pow_cmd);
 }
 
-static int
+int
 pvr_power_request_pwr_off(struct pvr_device *pvr_dev)
 {
 	struct rogue_fwif_kccb_cmd pow_cmd;
@@ -83,114 +86,45 @@ pvr_power_request_pwr_off(struct pvr_device *pvr_dev)
 	return pvr_power_send_command(pvr_dev, &pow_cmd);
 }
 
-/**
- * pvr_power_set_state() - Change GPU power state
- * @pvr_dev: Target PowerVR device.
- * @new_state: Desired power state.
- *
- * If the GPU is already in the desired power state then this function is a no-op.
- *
- * Caller must hold the device's power lock.
- *
- * Returns:
- *  * 0 on success, or
- *  * Any appropriate error on failure.
- */
-int
-pvr_power_set_state(struct pvr_device *pvr_dev, enum pvr_power_state new_state)
+static int
+pvr_power_fw_disable(struct pvr_device *pvr_dev)
 {
-	struct drm_device *drm_dev = from_pvr_device(pvr_dev);
-	struct device *dev = drm_dev->dev;
 	int err;
 
-	lockdep_assert_held(&pvr_dev->power_lock);
+	cancel_delayed_work_sync(&pvr_dev->watchdog.work);
 
-	cancel_delayed_work(&pvr_dev->delayed_idle_work);
+	err = pvr_power_request_idle(pvr_dev);
+	if (err)
+		return err;
 
-	if (pvr_dev->power_state == new_state) {
-		err = 0;
-		goto err_out;
-	}
+	err = pvr_power_request_pwr_off(pvr_dev);
+	if (err)
+		return err;
 
-	switch (new_state) {
-	case PVR_POWER_STATE_OFF:
-		/*
-		 * Allow power off if the device is lost. If the device is lost then we expect the
-		 * firmware power requests to fail, but we should still proceed with (forcibly)
-		 * powering off the device.
-		 */
-		cancel_delayed_work(&pvr_dev->watchdog.work);
-
-		/* Force idle */
-		err = pvr_power_request_idle(pvr_dev);
-		if (err == -ETIMEDOUT) {
-			drm_err(drm_dev, "Firmware idle timed out\n");
-			pvr_device_lost(pvr_dev);
-		}
-
-		err = pvr_power_request_pwr_off(pvr_dev);
-		if (err == -ETIMEDOUT) {
-			drm_err(drm_dev, "Firmware power off timed out\n");
-			pvr_device_lost(pvr_dev);
-		}
-
-		err = pvr_fw_stop(pvr_dev);
-		if (err == -ETIMEDOUT) {
-			drm_err(drm_dev, "Failed to stop firmware\n");
-			pvr_device_lost(pvr_dev);
-		}
-
-		pm_runtime_put_sync_suspend(dev);
-		break;
-
-	case PVR_POWER_STATE_ON:
-		/* Don't try to power on if the device is lost. */
-		if (pvr_dev->lost) {
-			err = -EIO;
-			goto err_out;
-		}
-
-		err = pm_runtime_resume_and_get(dev);
-		if (err)
-			goto err_out;
-
-		/* Restart FW */
-		err = pvr_fw_start(pvr_dev);
-		if (err) {
-			drm_err(drm_dev, "Firmware failed to boot\n");
-			pvr_device_lost(pvr_dev);
-			goto err_out;
-		}
-
-		err = pvr_wait_for_fw_boot(pvr_dev);
-		if (err) {
-			drm_err(drm_dev, "Firmware failed to boot\n");
-			pvr_device_lost(pvr_dev);
-			goto err_out;
-		}
-
-		pvr_dev->watchdog.kccb_stall_count = 0;
-		queue_delayed_work(pvr_dev->irq_wq, &pvr_dev->watchdog.work,
-				   msecs_to_jiffies(WATCHDOG_TIME_MS));
-		break;
-
-	default:
-		WARN_ON(true);
-		err = -EINVAL;
-		goto err_out;
-	}
-
-	/* Set power state */
-	pvr_dev->power_state = new_state;
-
-	return 0;
-
-err_out:
-	return err;
+	return pvr_fw_stop(pvr_dev);
 }
 
-static bool
-pvr_device_is_idle(struct pvr_device *pvr_dev)
+static int
+pvr_power_fw_enable(struct pvr_device *pvr_dev)
+{
+	int err;
+
+	err = pvr_fw_start(pvr_dev);
+	if (err)
+		return err;
+
+	err = pvr_wait_for_fw_boot(pvr_dev);
+	if (err) {
+		drm_err(from_pvr_device(pvr_dev), "Firmware failed to boot\n");
+		pvr_fw_stop(pvr_dev);
+		return err;
+	}
+
+	return 0;
+}
+
+bool
+pvr_power_is_idle(struct pvr_device *pvr_dev)
 {
 	/*
 	 * FW power state can be out of date if a KCCB command has been submitted but the FW hasn't
@@ -200,20 +134,6 @@ pvr_device_is_idle(struct pvr_device *pvr_dev)
 	bool kccb_idle = pvr_kccb_is_idle(pvr_dev);
 
 	return (pow_state == ROGUE_FWIF_POW_IDLE) && kccb_idle;
-}
-
-static void
-pvr_delayed_idle_worker(struct work_struct *work)
-{
-	struct pvr_device *pvr_dev = container_of(work, struct pvr_device,
-						  delayed_idle_work.work);
-
-	mutex_lock(&pvr_dev->power_lock);
-
-	if (pvr_device_is_idle(pvr_dev))
-		pvr_power_set_state(pvr_dev, PVR_POWER_STATE_OFF);
-
-	mutex_unlock(&pvr_dev->power_lock);
 }
 
 /**
@@ -285,13 +205,11 @@ pvr_watchdog_worker(struct work_struct *work)
 						  watchdog.work.work);
 	bool stalled;
 
-	mutex_lock(&pvr_dev->power_lock);
-
 	if (pvr_dev->lost)
-		goto out_unlock;
+		return;
 
-	if (pvr_dev->power_state != PVR_POWER_STATE_ON)
-		goto out_unlock;
+	if (pm_runtime_get_if_in_use(from_pvr_device(pvr_dev)->dev) <= 0)
+		return;
 
 	if (!pvr_dev->fw_dev.booted)
 		goto out_requeue;
@@ -309,8 +227,7 @@ out_requeue:
 				   msecs_to_jiffies(WATCHDOG_TIME_MS));
 	}
 
-out_unlock:
-	mutex_unlock(&pvr_dev->power_lock);
+	pm_runtime_put(from_pvr_device(pvr_dev)->dev);
 }
 
 /**
@@ -324,15 +241,131 @@ out_unlock:
 int
 pvr_power_init(struct pvr_device *pvr_dev)
 {
+	pvr_dev->power_state = PVR_POWER_STATE_OFF;
+
+	INIT_DELAYED_WORK(&pvr_dev->watchdog.work, pvr_watchdog_worker);
+
+	return 0;
+}
+
+int
+pvr_power_device_suspend(struct device *dev)
+{
+	struct platform_device *plat_dev = to_platform_device(dev);
+	struct drm_device *drm_dev = platform_get_drvdata(plat_dev);
+	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
+	int err = 0;
+
+	if (pvr_dev->fw_dev.booted) {
+		err = pvr_power_fw_disable(pvr_dev);
+		if (err)
+			goto err_out;
+	}
+
+	if (pvr_dev->vendor.callbacks &&
+	    pvr_dev->vendor.callbacks->power_disable) {
+		err = pvr_dev->vendor.callbacks->power_disable(pvr_dev);
+		if (err)
+			goto err_out;
+	}
+
+	clk_disable(pvr_dev->mem_clk);
+	clk_disable(pvr_dev->sys_clk);
+	clk_disable(pvr_dev->core_clk);
+
+	if (pvr_dev->regulator)
+		regulator_disable(pvr_dev->regulator);
+
+err_out:
+	return err;
+}
+
+
+int
+pvr_power_device_resume(struct device *dev)
+{
+	struct platform_device *plat_dev = to_platform_device(dev);
+	struct drm_device *drm_dev = platform_get_drvdata(plat_dev);
+	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
 	int err;
 
-	err = drmm_mutex_init(from_pvr_device(pvr_dev), &pvr_dev->power_lock);
+	if (pvr_dev->regulator) {
+		err = regulator_enable(pvr_dev->regulator);
+		if (err)
+			goto err_out;
+	}
+
+	clk_enable(pvr_dev->core_clk);
+	clk_enable(pvr_dev->sys_clk);
+	clk_enable(pvr_dev->mem_clk);
+
+	if (pvr_dev->vendor.callbacks &&
+	    pvr_dev->vendor.callbacks->power_enable) {
+		err = pvr_dev->vendor.callbacks->power_enable(pvr_dev);
+		if (err)
+			goto err_clk_disable;
+	}
+
+	if (pvr_dev->fw_dev.booted) {
+		err = pvr_power_fw_enable(pvr_dev);
+		if (err)
+			goto err_power_disable;
+	}
+
+	return 0;
+
+err_power_disable:
+	if (pvr_dev->vendor.callbacks &&
+	    pvr_dev->vendor.callbacks->power_disable) {
+		err = pvr_dev->vendor.callbacks->power_disable(pvr_dev);
+		if (err)
+			goto err_out;
+	}
+
+err_clk_disable:
+	clk_disable(pvr_dev->mem_clk);
+	clk_disable(pvr_dev->sys_clk);
+	clk_disable(pvr_dev->core_clk);
+
+err_out:
+	return err;
+}
+
+int
+pvr_power_device_idle(struct device *dev)
+{
+	struct platform_device *plat_dev = to_platform_device(dev);
+	struct drm_device *drm_dev = platform_get_drvdata(plat_dev);
+	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
+
+	return pvr_power_is_idle(pvr_dev) ? 0 : -EBUSY;
+}
+
+int
+pvr_power_reset(struct pvr_device *pvr_dev)
+{
+	int err;
+
+	/*
+	 * Take a power reference during the reset. This should prevent any interference with the
+	 * power state during reset.
+	 */
+	err = pvr_power_get(pvr_dev);
 	if (err)
 		goto err_out;
 
-	pvr_dev->power_state = PVR_POWER_STATE_OFF;
-	INIT_DELAYED_WORK(&pvr_dev->delayed_idle_work, pvr_delayed_idle_worker);
-	INIT_DELAYED_WORK(&pvr_dev->watchdog.work, pvr_watchdog_worker);
+	err = pvr_power_fw_disable(pvr_dev);
+	if (err)
+		goto err_power_put;
+
+	/* Clear the FW faulted flags. */
+	pvr_dev->fw_dev.fwif_sysdata->hwr_state_flags &= ~(ROGUE_FWIF_HWR_FW_FAULT |
+							   ROGUE_FWIF_HWR_RESTART_REQUESTED);
+
+	err = pvr_power_fw_enable(pvr_dev);
+
+err_power_put:
+	pvr_power_put(pvr_dev);
 
 err_out:
 	return err;

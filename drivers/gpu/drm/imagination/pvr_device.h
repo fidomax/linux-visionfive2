@@ -181,9 +181,6 @@ struct pvr_device {
 	/** @power_state: Current GPU power state. */
 	enum pvr_power_state power_state;
 
-	/** @power_lock: Mutex protecting power state. */
-	struct mutex power_lock;
-
 	/**
 	 * @params: Device-specific parameters.
 	 *

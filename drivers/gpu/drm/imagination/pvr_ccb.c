@@ -152,19 +152,7 @@ process_fwccb_command(struct pvr_device *pvr_dev, struct rogue_fwif_fwccb_cmd *c
 {
 	switch (cmd->cmd_type) {
 	case ROGUE_FWIF_FWCCB_CMD_REQUEST_GPU_RESTART:
-		pvr_power_lock(pvr_dev);
-
-		/* Stop FW. */
-		WARN_ON(pvr_power_set_state(pvr_dev, PVR_POWER_STATE_OFF));
-
-		/* Clear the FW faulted flags. */
-		pvr_dev->fw_dev.fwif_sysdata->hwr_state_flags &= ~(ROGUE_FWIF_HWR_FW_FAULT |
-								  ROGUE_FWIF_HWR_RESTART_REQUESTED);
-
-		/* Start FW again. */
-		WARN_ON(pvr_power_set_state(pvr_dev, PVR_POWER_STATE_ON));
-
-		pvr_power_unlock(pvr_dev);
+		WARN_ON(pvr_power_reset(pvr_dev));
 		break;
 
 	case ROGUE_FWIF_FWCCB_CMD_FREELISTS_RECONSTRUCTION: {
@@ -256,9 +244,6 @@ pvr_kccb_send_cmd_power_locked(struct pvr_device *pvr_dev, struct rogue_fwif_kcc
 
 	WARN_ON(pvr_dev->lost);
 
-	lockdep_assert_held(&pvr_dev->power_lock);
-	WARN_ON(pvr_dev->power_state != PVR_POWER_STATE_ON);
-
 	mutex_lock(&pvr_ccb->lock);
 
 	old_write_offset = ctrl->write_offset;
@@ -308,16 +293,13 @@ pvr_kccb_send_cmd(struct pvr_device *pvr_dev, struct rogue_fwif_kccb_cmd *cmd,
 {
 	int err;
 
-	pvr_power_lock(pvr_dev);
-
-	err = pvr_power_set_state(pvr_dev, PVR_POWER_STATE_ON);
+	err = pvr_power_get(pvr_dev);
 	if (err)
-		goto err_power_unlock;
+		return err;
 
 	err = pvr_kccb_send_cmd_power_locked(pvr_dev, cmd, kccb_slot);
 
-err_power_unlock:
-	pvr_power_unlock(pvr_dev);
+	pvr_power_put(pvr_dev);
 
 	return err;
 }
@@ -361,8 +343,6 @@ pvr_kccb_is_idle(struct pvr_device *pvr_dev)
 {
 	struct rogue_fwif_ccb_ctl *ctrl = pvr_dev->kccb.ccb.ctrl;
 	bool idle;
-
-	lockdep_assert_held(&pvr_dev->power_lock);
 
 	mutex_lock(&pvr_dev->kccb.ccb.lock);
 

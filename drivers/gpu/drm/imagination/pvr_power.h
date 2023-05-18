@@ -7,32 +7,36 @@
 #include "pvr_device.h"
 
 #include <linux/mutex.h>
+#include <linux/pm_runtime.h>
 
 int pvr_power_init(struct pvr_device *pvr_dev);
 void pvr_power_fini(struct pvr_device *pvr_dev);
 int pvr_power_set_state(struct pvr_device *pvr_dev, enum pvr_power_state new_state);
-void pvr_power_check_idle(struct pvr_device *pvr_dev);
+bool pvr_power_is_idle(struct pvr_device *pvr_dev);
 
-/**
- * pvr_power_lock() - Take device power lock
- * @pvr_dev: Target PowerVR device.
- *
- * This must be held before attempting to change power state.
- */
-static __always_inline void
-pvr_power_lock(struct pvr_device *pvr_dev)
+int pvr_power_request_idle(struct pvr_device *pvr_dev);
+int pvr_power_request_pwr_off(struct pvr_device *pvr_dev);
+
+int pvr_power_device_suspend(struct device *dev);
+int pvr_power_device_resume(struct device *dev);
+int pvr_power_device_idle(struct device *dev);
+
+int pvr_power_reset(struct pvr_device *pvr_dev);
+
+static __always_inline int
+pvr_power_get(struct pvr_device *pvr_dev)
 {
-	mutex_lock(&pvr_dev->power_lock);
+	struct drm_device *drm_dev = from_pvr_device(pvr_dev);
+
+	return pm_runtime_resume_and_get(drm_dev->dev);
 }
 
-/**
- * pvr_power_unlock() - Release device power lock
- * @pvr_dev: Target PowerVR device.
- */
-static __always_inline void
-pvr_power_unlock(struct pvr_device *pvr_dev)
+static __always_inline int
+pvr_power_put(struct pvr_device *pvr_dev)
 {
-	mutex_unlock(&pvr_dev->power_lock);
+	struct drm_device *drm_dev = from_pvr_device(pvr_dev);
+
+	return pm_runtime_put(drm_dev->dev);
 }
 
 #endif /* PVR_POWER_H */

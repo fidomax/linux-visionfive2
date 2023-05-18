@@ -7,6 +7,7 @@
 #include "pvr_gem.h"
 #include "pvr_hwrt.h"
 #include "pvr_job.h"
+#include "pvr_power.h"
 #include "pvr_rogue_fwif.h"
 #include "pvr_rogue_fwif_client.h"
 #include "pvr_stream.h"
@@ -278,6 +279,10 @@ void pvr_job_submit(struct pvr_job *job)
 	if (WARN_ON(!queue || !cccb))
 		return;
 
+	err = pvr_power_get(pvr_dev);
+	if (WARN_ON(err))
+		return;
+
 	pvr_cccb_lock(cccb);
 
 	spin_lock(&pvr_dev->active_contexts.lock);
@@ -340,6 +345,7 @@ err_cccb_unlock_rollback:
 		list_del_init(&job->ctx->active_node);
 	spin_unlock(&pvr_dev->active_contexts.lock);
 	pvr_cccb_unlock_rollback(cccb);
+	pvr_power_put(pvr_dev);
 }
 
 static void pvr_job_push(struct pvr_job *job)
