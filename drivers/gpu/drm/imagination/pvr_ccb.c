@@ -222,7 +222,7 @@ pvr_fwccb_process_worker(struct work_struct *work)
 }
 
 /**
- * pvr_kccb_send_cmd_power_locked() - Send command to the KCCB, with a pm reference held
+ * pvr_kccb_send_cmd_powered() - Send command to the KCCB, with a pm reference held
  * @pvr_dev: Device pointer.
  * @cmd: Command to sent.
  * @kccb_slot: Address to store the KCCB slot for this command. May be %NULL.
@@ -232,8 +232,8 @@ pvr_fwccb_process_worker(struct work_struct *work)
  *  * -EBUSY if timeout while waiting for a free KCCB slot.
  */
 int
-pvr_kccb_send_cmd_power_locked(struct pvr_device *pvr_dev, struct rogue_fwif_kccb_cmd *cmd,
-			       u32 *kccb_slot)
+pvr_kccb_send_cmd_powered(struct pvr_device *pvr_dev, struct rogue_fwif_kccb_cmd *cmd,
+			  u32 *kccb_slot)
 {
 	struct pvr_ccb *pvr_ccb = &pvr_dev->kccb.ccb;
 	struct rogue_fwif_kccb_cmd *kccb = pvr_ccb->ccb;
@@ -297,7 +297,7 @@ pvr_kccb_send_cmd(struct pvr_device *pvr_dev, struct rogue_fwif_kccb_cmd *cmd,
 	if (err)
 		return err;
 
-	err = pvr_kccb_send_cmd_power_locked(pvr_dev, cmd, kccb_slot);
+	err = pvr_kccb_send_cmd_powered(pvr_dev, cmd, kccb_slot);
 
 	pvr_power_put(pvr_dev);
 

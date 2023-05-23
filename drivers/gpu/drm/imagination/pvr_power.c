@@ -44,7 +44,7 @@ pvr_power_send_command(struct pvr_device *pvr_dev, struct rogue_fwif_kccb_cmd *p
 
 	WRITE_ONCE(*fw_dev->power_sync, 0);
 
-	err = pvr_kccb_send_cmd_power_locked(pvr_dev, pow_cmd, &slot_nr);
+	err = pvr_kccb_send_cmd_powered(pvr_dev, pow_cmd, &slot_nr);
 	if (err)
 		goto err_out;
 
@@ -186,7 +186,7 @@ pvr_watchdog_kccb_stalled(struct pvr_device *pvr_dev)
 
 			health_check_cmd.cmd_type = ROGUE_FWIF_KCCB_CMD_HEALTH_CHECK;
 
-			pvr_kccb_send_cmd_power_locked(pvr_dev, &health_check_cmd, NULL);
+			pvr_kccb_send_cmd_powered(pvr_dev, &health_check_cmd, NULL);
 		}
 
 		pvr_dev->watchdog.kccb_stall_count = 0;
