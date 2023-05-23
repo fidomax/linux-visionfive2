@@ -78,11 +78,6 @@ struct pvr_vendor {
 	void *data;
 };
 
-enum pvr_power_state {
-	PVR_POWER_STATE_OFF = 0,
-	PVR_POWER_STATE_ON
-};
-
 /**
  * struct pvr_device - powervr-specific wrapper for &struct drm_device
  */
@@ -177,9 +172,6 @@ struct pvr_device {
 
 	/** @fw_dev: Firmware related data. */
 	struct pvr_fw_device fw_dev;
-
-	/** @power_state: Current GPU power state. */
-	enum pvr_power_state power_state;
 
 	/**
 	 * @params: Device-specific parameters.

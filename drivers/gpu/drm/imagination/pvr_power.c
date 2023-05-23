@@ -241,8 +241,6 @@ out_requeue:
 int
 pvr_power_init(struct pvr_device *pvr_dev)
 {
-	pvr_dev->power_state = PVR_POWER_STATE_OFF;
-
 	INIT_DELAYED_WORK(&pvr_dev->watchdog.work, pvr_watchdog_worker);
 
 	return 0;

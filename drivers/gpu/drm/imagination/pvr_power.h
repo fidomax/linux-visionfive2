@@ -11,7 +11,6 @@
 
 int pvr_power_init(struct pvr_device *pvr_dev);
 void pvr_power_fini(struct pvr_device *pvr_dev);
-int pvr_power_set_state(struct pvr_device *pvr_dev, enum pvr_power_state new_state);
 bool pvr_power_is_idle(struct pvr_device *pvr_dev);
 
 int pvr_power_request_idle(struct pvr_device *pvr_dev);

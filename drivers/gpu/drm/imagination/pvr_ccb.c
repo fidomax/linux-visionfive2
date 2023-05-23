@@ -222,7 +222,7 @@ pvr_fwccb_process_worker(struct work_struct *work)
 }
 
 /**
- * pvr_kccb_send_cmd_power_locked() - Send command to the KCCB, with the power lock held
+ * pvr_kccb_send_cmd_power_locked() - Send command to the KCCB, with a pm reference held
  * @pvr_dev: Device pointer.
  * @cmd: Command to sent.
  * @kccb_slot: Address to store the KCCB slot for this command. May be %NULL.
@@ -331,8 +331,6 @@ pvr_kccb_wait_for_completion(struct pvr_device *pvr_dev, u32 slot_nr,
 /**
  * pvr_kccb_is_idle() - Returns whether the device's KCCB is idle
  * @pvr_dev: Device pointer
- *
- * Caller must hold @pvr_dev->power_lock.
  *
  * Returns:
  *  * %true if the KCCB is idle (contains no commands), or
