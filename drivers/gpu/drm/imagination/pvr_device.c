@@ -253,6 +253,7 @@ static irqreturn_t pvr_meta_irq_handler(int irq, void *data)
 	if (pvr_dev->fw_dev.booted) {
 		queue_work(pvr_dev->irq_wq, &pvr_dev->fwccb_work);
 		wake_up(&pvr_dev->kccb.rtn_q);
+		queue_work(pvr_dev->irq_wq, &pvr_dev->kccb.work);
 		queue_work(pvr_dev->irq_wq, &pvr_dev->queues.work);
 	}
 

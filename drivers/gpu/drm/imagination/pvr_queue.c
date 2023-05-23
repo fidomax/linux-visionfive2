@@ -388,6 +388,38 @@ out_unlock:
 }
 
 /**
+ * pvr_queue_get_job_kccb_fence() - Get the KCCB fence attached to a job.
+ * @queue: The queue this job will be submitted to.
+ * @job: The job to get the KCCB fence on.
+ *
+ * The KCCB fence is a synchronization primitive allowing us to delay job
+ * submission until there's enough space in the KCCB to submit the job.
+ *
+ * Return:
+ *  * NULL if there's enough space in the KCCB to submit this job, or
+ *  * A valid dma_fence object otherwise.
+ */
+static struct dma_fence *
+pvr_queue_get_job_kccb_fence(struct pvr_queue *queue, struct pvr_job *job)
+{
+	struct pvr_device *pvr_dev = queue->ctx->pvr_dev;
+	struct dma_fence *kccb_fence;
+
+	/* If the fence is NULL, that means we already checked that we had
+	 * enough space in the KCCB for our job.
+	 */
+	if (!job->kccb_fence)
+		return NULL;
+
+	if (!WARN_ON(job->kccb_fence->ops)) {
+		kccb_fence = pvr_kccb_reserve_slot(pvr_dev, job->kccb_fence);
+		job->kccb_fence = NULL;
+	}
+
+	return kccb_fence;
+}
+
+/**
  * pvr_queue_prepare_job() - Return the next internal dependencies expressed as a dma_fence.
  * @sched_job: The job to query the next internal dependency on
  * @s_entity: The entity this job is queue on.
@@ -408,14 +440,17 @@ pvr_queue_prepare_job(struct drm_sched_job *sched_job,
 	 */
 	internal_dep = pvr_queue_get_job_cccb_fence(queue, job);
 
+	/* KCCB fence is used to make sure we have a KCCB slot to queue our
+	 * CMD_KICK.
+	 */
+	if (!internal_dep)
+		internal_dep = pvr_queue_get_job_kccb_fence(queue, job);
+
 	/* Any extra internal dependency should be added here, using the following
 	 * the following pattern:
 	 *
 	 *	if (!internal_dep)
 	 *		internal_dep = pvr_queue_get_job_xxxx_fence(queue, job);
-	 *
-	 * FIXME: Add an internal dependency to make sure we have a free KCCB slot
-	 * to queue our kick command.
 	 */
 	return internal_dep;
 }
@@ -556,6 +591,9 @@ err_cccb_unlock_rollback:
 	spin_lock(&queue->scheduler.job_list_lock);
 	queue->last_submitted_job = NULL;
 	spin_unlock(&queue->scheduler.job_list_lock);
+
+	/* If something fails, release the KCCB slot we reserved in pvr_queue_prepare_job(). */
+	pvr_kccb_release_slot(pvr_dev);
 
 	atomic_dec(&queue->in_flight_job_count);
 	pvr_queue_update_active_state(queue);
@@ -883,6 +921,7 @@ int pvr_queue_job_init(struct pvr_job *job)
 		return err;
 
 	job->cccb_fence = pvr_queue_fence_alloc();
+	job->kccb_fence = pvr_kccb_fence_alloc();
 	job->done_fence = pvr_queue_fence_alloc();
 	if (!job->cccb_fence || !job->done_fence)
 		return -ENOMEM;
@@ -922,6 +961,7 @@ void pvr_queue_job_cleanup(struct pvr_job *job)
 {
 	pvr_queue_fence_put(job->done_fence);
 	pvr_queue_fence_put(job->cccb_fence);
+	pvr_kccb_fence_put(job->kccb_fence);
 
 	if (job->base.s_fence)
 		drm_sched_job_cleanup(&job->base);

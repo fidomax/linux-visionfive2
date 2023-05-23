@@ -38,13 +38,23 @@ struct pvr_ccb {
 };
 
 int pvr_kccb_init(struct pvr_device *pvr_dev);
+void pvr_kccb_fini(struct pvr_device *pvr_dev);
 int pvr_fwccb_init(struct pvr_device *pvr_dev);
 void pvr_ccb_fini(struct pvr_ccb *ccb);
 
+struct dma_fence *pvr_kccb_fence_alloc(void);
+void pvr_kccb_fence_put(struct dma_fence *fence);
+struct dma_fence *
+pvr_kccb_reserve_slot(struct pvr_device *pvr_dev, struct dma_fence *f);
+void pvr_kccb_release_slot(struct pvr_device *pvr_dev);
 int pvr_kccb_send_cmd(struct pvr_device *pvr_dev,
 		      struct rogue_fwif_kccb_cmd *cmd, u32 *kccb_slot);
 int pvr_kccb_send_cmd_powered(struct pvr_device *pvr_dev,
-			      struct rogue_fwif_kccb_cmd *cmd, u32 *kccb_slot);
+			      struct rogue_fwif_kccb_cmd *cmd,
+			      u32 *kccb_slot);
+int pvr_kccb_send_cmd_reserved_powered(struct pvr_device *pvr_dev,
+				       struct rogue_fwif_kccb_cmd *cmd,
+				       u32 *kccb_slot);
 int pvr_kccb_wait_for_completion(struct pvr_device *pvr_dev, u32 slot_nr, u32 timeout,
 				 u32 *rtn_out);
 bool pvr_kccb_is_idle(struct pvr_device *pvr_dev);

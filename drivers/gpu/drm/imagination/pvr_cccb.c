@@ -409,7 +409,7 @@ pvr_cccb_unlock_send_kccb_kick(struct pvr_device *pvr_dev,
 	}
 	cmd_kick_data->work_est_cmd_header_offset = 0;
 
-	err = pvr_kccb_send_cmd(pvr_dev, &cmd_kick, NULL);
+	err = pvr_kccb_send_cmd_reserved_powered(pvr_dev, &cmd_kick, NULL);
 	if (err)
 		goto err_out;
 

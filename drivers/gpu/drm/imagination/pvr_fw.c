@@ -917,7 +917,7 @@ err_fwccb_fini:
 	pvr_ccb_fini(&pvr_dev->fwccb);
 
 err_kccb_fini:
-	pvr_ccb_fini(&pvr_dev->kccb.ccb);
+	pvr_kccb_fini(pvr_dev);
 
 err_fw_cleanup:
 	pvr_fw_cleanup(pvr_dev);
@@ -952,7 +952,7 @@ pvr_fw_fini(struct pvr_device *pvr_dev)
 	 */
 	flush_work(&pvr_dev->fwccb_work);
 	pvr_ccb_fini(&pvr_dev->fwccb);
-	pvr_ccb_fini(&pvr_dev->kccb.ccb);
+	pvr_kccb_fini(pvr_dev);
 	pvr_fw_cleanup(pvr_dev);
 
 	drm_mm_takedown(&fw_dev->fw_mm);

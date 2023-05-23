@@ -43,6 +43,9 @@ struct pvr_job {
 	/** @cccb_fence: Fence used to wait for CCCB space. */
 	struct dma_fence *cccb_fence;
 
+	/** @kccb_fence: Fence used to wait for KCCB space. */
+	struct dma_fence *kccb_fence;
+
 	/** @done_fence: Fence to signal when the job is done. */
 	struct dma_fence *done_fence;
 

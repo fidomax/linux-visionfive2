@@ -3,6 +3,7 @@
 
 #include "pvr_ccb.h"
 #include "pvr_device.h"
+#include "pvr_drv.h"
 #include "pvr_dump.h"
 #include "pvr_free_list.h"
 #include "pvr_fw.h"
@@ -18,7 +19,7 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
-#define ACQUIRE_SLOT_TIMEOUT (1 * HZ) /* 1s */
+#define RESERVE_SLOT_TIMEOUT (1 * HZ) /* 1s */
 
 /**
  * pvr_ccb_init() - Initialise a CCB
@@ -120,33 +121,6 @@ pvr_ccb_slot_available_locked(struct pvr_ccb *pvr_ccb, u32 *write_offset)
 	return false;
 }
 
-/**
- * pvr_ccb_acquire_slot_locked() - Acquire slot in CCB
- * @pvr_ccb: CCB to acquire slot in.
- * @write_offset: Address to store acquired slot number.
- *
- * Caller must hold @pvr_ccb->lock.
- *
- * Return:
- *  * Zero on success, or
- *  * -EBUSY if function times out waiting for a slot.
- */
-static int
-pvr_ccb_acquire_slot_locked(struct pvr_ccb *pvr_ccb, u32 *write_offset)
-{
-	unsigned long start_timestamp = jiffies;
-
-	lockdep_assert_held(&pvr_ccb->lock);
-
-	while ((jiffies - start_timestamp) < (u32)ACQUIRE_SLOT_TIMEOUT) {
-		if (pvr_ccb_slot_available_locked(pvr_ccb, write_offset))
-			return 0;
-		usleep_range(1, 50);
-	}
-
-	return -EBUSY;
-}
-
 static void
 process_fwccb_command(struct pvr_device *pvr_dev, struct rogue_fwif_fwccb_cmd *cmd)
 {
@@ -222,7 +196,53 @@ pvr_fwccb_process_worker(struct work_struct *work)
 }
 
 /**
- * pvr_kccb_send_cmd_powered() - Send command to the KCCB, with a pm reference held
+ * pvr_kccb_capacity() - Returns the maximum number of usable KCCB slots.
+ * @pvr_dev: Target PowerVR device
+ *
+ * Return:
+ *  * The maximum number of active slots.
+ */
+static u32 pvr_kccb_capacity(struct pvr_device *pvr_dev)
+{
+	/* Capacity is the number of slot minus one to cope with the wrapping
+	 * mechanisms. If we were to use all slots, we might end up with
+	 * read_offset == write_offset, which the FW considers as a KCCB-is-empty
+	 * condition.
+	 */
+	return pvr_dev->kccb.slot_count - 1;
+}
+
+/**
+ * pvr_kccb_used_slot_count_locked() - Get the number of used slots
+ * @pvr_dev: Device pointer.
+ *
+ * KCCB lock must be held.
+ *
+ * Return:
+ *  * The number of slots currently used.
+ */
+static u32
+pvr_kccb_used_slot_count_locked(struct pvr_device *pvr_dev)
+{
+	struct pvr_ccb *pvr_ccb = &pvr_dev->kccb.ccb;
+	struct rogue_fwif_ccb_ctl *ctrl = pvr_ccb->ctrl;
+	u32 wr_offset = ctrl->write_offset;
+	u32 rd_offset = ctrl->read_offset;
+	u32 used_count;
+
+	lockdep_assert_held(&pvr_ccb->lock);
+
+	if (wr_offset >= rd_offset)
+		used_count = wr_offset - rd_offset;
+	else
+		used_count = wr_offset + pvr_dev->kccb.slot_count - rd_offset;
+
+	return used_count;
+}
+
+/**
+ * pvr_kccb_send_cmd_reserved_powered() - Send command to the KCCB, with the PM ref
+ * held and a slot pre-reserved
  * @pvr_dev: Device pointer.
  * @cmd: Command to sent.
  * @kccb_slot: Address to store the KCCB slot for this command. May be %NULL.
@@ -232,8 +252,9 @@ pvr_fwccb_process_worker(struct work_struct *work)
  *  * -EBUSY if timeout while waiting for a free KCCB slot.
  */
 int
-pvr_kccb_send_cmd_powered(struct pvr_device *pvr_dev, struct rogue_fwif_kccb_cmd *cmd,
-			  u32 *kccb_slot)
+pvr_kccb_send_cmd_reserved_powered(struct pvr_device *pvr_dev,
+				   struct rogue_fwif_kccb_cmd *cmd,
+				   u32 *kccb_slot)
 {
 	struct pvr_ccb *pvr_ccb = &pvr_dev->kccb.ccb;
 	struct rogue_fwif_kccb_cmd *kccb = pvr_ccb->ccb;
@@ -246,11 +267,18 @@ pvr_kccb_send_cmd_powered(struct pvr_device *pvr_dev, struct rogue_fwif_kccb_cmd
 
 	mutex_lock(&pvr_ccb->lock);
 
+	if (WARN_ON(!pvr_dev->kccb.reserved_count)) {
+		err = -EINVAL;
+		goto err_unlock;
+	}
+
 	old_write_offset = ctrl->write_offset;
 
-	err = pvr_ccb_acquire_slot_locked(pvr_ccb, &new_write_offset);
-	if (err)
+	/* We reserved the slot, we should have one available. */
+	if (WARN_ON(!pvr_ccb_slot_available_locked(pvr_ccb, &new_write_offset))) {
+		err = -EINVAL;
 		goto err_unlock;
+	}
 
 	memcpy(&kccb[old_write_offset], cmd,
 	       sizeof(struct rogue_fwif_kccb_cmd));
@@ -262,6 +290,7 @@ pvr_kccb_send_cmd_powered(struct pvr_device *pvr_dev, struct rogue_fwif_kccb_cmd
 	}
 	mb(); /* memory barrier */
 	ctrl->write_offset = new_write_offset;
+	pvr_dev->kccb.reserved_count--;
 
 	mutex_unlock(&pvr_ccb->lock);
 
@@ -273,6 +302,83 @@ pvr_kccb_send_cmd_powered(struct pvr_device *pvr_dev, struct rogue_fwif_kccb_cmd
 
 err_unlock:
 	mutex_unlock(&pvr_ccb->lock);
+
+	return err;
+}
+
+/**
+ * pvr_kccb_try_reserve_slot() - Try to reserve a KCCB slot
+ * @pvr_dev: Device pointer.
+ *
+ * Return:
+ *  * true if a KCCB slot was reserved, or
+ *  * false otherwise.
+ */
+static bool pvr_kccb_try_reserve_slot(struct pvr_device *pvr_dev)
+{
+	bool reserved = false;
+	u32 used_count;
+
+	mutex_lock(&pvr_dev->kccb.ccb.lock);
+
+	used_count = pvr_kccb_used_slot_count_locked(pvr_dev);
+	if (pvr_dev->kccb.reserved_count < pvr_kccb_capacity(pvr_dev) - used_count) {
+		pvr_dev->kccb.reserved_count++;
+		reserved = true;
+	}
+
+	mutex_unlock(&pvr_dev->kccb.ccb.lock);
+
+	return reserved;
+}
+
+/**
+ * pvr_kccb_reserve_slot_sync() - Try to reserve a slot synchronously
+ * @pvr_dev: Device pointer.
+ *
+ * Return:
+ *  * 0 on success, or
+ *  * -EBUSY if now slots were reserved after %RESERVE_SLOT_TIMEOUT.
+ */
+static int pvr_kccb_reserve_slot_sync(struct pvr_device *pvr_dev)
+{
+	unsigned long start_timestamp = jiffies;
+	bool reserved = false;
+
+	while ((jiffies - start_timestamp) < (u32)RESERVE_SLOT_TIMEOUT) {
+		reserved = pvr_kccb_try_reserve_slot(pvr_dev);
+		if (reserved)
+			break;
+
+		usleep_range(1, 50);
+	}
+
+	return reserved ? 0 : -EBUSY;
+}
+
+/**
+ * pvr_kccb_send_cmd_powered() - Send command to the KCCB, with a PM ref held
+ * @pvr_dev: Device pointer.
+ * @cmd: Command to sent.
+ * @kccb_slot: Address to store the KCCB slot for this command. May be %NULL.
+ *
+ * Returns:
+ *  * Zero on success, or
+ *  * -EBUSY if timeout while waiting for a free KCCB slot.
+ */
+int
+pvr_kccb_send_cmd_powered(struct pvr_device *pvr_dev, struct rogue_fwif_kccb_cmd *cmd,
+			  u32 *kccb_slot)
+{
+	int err;
+
+	err = pvr_kccb_reserve_slot_sync(pvr_dev);
+	if (err)
+		return err;
+
+	err = pvr_kccb_send_cmd_reserved_powered(pvr_dev, cmd, kccb_slot);
+	if (err)
+		pvr_kccb_release_slot(pvr_dev);
 
 	return err;
 }
@@ -351,6 +457,94 @@ pvr_kccb_is_idle(struct pvr_device *pvr_dev)
 	return idle;
 }
 
+static const char *
+pvr_kccb_fence_get_driver_name(struct dma_fence *f)
+{
+	return PVR_DRIVER_NAME;
+}
+
+static const char *
+pvr_kccb_fence_get_timeline_name(struct dma_fence *f)
+{
+	return "kccb";
+}
+
+static const struct dma_fence_ops pvr_kccb_fence_ops = {
+	.get_driver_name = pvr_kccb_fence_get_driver_name,
+	.get_timeline_name = pvr_kccb_fence_get_timeline_name,
+};
+
+/**
+ * struct pvr_kccb_fence - Fence object used to wait for a KCCB slot
+ */
+struct pvr_kccb_fence {
+	/** @base: Base dma_fence object. */
+	struct dma_fence base;
+
+	/** @node: Node used to insert the fence in the pvr_device::kccb::waiters list. */
+	struct list_head node;
+};
+
+/**
+ * pvr_kccb_check_waiters() - Check the KCCB waiters
+ * @pvr_dev: Target PowerVR device
+ *
+ * Signal as many KCCB fences as we have slots available.
+ */
+static void pvr_kccb_check_waiters(struct pvr_device *pvr_dev)
+{
+	struct pvr_kccb_fence *fence, *tmp_fence;
+	u32 used_count, available_count;
+
+	/* Then iterate over all KCCB fences and signal as many as we can. */
+	mutex_lock(&pvr_dev->kccb.ccb.lock);
+	used_count = pvr_kccb_used_slot_count_locked(pvr_dev);
+
+	if (WARN_ON(used_count + pvr_dev->kccb.reserved_count > pvr_kccb_capacity(pvr_dev)))
+		goto out_unlock;
+
+	available_count = pvr_kccb_capacity(pvr_dev) - used_count - pvr_dev->kccb.reserved_count;
+	list_for_each_entry_safe(fence, tmp_fence, &pvr_dev->kccb.waiters, node) {
+		if (!available_count)
+			break;
+
+		list_del(&fence->node);
+		pvr_dev->kccb.reserved_count++;
+		available_count--;
+		dma_fence_signal(&fence->base);
+		dma_fence_put(&fence->base);
+	}
+
+out_unlock:
+	mutex_unlock(&pvr_dev->kccb.ccb.lock);
+}
+
+/**
+ * pvr_kccb_process_worker() - KCCB processing work
+ * @work: Work object.
+ *
+ * Called on a FW event. We use it to signal KCCB slot waiters when we have slots
+ * available.
+ */
+static void pvr_kccb_process_worker(struct work_struct *work)
+{
+	struct pvr_device *pvr_dev = container_of(work, struct pvr_device, kccb.work);
+
+	pvr_kccb_check_waiters(pvr_dev);
+}
+
+/**
+ * pvr_kccb_fini() - Cleanup device KCCB
+ * @pvr_dev: Target PowerVR device
+ */
+void pvr_kccb_fini(struct pvr_device *pvr_dev)
+{
+	cancel_work_sync(&pvr_dev->kccb.work);
+	pvr_ccb_fini(&pvr_dev->kccb.ccb);
+	WARN_ON(!list_empty(&pvr_dev->kccb.waiters));
+	WARN_ON(pvr_dev->kccb.reserved_count);
+}
+
 /**
  * pvr_kccb_init() - Initialise device KCCB
  * @pvr_dev: Target PowerVR device
@@ -362,9 +556,112 @@ pvr_kccb_is_idle(struct pvr_device *pvr_dev)
 int
 pvr_kccb_init(struct pvr_device *pvr_dev)
 {
+	pvr_dev->kccb.slot_count = 1 << ROGUE_FWIF_KCCB_NUMCMDS_LOG2_DEFAULT;
+	INIT_LIST_HEAD(&pvr_dev->kccb.waiters);
+	pvr_dev->kccb.fence_ctx.id = dma_fence_context_alloc(1);
+	spin_lock_init(&pvr_dev->kccb.fence_ctx.lock);
+	INIT_WORK(&pvr_dev->kccb.work, pvr_kccb_process_worker);
+
 	return pvr_ccb_init(pvr_dev, &pvr_dev->kccb.ccb,
 			    ROGUE_FWIF_KCCB_NUMCMDS_LOG2_DEFAULT,
 			    sizeof(struct rogue_fwif_kccb_cmd));
+}
+
+/**
+ * pvr_kccb_fence_alloc() - Allocate a pvr_kccb_fence object
+ *
+ * Return:
+ *  * NULL if the allocation fails, or
+ *  * A valid dma_fence pointer otherwise.
+ */
+struct dma_fence *pvr_kccb_fence_alloc(void)
+{
+	struct pvr_kccb_fence *kccb_fence;
+
+	kccb_fence = kzalloc(sizeof(*kccb_fence), GFP_KERNEL);
+	if (!kccb_fence)
+		return NULL;
+
+	return &kccb_fence->base;
+}
+
+/**
+ * pvr_kccb_fence_put() - Drop a KCCB fence reference
+ * @fence: The fence to drop the reference on.
+ *
+ * If the fence hasn't been initialized yet, dma_fence_free() is called. This
+ * way we have a single function taking care of both cases.
+ */
+void pvr_kccb_fence_put(struct dma_fence *fence)
+{
+	if (!fence)
+		return;
+
+	if (!fence->ops) {
+		dma_fence_free(fence);
+	} else {
+		WARN_ON(fence->ops != &pvr_kccb_fence_ops);
+		dma_fence_put(fence);
+	}
+}
+
+/**
+ * pvr_kccb_reserve_slot() - Reserve a KCCB slot for later use
+ * @pvr_dev: Target PowerVR device
+ * @f: KCCB fence object previously allocated with pvr_kccb_fence_alloc()
+ *
+ * Try to reserve a KCCB slot, and if there's no slot available,
+ * initializes the fence object and queue it to the waiters list.
+ *
+ * If NULL is returned, that means the slot is reserved. In that case,
+ * the @f is freed and shouldn't be accessed after that point.
+ *
+ * Return:
+ *  * NULL if a slot was available directly, or
+ *  * A valid dma_fence object to wait on if no slot was available.
+ */
+struct dma_fence *
+pvr_kccb_reserve_slot(struct pvr_device *pvr_dev, struct dma_fence *f)
+{
+	struct pvr_kccb_fence *fence = container_of(f, struct pvr_kccb_fence, base);
+	struct dma_fence *out_fence = NULL;
+	u32 used_count;
+
+	mutex_lock(&pvr_dev->kccb.ccb.lock);
+
+	used_count = pvr_kccb_used_slot_count_locked(pvr_dev);
+	if (pvr_dev->kccb.reserved_count >= pvr_kccb_capacity(pvr_dev) - used_count) {
+		dma_fence_init(&fence->base, &pvr_kccb_fence_ops,
+			       &pvr_dev->kccb.fence_ctx.lock,
+			       pvr_dev->kccb.fence_ctx.id,
+			       atomic_inc_return(&pvr_dev->kccb.fence_ctx.seqno));
+		out_fence = dma_fence_get(&fence->base);
+		list_add_tail(&fence->node, &pvr_dev->kccb.waiters);
+	} else {
+		pvr_kccb_fence_put(f);
+		pvr_dev->kccb.reserved_count++;
+	}
+
+	mutex_unlock(&pvr_dev->kccb.ccb.lock);
+
+	return out_fence;
+}
+
+/**
+ * pvr_kccb_release_slot() - Release a KCCB slot reserved with
+ * pvr_kccb_reserve_slot()
+ * @pvr_dev: Target PowerVR device
+ *
+ * Should only be called if something failed after the
+ * pvr_kccb_reserve_slot() call and you know you won't call
+ * pvr_kccb_send_cmd_reserved().
+ */
+void pvr_kccb_release_slot(struct pvr_device *pvr_dev)
+{
+	mutex_lock(&pvr_dev->kccb.ccb.lock);
+	if (!WARN_ON(!pvr_dev->kccb.reserved_count))
+		pvr_dev->kccb.reserved_count--;
+	mutex_unlock(&pvr_dev->kccb.ccb.lock);
 }
 
 /**

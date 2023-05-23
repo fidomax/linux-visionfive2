@@ -247,6 +247,35 @@ struct pvr_device {
 		 *       READ_ONCE()/WRITE_ONCE().
 		 */
 		u32 *rtn;
+
+		/** @slot_count: Total number of KCCB slots available. */
+		u32 slot_count;
+
+		/** @reserved_count: Number of KCCB slots reserved for future use. */
+		u32 reserved_count;
+
+		/** @work: Work item for KCCB processing. */
+		struct work_struct work;
+
+		/**
+		 * @waiters: List of KCCB slot waiters.
+		 */
+		struct list_head waiters;
+
+		/** @fence_ctx: KCCB fence context. */
+		struct {
+			/** @id: KCCB fence context ID allocated with dma_fence_context_alloc(). */
+			u64 id;
+
+			/** @seqno: Sequence number incremented each time a fence is created. */
+			atomic_t seqno;
+
+			/**
+			 * @lock: Lock used to synchronize access to fences allocated by this
+			 * context.
+			 */
+			spinlock_t lock;
+		} fence_ctx;
 	} kccb;
 
 	/** @lost: %true if the device has been lost. */
