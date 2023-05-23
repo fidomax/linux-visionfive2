@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note OR MIT */
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#ifndef PVR_DRM_H
-#define PVR_DRM_H
+#ifndef PVR_DRM_UAPI_H
+#define PVR_DRM_UAPI_H
 
 #include "drm.h"
 
@@ -1879,4 +1879,4 @@ struct pvr_coredump_block_hwrinfo {
 }
 #endif
 
-#endif /* PVR_DRM_H */
+#endif /* PVR_DRM_UAPI_H */
