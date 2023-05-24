@@ -110,7 +110,8 @@ pvr_cccb_unlock_rollback(struct pvr_cccb *pvr_cccb)
 static __always_inline u32
 pvr_cccb_get_size_of_cmd_with_hdr(u32 cmd_size)
 {
-	return sizeof(struct rogue_fwif_ccb_cmd_header) + cmd_size;
+	WARN_ON(!IS_ALIGNED(cmd_size, 8));
+	return sizeof(struct rogue_fwif_ccb_cmd_header) + ALIGN(cmd_size, 8);
 }
 
 /**
