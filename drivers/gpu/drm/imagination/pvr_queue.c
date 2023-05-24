@@ -532,8 +532,6 @@ static struct dma_fence *pvr_queue_run_job(struct drm_sched_job *sched_job)
 	atomic_inc(&queue->in_flight_job_count);
 	pvr_queue_update_active_state(queue);
 
-	pvr_cccb_lock(cccb);
-
 	xa_for_each(&job->base.dependencies, index, fence) {
 		jfence = to_pvr_queue_job_fence(fence);
 		if (WARN_ON(!jfence))
@@ -542,24 +540,19 @@ static struct dma_fence *pvr_queue_run_job(struct drm_sched_job *sched_job)
 		pvr_fw_object_get_fw_addr(jfence->queue->timeline_ufo.fw_obj,
 					  &queue_ufo.addr);
 		queue_ufo.value = fence->seqno;
-		err = pvr_cccb_write_command_with_header(cccb, ROGUE_FWIF_CCB_CMD_TYPE_FENCE_PR,
-							 sizeof(queue_ufo), &queue_ufo, 0, 0);
-		if (WARN_ON(err))
-			goto err_cccb_unlock_rollback;
+		pvr_cccb_write_command_with_header(cccb, ROGUE_FWIF_CCB_CMD_TYPE_FENCE_PR,
+						   sizeof(queue_ufo), &queue_ufo, 0, 0);
 	}
 
 	/* Submit job to FW */
-	err = pvr_cccb_write_command_with_header(cccb, job->fw_ccb_cmd_type, job->cmd_len, job->cmd,
-						 job->id, job->id);
-	if (WARN_ON(err))
-		goto err_cccb_unlock_rollback;
+	pvr_cccb_write_command_with_header(cccb, job->fw_ccb_cmd_type, job->cmd_len, job->cmd,
+					   job->id, job->id);
 
+	/* Signal the job fence. */
 	pvr_fw_object_get_fw_addr(queue->timeline_ufo.fw_obj, &queue_ufo.addr);
 	queue_ufo.value = job->done_fence->seqno;
-	err = pvr_cccb_write_command_with_header(cccb, ROGUE_FWIF_CCB_CMD_TYPE_UPDATE,
-						 sizeof(queue_ufo), &queue_ufo, 0, 0);
-	if (WARN_ON(err))
-		goto err_cccb_unlock_rollback;
+	pvr_cccb_write_command_with_header(cccb, ROGUE_FWIF_CCB_CMD_TYPE_UPDATE,
+					   sizeof(queue_ufo), &queue_ufo, 0, 0);
 
 	/* The job we submit is added to the drm_gpu_scheduler::pending_list in
 	 * drm_sched_job_begin() which is called after ::run_job() returns. But the
@@ -574,45 +567,10 @@ static struct dma_fence *pvr_queue_run_job(struct drm_sched_job *sched_job)
 	spin_lock(&queue->scheduler.job_list_lock);
 	queue->last_submitted_job = job;
 	spin_unlock(&queue->scheduler.job_list_lock);
-	err = pvr_cccb_unlock_send_kccb_kick(pvr_dev, cccb, ctx_fw_addr, job->hwrt);
-	if (WARN_ON(err))
-		goto err_cccb_unlock_rollback;
+
+	pvr_cccb_send_kccb_kick(pvr_dev, cccb, ctx_fw_addr, job->hwrt);
 
 	return dma_fence_get(job->done_fence);
-
-err_cccb_unlock_rollback:
-	pvr_cccb_unlock_rollback(cccb);
-
-	/* If ::run_job() is called, that means the previous job made it to the
-	 * drm_gpu_scheduler::pending_list, so we don't need to restore
-	 * the previous last_submitted_job value, we can just set it back to
-	 * NULL.
-	 */
-	spin_lock(&queue->scheduler.job_list_lock);
-	queue->last_submitted_job = NULL;
-	spin_unlock(&queue->scheduler.job_list_lock);
-
-	/* If something fails, release the KCCB slot we reserved in pvr_queue_prepare_job(). */
-	pvr_kccb_release_slot(pvr_dev);
-
-	atomic_dec(&queue->in_flight_job_count);
-	pvr_queue_update_active_state(queue);
-
-	pvr_job_release_pm_ref(job);
-
-	/* We need to signal the done_fence before leaving, so any other job having it
-	 * has a native dependency can evict it before adding a native wait. If
-	 * we don't do that, we'll end up with an infinite FW wait. The hole we leave
-	 * in the UFO timeline shouldn't be an issue, because we explicitly pass the
-	 * value to write/wait upon through the FENCE commands, it's just a value we'll
-	 * never get to use.
-	 *
-	 * Note that we're not even supposed to fail here because we checked that we
-	 * had enough {C,K}CCB space to queue our command before entering this function.
-	 */
-	dma_fence_set_error(job->done_fence, err);
-	dma_fence_signal(job->done_fence);
-	return ERR_PTR(err);
 }
 
 /**

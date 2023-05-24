@@ -28,9 +28,6 @@ struct pvr_cccb {
 	/** @ccb_obj: FW object representing CCCB. */
 	struct pvr_fw_object *cccb_obj;
 
-	/** @lock: Mutex protecting @ctrl and @cccb. */
-	struct mutex lock;
-
 	/**
 	 * @ctrl: Kernel mapping of CCCB control structure. @lock must be held
 	 *        when accessing.
@@ -53,53 +50,19 @@ struct pvr_cccb {
 
 	/** @wrap_mask: CCCB wrap mask. */
 	u32 wrap_mask;
-
-	/** @old_write_offset: CCCB write offset, sampled at CCCB lock time. */
-	u32 old_write_offset;
 };
 
 int pvr_cccb_init(struct pvr_device *pvr_dev, struct pvr_cccb *cccb,
 		  u32 size_log2, const char *name);
 void pvr_cccb_fini(struct pvr_cccb *cccb);
 
-int pvr_cccb_write_command(struct pvr_cccb *pvr_cccb, void *cmd_data,
-			   size_t size);
-int
-pvr_cccb_write_command_with_header(struct pvr_cccb *pvr_cccb, u32 cmd_type, u32 cmd_size,
-				   void *cmd_data, u32 ext_job_ref, u32 int_job_ref);
-int pvr_cccb_wait_for_idle(struct pvr_cccb *pvr_cccb, u32 timeout);
-int pvr_cccb_unlock_send_kccb_kick(struct pvr_device *pvr_dev,
-				   struct pvr_cccb *pvr_cccb, u32 cctx_fw_addr,
-				   struct pvr_hwrt_data *hwrt);
-int pvr_cccb_check_command_space(struct pvr_cccb *pvr_cccb, size_t size);
-
+void pvr_cccb_write_command_with_header(struct pvr_cccb *pvr_cccb,
+					u32 cmd_type, u32 cmd_size, void *cmd_data,
+					u32 ext_job_ref, u32 int_job_ref);
+void pvr_cccb_send_kccb_kick(struct pvr_device *pvr_dev,
+			     struct pvr_cccb *pvr_cccb, u32 cctx_fw_addr,
+			     struct pvr_hwrt_data *hwrt);
 bool pvr_cccb_cmdseq_fits(struct pvr_cccb *pvr_cccb, size_t size);
-
-/**
- * pvr_cccb_lock() - Lock a client CCB for writing
- * @pvr_cccb: Target client CCB.
- */
-static __always_inline void
-pvr_cccb_lock(struct pvr_cccb *pvr_cccb)
-{
-	mutex_lock(&pvr_cccb->lock);
-
-	pvr_cccb->old_write_offset = pvr_cccb->write_offset;
-}
-
-/**
- * pvr_cccb_unlock_rollback() - Unlock a client CCB and rollback any written
- *                              commands
- * @pvr_cccb: Target client CCB.
- */
-static __always_inline void
-pvr_cccb_unlock_rollback(struct pvr_cccb *pvr_cccb)
-{
-	lockdep_assert_held(&pvr_cccb->lock);
-
-	pvr_cccb->write_offset = pvr_cccb->old_write_offset;
-	mutex_unlock(&pvr_cccb->lock);
-}
 
 /**
  * pvr_cccb_get_size_of_cmd_with_hdr() - Get the size of a command and its header.
