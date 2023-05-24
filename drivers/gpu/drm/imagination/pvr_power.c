@@ -136,27 +136,6 @@ pvr_power_is_idle(struct pvr_device *pvr_dev)
 	return (pow_state == ROGUE_FWIF_POW_IDLE) && kccb_idle;
 }
 
-/**
- * pvr_power_check_idle() - Check for GPU idle, and schedule power off if required
- * @pvr_dev: Target PowerVR device
- *
- * The actual power off is performed by a delayed work item. This implements hysteresis.
- */
-void
-pvr_power_check_idle(struct pvr_device *pvr_dev)
-{
-	enum rogue_fwif_pow_state pow_state = READ_ONCE(pvr_dev->fw_dev.fwif_sysdata->pow_state);
-
-	if (pow_state == ROGUE_FWIF_POW_IDLE &&
-	    !delayed_work_pending(&pvr_dev->delayed_idle_work)) {
-		queue_delayed_work(pvr_dev->irq_wq, &pvr_dev->delayed_idle_work,
-				   POWER_IDLE_DELAY_JIFFIES);
-	} else if (pow_state != ROGUE_FWIF_POW_IDLE &&
-		   delayed_work_pending(&pvr_dev->delayed_idle_work)) {
-		cancel_delayed_work(&pvr_dev->delayed_idle_work);
-	}
-}
-
 static bool
 pvr_watchdog_kccb_stalled(struct pvr_device *pvr_dev)
 {

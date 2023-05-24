@@ -157,9 +157,6 @@ struct pvr_device {
 	/** @fwccb_work: Work item for FWCCB processing. */
 	struct work_struct fwccb_work;
 
-	/** @delayed_idle_work: Delayed work item for idle checking. */
-	struct delayed_work delayed_idle_work;
-
 	/**
 	 * @kernel_vm_ctx: Virtual memory context used for kernel mappings.
 	 *
