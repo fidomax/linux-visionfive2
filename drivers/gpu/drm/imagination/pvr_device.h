@@ -309,6 +309,25 @@ struct pvr_file {
 	 * This array is used to allocate handles returned to userspace.
 	 */
 	struct xarray vm_ctx_handles;
+
+	/**
+	 * @submit_lock: Lock used to prevent concurrent access to the queues
+	 * targeted by a SUBMIT_JOBS ioctl.
+	 *
+	 * drm_sched_job_arm() and drm_sched_entity_push_job() need to be called
+	 * in the same critical section, so that the seqno assigned to job fences
+	 * in drm_sched_job_arm() are consistent with the order in the entity
+	 * list.
+	 *
+	 * Jobs submission is implemented as an atomic operation where all jobs
+	 * are submitted or none of them are. We also allow jobs to be passed
+	 * fences issued by previous jobs in the job array, and that requires
+	 * calling drm_sched_job_arm() on a job, before proceeding with the next
+	 * job in the list. For all these reasons the region protected by the lock
+	 * is quite large, which is likely to hurt perfs on apps that submit
+	 * things to different VkQueues in separate threads.
+	 */
+	struct mutex submit_lock;
 };
 
 /**

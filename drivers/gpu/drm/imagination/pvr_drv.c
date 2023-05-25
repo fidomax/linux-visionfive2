@@ -1337,6 +1337,8 @@ pvr_drm_driver_open(struct drm_device *drm_dev, struct drm_file *file)
 	xa_init_flags(&pvr_file->hwrt_handles, XA_FLAGS_ALLOC1);
 	xa_init_flags(&pvr_file->vm_ctx_handles, XA_FLAGS_ALLOC1);
 
+	mutex_init(&pvr_file->submit_lock);
+
 	/*
 	 * Store reference to powervr-specific file private data in DRM file
 	 * private data.
@@ -1372,6 +1374,8 @@ pvr_drm_driver_postclose(__always_unused struct drm_device *drm_dev,
 	pvr_destroy_free_lists_for_file(pvr_file);
 	pvr_destroy_hwrt_datasets_for_file(pvr_file);
 	pvr_destroy_vm_contexts_for_file(pvr_file);
+
+	mutex_destroy(&pvr_file->submit_lock);
 
 	kfree(pvr_file);
 	file->driver_priv = NULL;
