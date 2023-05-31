@@ -1434,7 +1434,7 @@ pvr_probe(struct platform_device *plat_dev)
 	if (err)
 		goto err_context_fini;
 
-	pm_runtime_enable(&plat_dev->dev);
+	devm_pm_runtime_enable(&plat_dev->dev);
 
 	pm_runtime_set_autosuspend_delay(&plat_dev->dev, 50);
 	pm_runtime_use_autosuspend(&plat_dev->dev);
@@ -1471,7 +1471,6 @@ err_vendor_fini:
 err_power_fini:
 	pvr_power_fini(pvr_dev);
 
-	pm_runtime_disable(&plat_dev->dev);
 	pvr_queue_device_fini(pvr_dev);
 
 err_context_fini:
@@ -1498,7 +1497,6 @@ pvr_remove(struct platform_device *plat_dev)
 	if (pvr_dev->vendor.callbacks && pvr_dev->vendor.callbacks->fini)
 		pvr_dev->vendor.callbacks->fini(pvr_dev);
 	pvr_power_fini(pvr_dev);
-	pm_runtime_disable(&plat_dev->dev);
 	pvr_queue_device_fini(pvr_dev);
 	pvr_context_device_fini(pvr_dev);
 
