@@ -488,8 +488,8 @@ pvr_submit_jobs(struct pvr_device *pvr_dev,
 		struct drm_pvr_ioctl_submit_jobs_args *args)
 {
 	struct drm_pvr_job *jobs_args = NULL;
-	DEFINE_XARRAY_ALLOC(signal_array);
 	struct pvr_job **jobs = NULL;
+	struct xarray signal_array;
 	int err;
 
 	if (!args->jobs.count)
@@ -498,6 +498,8 @@ pvr_submit_jobs(struct pvr_device *pvr_dev,
 	err = PVR_UOBJ_GET_ARRAY(jobs_args, &args->jobs);
 	if (err)
 		return err;
+
+	xa_init_flags(&signal_array, XA_FLAGS_ALLOC);
 
 	/* NOLINTNEXTLINE(bugprone-sizeof-expression) */
 	jobs = kvmalloc_array(args->jobs.count, sizeof(*jobs), GFP_KERNEL | __GFP_ZERO);
