@@ -330,7 +330,7 @@ static int drm_gem_shmem_end_cpu_access_locked(struct drm_gem_shmem_object *shme
 	if (obj->import_attach) {
 		return dma_buf_end_cpu_access(obj->import_attach->dmabuf, dir);
 	} else if (shmem->vmap_use_count) {
-		dma_sync_sgtable_for_cpu(obj->dev->dev, shmem->sgt, dir);
+		dma_sync_sgtable_for_device(obj->dev->dev, shmem->sgt, dir);
 		return 0;
 	}
 
