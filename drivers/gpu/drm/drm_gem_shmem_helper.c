@@ -292,66 +292,6 @@ void drm_gem_shmem_unpin(struct drm_gem_shmem_object *shmem)
 }
 EXPORT_SYMBOL(drm_gem_shmem_unpin);
 
-static int drm_gem_shmem_begin_cpu_access_locked(struct drm_gem_shmem_object *shmem,
-						 enum dma_data_direction dir)
-{
-	struct drm_gem_object *obj = &shmem->base;
-
-	if (obj->import_attach) {
-		return dma_buf_begin_cpu_access(obj->import_attach->dmabuf, dir);
-	} else if (shmem->vmap_use_count) {
-		dma_sync_sgtable_for_cpu(obj->dev->dev, shmem->sgt, dir);
-		return 0;
-	}
-
-	return -EINVAL;
-}
-
-int drm_gem_shmem_begin_cpu_access(struct drm_gem_shmem_object *shmem,
-				   enum dma_data_direction dir)
-{
-	int ret;
-
-	ret = mutex_lock_interruptible(&shmem->vmap_lock);
-	if (ret)
-		return ret;
-	ret = drm_gem_shmem_begin_cpu_access_locked(shmem, dir);
-	mutex_unlock(&shmem->vmap_lock);
-
-	return ret;
-}
-EXPORT_SYMBOL(drm_gem_shmem_begin_cpu_access);
-
-static int drm_gem_shmem_end_cpu_access_locked(struct drm_gem_shmem_object *shmem,
-					       enum dma_data_direction dir)
-{
-	struct drm_gem_object *obj = &shmem->base;
-
-	if (obj->import_attach) {
-		return dma_buf_end_cpu_access(obj->import_attach->dmabuf, dir);
-	} else if (shmem->vmap_use_count) {
-		dma_sync_sgtable_for_device(obj->dev->dev, shmem->sgt, dir);
-		return 0;
-	}
-
-	return -EINVAL;
-}
-
-int drm_gem_shmem_end_cpu_access(struct drm_gem_shmem_object *shmem,
-				 enum dma_data_direction dir)
-{
-	int ret;
-
-	ret = mutex_lock_interruptible(&shmem->vmap_lock);
-	if (ret)
-		return ret;
-	ret = drm_gem_shmem_end_cpu_access_locked(shmem, dir);
-	mutex_unlock(&shmem->vmap_lock);
-
-	return ret;
-}
-EXPORT_SYMBOL(drm_gem_shmem_end_cpu_access);
-
 /*
  * drm_gem_shmem_vmap - Create a virtual mapping for a shmem GEM object
  * @shmem: shmem GEM object
