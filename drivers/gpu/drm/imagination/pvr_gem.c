@@ -207,11 +207,17 @@ pvr_gem_object_vmap(struct pvr_gem_object *pvr_obj)
 		return ERR_PTR(err);
 
 	if (pvr_obj->flags & PVR_BO_CPU_CACHED) {
-		err = drm_gem_shmem_begin_cpu_access(shmem_obj, DMA_BIDIRECTIONAL);
-		if (err) {
-			drm_gem_shmem_vunmap(shmem_obj, &map);
-			return ERR_PTR(err);
-		}
+		struct drm_gem_object *obj = gem_from_pvr_gem(pvr_obj);
+		struct device *dev = shmem_obj->base.dev->dev;
+
+		dma_resv_lock(obj->resv, NULL);
+
+		/* If shmem_obj->sgt is NULL, that means the buffer hasn't been mapped
+		 * in GPU space yet.
+		 */
+		if (shmem_obj->sgt)
+			dma_sync_sgtable_for_cpu(dev, shmem_obj->sgt, DMA_BIDIRECTIONAL);
+		dma_resv_unlock(obj->resv);
 	}
 
 	return map.vaddr;
@@ -234,8 +240,19 @@ pvr_gem_object_vunmap(struct pvr_gem_object *pvr_obj)
 	if (WARN_ON(!map.vaddr))
 		return;
 
-	if (pvr_obj->flags & PVR_BO_CPU_CACHED)
-		WARN_ON(drm_gem_shmem_end_cpu_access(shmem_obj, DMA_BIDIRECTIONAL));
+	if (pvr_obj->flags & PVR_BO_CPU_CACHED) {
+		struct drm_gem_object *obj = gem_from_pvr_gem(pvr_obj);
+		struct device *dev = shmem_obj->base.dev->dev;
+
+		dma_resv_lock(obj->resv, NULL);
+
+		/* If shmem_obj->sgt is NULL, that means the buffer hasn't been mapped
+		 * in GPU space yet.
+		 */
+		if (shmem_obj->sgt)
+			dma_sync_sgtable_for_device(dev, shmem_obj->sgt, DMA_BIDIRECTIONAL);
+		dma_resv_unlock(obj->resv);
+	}
 
 	drm_gem_shmem_vunmap(shmem_obj, &map);
 }
