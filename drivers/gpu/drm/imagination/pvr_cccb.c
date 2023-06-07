@@ -189,6 +189,22 @@ pvr_cccb_write_command_with_header(struct pvr_cccb *pvr_cccb, u32 cmd_type, u32 
 	pvr_cccb->write_offset += sz_with_hdr;
 }
 
+static void fill_cmd_kick_data(struct pvr_cccb *cccb, u32 ctx_fw_addr,
+			       struct pvr_hwrt_data *hwrt,
+			       struct rogue_fwif_kccb_cmd_kick_data *k)
+{
+	k->context_fw_addr = ctx_fw_addr;
+	k->client_woff_update = cccb->write_offset;
+	k->client_wrap_mask_update = cccb->wrap_mask;
+
+	if (hwrt) {
+		u32 cleanup_state_offset = offsetof(struct rogue_fwif_hwrtdata, cleanup_state);
+
+		pvr_fw_object_get_fw_addr_offset(hwrt->fw_obj, cleanup_state_offset,
+						 &k->cleanup_ctl_fw_addr[k->num_cleanup_ctl++]);
+	}
+}
+
 /**
  * pvr_cccb_send_kccb_kick: Send KCCB kick to trigger command processing
  * @pvr_dev: Device pointer.
@@ -207,21 +223,10 @@ pvr_cccb_send_kccb_kick(struct pvr_device *pvr_dev,
 {
 	struct rogue_fwif_kccb_cmd cmd_kick = {
 		.cmd_type = ROGUE_FWIF_KCCB_CMD_KICK,
-		.cmd_data.cmd_kick_data = {
-			.context_fw_addr = cctx_fw_addr,
-			.client_woff_update = pvr_cccb->write_offset,
-			.client_wrap_mask_update = pvr_cccb->wrap_mask,
-		},
 	};
-	u32 *cleanup_ctl = cmd_kick.cmd_data.cmd_kick_data.cleanup_ctl_fw_addr;
-	u32 *num_cleanup_ctl = &cmd_kick.cmd_data.cmd_kick_data.num_cleanup_ctl;
 
-	if (hwrt) {
-		u32 cleanup_state_offset = offsetof(struct rogue_fwif_hwrtdata, cleanup_state);
+	fill_cmd_kick_data(pvr_cccb, cctx_fw_addr, hwrt, &cmd_kick.cmd_data.cmd_kick_data);
 
-		pvr_fw_object_get_fw_addr_offset(hwrt->fw_obj, cleanup_state_offset, cleanup_ctl);
-		(*num_cleanup_ctl)++;
-	}
 
 	/* Make sure the writes to the CCCB are flushed before sending the KICK. */
 	wmb();
