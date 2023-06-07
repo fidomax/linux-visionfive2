@@ -227,6 +227,28 @@ pvr_cccb_send_kccb_kick(struct pvr_device *pvr_dev,
 
 	fill_cmd_kick_data(pvr_cccb, cctx_fw_addr, hwrt, &cmd_kick.cmd_data.cmd_kick_data);
 
+	/* Make sure the writes to the CCCB are flushed before sending the KICK. */
+	wmb();
+
+	pvr_kccb_send_cmd_reserved_powered(pvr_dev, &cmd_kick, NULL);
+}
+
+void
+pvr_cccb_send_kccb_combined_kick(struct pvr_device *pvr_dev,
+				 struct pvr_cccb *geom_cccb,
+				 struct pvr_cccb *frag_cccb,
+				 u32 geom_ctx_fw_addr,
+				 u32 frag_ctx_fw_addr,
+				 struct pvr_hwrt_data *hwrt)
+{
+	struct rogue_fwif_kccb_cmd cmd_kick = {
+		.cmd_type = ROGUE_FWIF_KCCB_CMD_COMBINED_GEOM_FRAG_KICK,
+	};
+
+	fill_cmd_kick_data(geom_cccb, geom_ctx_fw_addr, hwrt,
+			   &cmd_kick.cmd_data.combined_geom_frag_cmd_kick_data.geom_cmd_kick_data);
+	fill_cmd_kick_data(frag_cccb, frag_ctx_fw_addr, hwrt,
+			   &cmd_kick.cmd_data.combined_geom_frag_cmd_kick_data.frag_cmd_kick_data);
 
 	/* Make sure the writes to the CCCB are flushed before sending the KICK. */
 	wmb();
