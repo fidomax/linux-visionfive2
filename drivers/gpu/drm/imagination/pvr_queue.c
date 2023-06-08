@@ -577,13 +577,27 @@ static struct dma_fence *pvr_queue_run_job(struct drm_sched_job *sched_job)
  * pvr_queue_timedout_job() - Handle a job timeout event.
  * @sched_job: The job this timeout occurred on.
  *
+ * FIXME: We don't do anything here to unblock the situation, we just stop+start
+ * the scheduler, and re-assign parent fences in the middle.
+ *
  * Return:
  *  * DRM_GPU_SCHED_STAT_NOMINAL.
  */
 static enum drm_gpu_sched_stat
-pvr_queue_timedout_job(struct drm_sched_job *sched_job)
+pvr_queue_timedout_job(struct drm_sched_job *s_job)
 {
-	/* TODO: stop, recover, resubmit and start */
+	struct drm_gpu_scheduler *sched = s_job->sched;
+	struct pvr_job *job;
+
+	dev_err(sched->dev, "Job timeout");
+
+	drm_sched_stop(sched, s_job);
+
+	list_for_each_entry(job, &sched->pending_list, base.list)
+		job->base.s_fence->parent = dma_fence_get(job->done_fence);
+
+	drm_sched_start(sched, true);
+
 	return DRM_GPU_SCHED_STAT_NOMINAL;
 }
 
