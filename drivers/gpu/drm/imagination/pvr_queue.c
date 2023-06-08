@@ -1127,7 +1127,6 @@ void pvr_queue_destroy(struct pvr_queue *queue)
 	drm_sched_fini(&queue->scheduler);
 	drm_sched_entity_fini(&queue->entity);
 
-	pvr_queue_update_active_state(queue);
 	mutex_lock(&queue->ctx->pvr_dev->queues.lock);
 	list_del_init(&queue->node);
 	mutex_unlock(&queue->ctx->pvr_dev->queues.lock);
