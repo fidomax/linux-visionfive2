@@ -283,8 +283,6 @@ pvr_kccb_send_cmd_reserved_powered(struct pvr_device *pvr_dev,
 	ctrl->write_offset = new_write_offset;
 	pvr_dev->kccb.reserved_count--;
 
-	mutex_unlock(&pvr_ccb->lock);
-
 	/* Kick MTS */
 	pvr_fw_mts_schedule(pvr_dev,
 			    PVR_FWIF_DM_GP & ~ROGUE_CR_MTS_SCHEDULE_DM_CLRMSK);
