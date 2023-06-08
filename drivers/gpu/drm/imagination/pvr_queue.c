@@ -108,6 +108,14 @@ pvr_queue_fence_get_driver_name(struct dma_fence *f)
 	return PVR_DRIVER_NAME;
 }
 
+static void pvr_queue_fence_release(struct dma_fence *f)
+{
+	struct pvr_queue_fence *fence = container_of(f, struct pvr_queue_fence, base);
+
+	pvr_context_put(fence->queue->ctx);
+	dma_fence_free(f);
+}
+
 static const char *
 pvr_queue_job_fence_get_timeline_name(struct dma_fence *f)
 {
@@ -157,6 +165,7 @@ pvr_queue_cccb_fence_get_timeline_name(struct dma_fence *f)
 static const struct dma_fence_ops pvr_queue_job_fence_ops = {
 	.get_driver_name = pvr_queue_fence_get_driver_name,
 	.get_timeline_name = pvr_queue_job_fence_get_timeline_name,
+	.release = pvr_queue_fence_release,
 };
 
 /**
@@ -185,6 +194,7 @@ to_pvr_queue_job_fence(struct dma_fence *f)
 static const struct dma_fence_ops pvr_queue_cccb_fence_ops = {
 	.get_driver_name = pvr_queue_fence_get_driver_name,
 	.get_timeline_name = pvr_queue_cccb_fence_get_timeline_name,
+	.release = pvr_queue_fence_release,
 };
 
 /**
@@ -255,6 +265,7 @@ pvr_queue_fence_init(struct dma_fence *f,
 {
 	struct pvr_queue_fence *fence = container_of(f, struct pvr_queue_fence, base);
 
+	pvr_context_get(queue->ctx);
 	fence->queue = queue;
 	dma_fence_init(&fence->base, fence_ops,
 		       &fence_ctx->lock, fence_ctx->id,
