@@ -47,6 +47,7 @@ hwrt_init_kernel_structure(struct pvr_file *pvr_file,
 	int i;
 
 	hwrt->pvr_dev = pvr_dev;
+	hwrt->max_rts = args->layers;
 
 	/* Get pointers to the free lists */
 	for (i = 0; i < ARRAY_SIZE(hwrt->free_lists); i++) {
