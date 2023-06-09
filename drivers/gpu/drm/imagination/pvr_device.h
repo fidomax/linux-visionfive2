@@ -40,9 +40,6 @@ struct firmware;
 /* Forward declaration from <linux/regulator/consumer.h>. */
 struct regulator;
 
-/* Forward declaration from "pvr_fw.h". */
-struct pvr_fw_funcs;
-
 /**
  * struct pvr_gpu_id - Hardware GPU ID information for a PowerVR device
  * @b: Branch ID.
@@ -291,9 +288,6 @@ struct pvr_file {
 	 *           to_pvr_device().
 	 */
 	struct pvr_device *pvr_dev;
-
-	/** @fw_mem_ctx_obj: Firmware object representing firmware memory context. */
-	struct pvr_fw_object *fw_mem_ctx_obj;
 
 	/**
 	 * @ctx_handles: Array of contexts belonging to this file. Array members
