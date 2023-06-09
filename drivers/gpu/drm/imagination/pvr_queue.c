@@ -10,6 +10,7 @@
 #include "pvr_drv.h"
 #include "pvr_job.h"
 #include "pvr_queue.h"
+#include "pvr_vm.h"
 
 #define MAX_DEADLINE_MS 30000
 

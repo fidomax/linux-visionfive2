@@ -7,6 +7,7 @@
 #include "pvr_gem.h"
 #include "pvr_rogue_cr_defs.h"
 #include "pvr_rogue_meta.h"
+#include "pvr_vm.h"
 
 #include <linux/compiler.h>
 #include <linux/delay.h>

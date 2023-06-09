@@ -4,13 +4,13 @@
 #include "pvr_device.h"
 #include "pvr_device_info.h"
 
-#include "pvr_context.h"
 #include "pvr_fw.h"
 #include "pvr_params.h"
 #include "pvr_power.h"
 #include "pvr_queue.h"
 #include "pvr_rogue_cr_defs.h"
 #include "pvr_stream.h"
+#include "pvr_vm.h"
 
 #include <drm/drm_print.h>
 

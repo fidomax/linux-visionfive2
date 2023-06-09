@@ -3,9 +3,7 @@
 
 #include "pvr_device.h"
 #include "pvr_gem.h"
-#include "pvr_rogue_meta.h"
 #include "pvr_vm.h"
-#include "pvr_vm_mips.h"
 
 #include <drm/drm_gem.h>
 #include <drm/drm_prime.h>

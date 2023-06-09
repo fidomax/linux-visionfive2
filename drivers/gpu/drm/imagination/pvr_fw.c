@@ -11,6 +11,7 @@
 #include "pvr_gem.h"
 #include "pvr_power.h"
 #include "pvr_rogue_heap_config.h"
+#include "pvr_vm.h"
 
 #include <drm/drm_mm.h>
 #include <linux/firmware.h>

@@ -6,6 +6,7 @@
 #include "pvr_gem.h"
 #include "pvr_mmu.h"
 #include "pvr_rogue_mips.h"
+#include "pvr_vm.h"
 #include "pvr_vm_mips.h"
 
 #include <drm/drm_managed.h>

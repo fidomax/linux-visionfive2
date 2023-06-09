@@ -2,7 +2,6 @@
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
 #include "pvr_device.h"
-#include "pvr_job.h"
 #include "pvr_rogue_fwif_stream.h"
 #include "pvr_stream.h"
 

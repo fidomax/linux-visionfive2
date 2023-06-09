@@ -6,12 +6,11 @@
 #include "pvr_device.h"
 #include "pvr_drv.h"
 #include "pvr_free_list.h"
-#include "pvr_fw.h"
-#include "pvr_fw_startstop.h"
 #include "pvr_gem.h"
 #include "pvr_hwrt.h"
 #include "pvr_job.h"
 #include "pvr_power.h"
+#include "pvr_rogue_defs.h"
 #include "pvr_rogue_fwif_client.h"
 #include "pvr_rogue_fwif_shared.h"
 #include "pvr_vm.h"
@@ -21,21 +20,18 @@
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
+#include <drm/drm_gem.h>
 #include <drm/drm_ioctl.h>
 
 #include <linux/err.h>
 #include <linux/export.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
-#include <linux/limits.h>
-#include <linux/math.h>
-#include <linux/minmax.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
-#include <linux/overflow.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/xarray.h>

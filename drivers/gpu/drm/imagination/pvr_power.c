@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /* Copyright (c) 2022 Imagination Technologies Ltd. */
 
-#include "pvr_context.h"
 #include "pvr_device.h"
 #include "pvr_fw.h"
 #include "pvr_fw_startstop.h"

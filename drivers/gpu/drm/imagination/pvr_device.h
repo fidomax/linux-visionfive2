@@ -11,7 +11,6 @@
 #include "pvr_rogue_fwif_stream.h"
 #include "pvr_stream.h"
 #include "pvr_vendor.h"
-#include "pvr_vm.h"
 
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
