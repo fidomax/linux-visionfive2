@@ -521,12 +521,13 @@ static struct dma_fence *pvr_queue_run_job(struct drm_sched_job *sched_job)
 	struct pvr_job *job = container_of(sched_job, struct pvr_job, base);
 	struct pvr_queue *queue = container_of(sched_job->sched, struct pvr_queue, scheduler);
 	u32 ctx_fw_addr = pvr_context_get_fw_addr(job->ctx) + queue->ctx_offset;
+	struct rogue_fwif_ufo ufos[ROGUE_FWIF_CCB_CMD_MAX_UFOS];
 	struct pvr_device *pvr_dev = job->pvr_dev;
 	struct pvr_cccb *cccb = &queue->cccb;
-	struct rogue_fwif_ufo queue_ufo;
 	struct pvr_queue_fence *jfence;
 	struct dma_fence *fence;
 	unsigned long index;
+	u32 ufo_count = 0;
 	int err;
 
 	err = pvr_job_get_pm_ref(job);
@@ -549,10 +550,19 @@ static struct dma_fence *pvr_queue_run_job(struct drm_sched_job *sched_job)
 			continue;
 
 		pvr_fw_object_get_fw_addr(jfence->queue->timeline_ufo.fw_obj,
-					  &queue_ufo.addr);
-		queue_ufo.value = jfence->base.seqno;
+					  &ufos[ufo_count].addr);
+		ufos[ufo_count++].value = jfence->base.seqno;
+
+		if (ufo_count == ARRAY_SIZE(ufos)) {
+			pvr_cccb_write_command_with_header(cccb, ROGUE_FWIF_CCB_CMD_TYPE_FENCE_PR,
+							   sizeof(ufos), ufos, 0, 0);
+			ufo_count = 0;
+		}
+	}
+
+	if (ufo_count) {
 		pvr_cccb_write_command_with_header(cccb, ROGUE_FWIF_CCB_CMD_TYPE_FENCE_PR,
-						   sizeof(queue_ufo), &queue_ufo, 0, 0);
+						   sizeof(ufos[0]) * ufo_count, ufos, 0, 0);
 	}
 
 	/* Submit job to FW */
@@ -560,10 +570,10 @@ static struct dma_fence *pvr_queue_run_job(struct drm_sched_job *sched_job)
 					   job->id, job->id);
 
 	/* Signal the job fence. */
-	pvr_fw_object_get_fw_addr(queue->timeline_ufo.fw_obj, &queue_ufo.addr);
-	queue_ufo.value = job->done_fence->seqno;
+	pvr_fw_object_get_fw_addr(queue->timeline_ufo.fw_obj, &ufos[0].addr);
+	ufos[0].value = job->done_fence->seqno;
 	pvr_cccb_write_command_with_header(cccb, ROGUE_FWIF_CCB_CMD_TYPE_UPDATE,
-					   sizeof(queue_ufo), &queue_ufo, 0, 0);
+					   sizeof(ufos[0]), ufos, 0, 0);
 
 	/* The job we submit is added to the drm_gpu_scheduler::pending_list in
 	 * drm_sched_job_begin() which is called after ::run_job() returns. But the
