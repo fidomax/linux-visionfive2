@@ -11,3 +11,5 @@ config DRM_POWERVR
 	help
 	  Choose this option if you have a system that has an Imagination
 	  Technologies PowerVR Rogue GPU.
+
+	  If "M" is selected, the module will be called powervr.
