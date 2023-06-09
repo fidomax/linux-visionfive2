@@ -155,6 +155,7 @@ struct pvr_vm_backing_page {
 	dma_addr_t dma_addr;
 	void *host_ptr;
 /* private: internal use only */
+	struct page *raw_page;
 	struct pvr_device *pvr_dev;
 };
 
@@ -195,7 +196,7 @@ pvr_vm_backing_page_init(struct pvr_vm_backing_page *page,
 		goto err_out;
 	}
 
-	host_ptr = kmap(raw_page);
+	host_ptr = vmap(&raw_page, 1, VM_MAP, pgprot_writecombine(PAGE_KERNEL));
 
 	dma_addr = dma_map_page(dev, raw_page, 0, PVR_VM_BACKING_PAGE_SIZE,
 				DMA_TO_DEVICE);
@@ -207,11 +208,12 @@ pvr_vm_backing_page_init(struct pvr_vm_backing_page *page,
 	page->dma_addr = dma_addr;
 	page->host_ptr = host_ptr;
 	page->pvr_dev = pvr_dev;
+	page->raw_page = raw_page;
 
 	return 0;
 
 err_unmap_free_page:
-	kunmap(raw_page);
+	vunmap(host_ptr);
 	__free_page(raw_page);
 
 err_out:
@@ -237,7 +239,6 @@ static void
 pvr_vm_backing_page_fini(struct pvr_vm_backing_page *page)
 {
 	struct device *dev = from_pvr_device(page->pvr_dev)->dev;
-	struct page *raw_page = kmap_to_page(page->host_ptr);
 
 	/* Do nothing if no allocation is present. */
 	if (!page->pvr_dev)
@@ -246,9 +247,9 @@ pvr_vm_backing_page_fini(struct pvr_vm_backing_page *page)
 	dma_unmap_page(dev, page->dma_addr, PVR_VM_BACKING_PAGE_SIZE,
 		       DMA_TO_DEVICE);
 
-	kunmap(raw_page);
+	vunmap(page->host_ptr);
 
-	__free_page(raw_page);
+	__free_page(page->raw_page);
 
 	memset(page, 0, sizeof(*page));
 }
