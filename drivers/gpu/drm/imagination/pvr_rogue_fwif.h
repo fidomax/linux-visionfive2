@@ -282,10 +282,10 @@ struct rogue_fwif_sysdata {
 	u32 config_flags;
 	/* Extended configuration flags from host */
 	u32 config_flags_ext;
-	volatile enum rogue_fwif_pow_state pow_state;
-	volatile u32 hw_perf_ridx;
-	volatile u32 hw_perf_widx;
-	volatile u32 hw_perf_wrap_count;
+	enum rogue_fwif_pow_state pow_state;
+	u32 hw_perf_ridx;
+	u32 hw_perf_widx;
+	u32 hw_perf_wrap_count;
 	/* Constant after setup, needed in FW */
 	u32 hw_perf_size;
 	/* The number of times the FW drops a packet due to buffer full */
@@ -342,7 +342,7 @@ struct rogue_fwif_osdata {
 	aligned_u64 last_forced_update_time;
 
 	/* Interrupt count from Threads > */
-	volatile u32 interrupt_count[MAX_THREAD_NUM];
+	u32 interrupt_count[MAX_THREAD_NUM];
 	u32 kccb_cmds_executed;
 	u32 power_sync_fw_addr;
 	/* Compatibility and other flags */
@@ -891,9 +891,9 @@ struct rogue_fwif_fwtransfercontext {
 /* Kernel CCB control for ROGUE */
 struct rogue_fwif_ccb_ctl {
 	/* write offset into array of commands (MUST be aligned to 16 bytes!) */
-	volatile u32 write_offset;
+	u32 write_offset;
 	/* read offset into array of commands */
-	volatile u32 read_offset;
+	u32 read_offset;
 	/* Offset wrapping mask (Total capacity of the CCB - 1) */
 	u32 wrap_mask;
 	/* size of each command in bytes */
@@ -1855,10 +1855,10 @@ enum fw_boot_stage {
 
 struct rogue_fwif_connection_ctl {
 	/* Fw-Os connection states */
-	volatile enum rogue_fwif_connection_fw_state connection_fw_state;
-	volatile enum rogue_fwif_connection_os_state connection_os_state;
-	volatile u32 alive_fw_token;
-	volatile u32 alive_os_token;
+	enum rogue_fwif_connection_fw_state connection_fw_state;
+	enum rogue_fwif_connection_os_state connection_os_state;
+	u32 alive_fw_token;
+	u32 alive_os_token;
 } __aligned(8);
 
 struct rogue_fwif_osinit {

@@ -68,10 +68,10 @@ pvr_ccb_init(struct pvr_device *pvr_dev, struct pvr_ccb *pvr_ccb,
 	pvr_fw_object_get_fw_addr(pvr_ccb->ctrl_obj, &pvr_ccb->ctrl_fw_addr);
 	pvr_fw_object_get_fw_addr(pvr_ccb->ccb_obj, &pvr_ccb->ccb_fw_addr);
 
-	pvr_ccb->ctrl->write_offset = 0;
-	pvr_ccb->ctrl->read_offset = 0;
-	pvr_ccb->ctrl->wrap_mask = num_cmds - 1;
-	pvr_ccb->ctrl->cmd_size = cmd_size;
+	WRITE_ONCE(pvr_ccb->ctrl->write_offset, 0);
+	WRITE_ONCE(pvr_ccb->ctrl->read_offset, 0);
+	WRITE_ONCE(pvr_ccb->ctrl->wrap_mask, num_cmds - 1);
+	WRITE_ONCE(pvr_ccb->ctrl->cmd_size, cmd_size);
 
 	return 0;
 
@@ -108,11 +108,11 @@ static __always_inline bool
 pvr_ccb_slot_available_locked(struct pvr_ccb *pvr_ccb, u32 *write_offset)
 {
 	struct rogue_fwif_ccb_ctl *ctrl = pvr_ccb->ctrl;
-	u32 next_write_offset = (ctrl->write_offset + 1) & ctrl->wrap_mask;
+	u32 next_write_offset = (READ_ONCE(ctrl->write_offset) + 1) & READ_ONCE(ctrl->wrap_mask);
 
 	lockdep_assert_held(&pvr_ccb->lock);
 
-	if (ctrl->read_offset != next_write_offset) {
+	if (READ_ONCE(ctrl->read_offset) != next_write_offset) {
 		if (write_offset)
 			*write_offset = next_write_offset;
 		return true;
@@ -161,13 +161,14 @@ void pvr_fwccb_process(struct pvr_device *pvr_dev)
 {
 	struct rogue_fwif_fwccb_cmd *fwccb = pvr_dev->fwccb.ccb;
 	struct rogue_fwif_ccb_ctl *ctrl = pvr_dev->fwccb.ctrl;
+	u32 read_offset;
 
 	mutex_lock(&pvr_dev->fwccb.lock);
 
-	while (ctrl->read_offset != ctrl->write_offset) {
-		struct rogue_fwif_fwccb_cmd cmd = fwccb[ctrl->read_offset];
+	while ((read_offset = READ_ONCE(ctrl->read_offset)) != READ_ONCE(ctrl->write_offset)) {
+		struct rogue_fwif_fwccb_cmd cmd = fwccb[read_offset];
 
-		ctrl->read_offset = (ctrl->read_offset + 1) & ctrl->wrap_mask;
+		WRITE_ONCE(ctrl->read_offset, (read_offset + 1) & READ_ONCE(ctrl->wrap_mask));
 
 		/* Drop FWCCB lock while we process command. */
 		mutex_unlock(&pvr_dev->fwccb.lock);
@@ -211,8 +212,8 @@ pvr_kccb_used_slot_count_locked(struct pvr_device *pvr_dev)
 {
 	struct pvr_ccb *pvr_ccb = &pvr_dev->kccb.ccb;
 	struct rogue_fwif_ccb_ctl *ctrl = pvr_ccb->ctrl;
-	u32 wr_offset = ctrl->write_offset;
-	u32 rd_offset = ctrl->read_offset;
+	u32 wr_offset = READ_ONCE(ctrl->write_offset);
+	u32 rd_offset = READ_ONCE(ctrl->read_offset);
 	u32 used_count;
 
 	lockdep_assert_held(&pvr_ccb->lock);
@@ -250,7 +251,7 @@ pvr_kccb_send_cmd_reserved_powered(struct pvr_device *pvr_dev,
 	if (WARN_ON(!pvr_dev->kccb.reserved_count))
 		goto out_unlock;
 
-	old_write_offset = ctrl->write_offset;
+	old_write_offset = READ_ONCE(ctrl->write_offset);
 
 	/* We reserved the slot, we should have one available. */
 	if (WARN_ON(!pvr_ccb_slot_available_locked(pvr_ccb, &new_write_offset)))
@@ -265,7 +266,7 @@ pvr_kccb_send_cmd_reserved_powered(struct pvr_device *pvr_dev,
 			   ROGUE_FWIF_KCCB_RTN_SLOT_NO_RESPONSE);
 	}
 	mb(); /* memory barrier */
-	ctrl->write_offset = new_write_offset;
+	WRITE_ONCE(ctrl->write_offset, new_write_offset);
 	pvr_dev->kccb.reserved_count--;
 
 	/* Kick MTS */
@@ -417,7 +418,7 @@ pvr_kccb_is_idle(struct pvr_device *pvr_dev)
 
 	mutex_lock(&pvr_dev->kccb.ccb.lock);
 
-	idle = (ctrl->write_offset == ctrl->read_offset);
+	idle = (READ_ONCE(ctrl->write_offset) == READ_ONCE(ctrl->read_offset));
 
 	mutex_unlock(&pvr_dev->kccb.ccb.lock);
 
