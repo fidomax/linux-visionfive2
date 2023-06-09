@@ -361,8 +361,9 @@ pvr_job_add_deps(struct pvr_file *pvr_file, struct pvr_job *job,
 
 				dma_fence_get(unwrapped_fence);
 				err = drm_sched_job_add_dependency(&job->base, unwrapped_fence);
-				dma_fence_put(unwrapped_fence);
 			}
+
+			dma_fence_put(fence);
 
 			if (err)
 				return err;
