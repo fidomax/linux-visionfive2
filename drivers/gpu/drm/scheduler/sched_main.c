@@ -1173,64 +1173,63 @@ static void drm_sched_main(struct work_struct *w)
 {
 	struct drm_gpu_scheduler *sched =
 		container_of(w, struct drm_gpu_scheduler, work_run);
+	struct drm_sched_entity *entity;
+	struct drm_sched_fence *s_fence;
+	struct drm_sched_job *sched_job;
+	struct dma_fence *fence;
+	struct drm_sched_job *cleanup_job;
 	int r;
 
-	while (!READ_ONCE(sched->pause_run_wq)) {
-		struct drm_sched_entity *entity;
-		struct drm_sched_fence *s_fence;
-		struct drm_sched_job *sched_job;
-		struct dma_fence *fence;
-		struct drm_sched_job *cleanup_job;
+	cleanup_job = drm_sched_get_cleanup_job(sched);
+	entity = drm_sched_select_entity(sched);
 
-		cleanup_job = drm_sched_get_cleanup_job(sched);
-		entity = drm_sched_select_entity(sched);
+	if (cleanup_job) {
+		sched->ops->free_job(cleanup_job);
 
-		if (cleanup_job)
-			sched->ops->free_job(cleanup_job);
-
-		if (!entity) {
-			if (!cleanup_job)
-				break;
-			continue;
-		}
-
-		sched_job = drm_sched_entity_pop_job(entity);
-
-		if (!sched_job) {
-			complete_all(&entity->entity_idle);
-			if (!cleanup_job)
-				break;
-			continue;
-		}
-
-		s_fence = sched_job->s_fence;
-
-		atomic_inc(&sched->hw_rq_count);
-
-		trace_drm_run_job(sched_job, entity);
-		fence = sched->ops->run_job(sched_job);
-		drm_sched_job_begin(sched_job);
-		complete_all(&entity->entity_idle);
-		drm_sched_fence_scheduled(s_fence, fence);
-
-		if (!IS_ERR_OR_NULL(fence)) {
-			/* Drop for original kref_init of the fence */
-			dma_fence_put(fence);
-
-			r = dma_fence_add_callback(fence, &sched_job->cb,
-						   drm_sched_job_done_cb);
-			if (r == -ENOENT)
-				drm_sched_job_done(sched_job, fence->error);
-			else if (r)
-				DRM_DEV_ERROR(sched->dev, "fence add callback failed (%d)\n",
-					  r);
-		} else {
-			drm_sched_job_done(sched_job, IS_ERR(fence) ?
-					   PTR_ERR(fence) : 0);
-		}
-
-		wake_up(&sched->job_scheduled);
+		/* Reschedule the work to check for new jobs to cleanup. */
+		drm_sched_run_wq_queue(sched);
 	}
+
+	if (!entity)
+		return;
+
+	sched_job = drm_sched_entity_pop_job(entity);
+
+	if (!sched_job) {
+		complete_all(&entity->entity_idle);
+		return;
+	}
+
+	s_fence = sched_job->s_fence;
+
+	atomic_inc(&sched->hw_rq_count);
+
+	trace_drm_run_job(sched_job, entity);
+	fence = sched->ops->run_job(sched_job);
+	drm_sched_job_begin(sched_job);
+	complete_all(&entity->entity_idle);
+	drm_sched_fence_scheduled(s_fence, fence);
+
+	if (!IS_ERR_OR_NULL(fence)) {
+		/* Drop for original kref_init of the fence */
+		dma_fence_put(fence);
+
+		r = dma_fence_add_callback(fence, &sched_job->cb,
+					   drm_sched_job_done_cb);
+		if (r == -ENOENT)
+			drm_sched_job_done(sched_job, fence->error);
+		else if (r)
+			DRM_DEV_ERROR(sched->dev, "fence add callback failed (%d)\n",
+				      r);
+	} else {
+		drm_sched_job_done(sched_job, IS_ERR(fence) ?
+				   PTR_ERR(fence) : 0);
+	}
+
+	wake_up(&sched->job_scheduled);
+
+	/* Reschedule the work to check for new jobs to submit. */
+	drm_sched_run_wq_queue(sched);
 }
 
 /**
