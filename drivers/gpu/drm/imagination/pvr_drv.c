@@ -72,7 +72,7 @@
  *  * Any error encountered while transferring ownership of the object into a
  *    userspace-accessible handle (see pvr_gem_object_into_handle()).
  */
-int
+static int
 pvr_ioctl_create_bo(struct drm_device *drm_dev, void *raw_args,
 		    struct drm_file *file)
 {
@@ -170,7 +170,7 @@ err_out:
  *    drm_pvr_ioctl_get_bo_mmap_offset_args are not zero, or
  *  * Any error returned by drm_gem_create_mmap_offset().
  */
-int
+static int
 pvr_ioctl_get_bo_mmap_offset(__always_unused struct drm_device *drm_dev,
 			     void *raw_args, struct drm_file *file)
 {
@@ -661,7 +661,7 @@ copy_out:
  *  * -%ENOMEM if local memory could not be allocated, or
  *  * -%EFAULT if local memory could not be copied to userspace.
  */
-int
+static int
 pvr_ioctl_dev_query(struct drm_device *drm_dev, void *raw_args,
 		    struct drm_file *file)
 {
@@ -712,7 +712,7 @@ pvr_ioctl_dev_query(struct drm_device *drm_dev, void *raw_args,
  *  * -%EFAULT if arguments can't be copied from userspace, or
  *  * Any error returned by pvr_create_render_context().
  */
-int
+static int
 pvr_ioctl_create_context(struct drm_device *drm_dev, void *raw_args,
 			 struct drm_file *file)
 {
@@ -739,7 +739,7 @@ pvr_ioctl_create_context(struct drm_device *drm_dev, void *raw_args,
  *  * 0 on success, or
  *  * -%EINVAL if context not in context list.
  */
-int
+static int
 pvr_ioctl_destroy_context(struct drm_device *drm_dev, void *raw_args,
 			  struct drm_file *file)
 {
@@ -765,7 +765,7 @@ pvr_ioctl_destroy_context(struct drm_device *drm_dev, void *raw_args,
  *  * 0 on success, or
  *  * Any error returned by pvr_free_list_create().
  */
-int
+static int
 pvr_ioctl_create_free_list(struct drm_device *drm_dev, void *raw_args,
 			   struct drm_file *file)
 {
@@ -815,7 +815,7 @@ err_out:
  *  * 0 on success, or
  *  * -%EINVAL if free list not in object list.
  */
-int
+static int
 pvr_ioctl_destroy_free_list(struct drm_device *drm_dev, void *raw_args,
 			    struct drm_file *file)
 {
@@ -847,7 +847,7 @@ pvr_ioctl_destroy_free_list(struct drm_device *drm_dev, void *raw_args,
  *  * 0 on success, or
  *  * Any error returned by pvr_hwrt_dataset_create().
  */
-int
+static int
 pvr_ioctl_create_hwrt_dataset(struct drm_device *drm_dev, void *raw_args,
 			      struct drm_file *file)
 {
@@ -897,7 +897,7 @@ err_out:
  *  * 0 on success, or
  *  * -%EINVAL if HWRT dataset not in object list.
  */
-int
+static int
 pvr_ioctl_destroy_hwrt_dataset(struct drm_device *drm_dev, void *raw_args,
 			       struct drm_file *file)
 {
@@ -929,7 +929,7 @@ pvr_ioctl_destroy_hwrt_dataset(struct drm_device *drm_dev, void *raw_args,
  *  * 0 on success, or
  *  * Any error returned by pvr_vm_create_context().
  */
-int
+static int
 pvr_ioctl_create_vm_context(struct drm_device *drm_dev, void *raw_args,
 			    struct drm_file *file)
 {
@@ -979,7 +979,7 @@ err_cleanup:
 ￼*  * 0 on success, or
 ￼*  * -%EINVAL if object not in object list.
  */
-int
+static int
 pvr_ioctl_destroy_vm_context(struct drm_device *drm_dev, void *raw_args,
 			     struct drm_file *file)
 {
@@ -1146,7 +1146,7 @@ pvr_ioctl_vm_unmap(struct drm_device *drm_dev, void *raw_args,
  *  * 0 on success, or
  *  * -%EINVAL if arguments are invalid.
  */
-int
+static int
 pvr_ioctl_submit_jobs(struct drm_device *drm_dev, void *raw_args,
 		      struct drm_file *file)
 {
