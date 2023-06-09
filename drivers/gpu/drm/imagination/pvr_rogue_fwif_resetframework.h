@@ -10,8 +10,7 @@
 #include "pvr_rogue_fwif_shared.h"
 
 struct rogue_fwif_rf_registers {
-	union
-	{
+	union {
 		u64 cdmreg_cdm_cb_base;
 		u64 cdmreg_cdm_ctrl_stream_base;
 	};

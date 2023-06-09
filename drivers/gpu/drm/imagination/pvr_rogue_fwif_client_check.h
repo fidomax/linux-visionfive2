@@ -7,10 +7,11 @@
 #include <linux/build_bug.h>
 
 #define OFFSET_CHECK(type, member, offset) \
-	static_assert(offsetof(type, member) == (offset), "offsetof(" #type ", " #member ") incorrect");
+	static_assert(offsetof(type, member) == (offset), \
+		      "offsetof(" #type ", " #member ") incorrect")
 
 #define SIZE_CHECK(type, size) \
-	static_assert(sizeof(type) == (size), #type " is incorrect size");
+	static_assert(sizeof(type) == (size), #type " is incorrect size")
 
 OFFSET_CHECK(struct rogue_fwif_geom_regs, vdm_ctrl_stream_base, 0);
 OFFSET_CHECK(struct rogue_fwif_geom_regs, tpu_border_colour_table, 8);
@@ -78,7 +79,6 @@ OFFSET_CHECK(struct rogue_fwif_cmd_frag, zls_stride, 468);
 OFFSET_CHECK(struct rogue_fwif_cmd_frag, sls_stride, 472);
 OFFSET_CHECK(struct rogue_fwif_cmd_frag, execute_count, 476);
 SIZE_CHECK(struct rogue_fwif_cmd_frag, 480);
-
 
 OFFSET_CHECK(struct rogue_fwif_compute_regs, tpu_border_colour_table, 0);
 OFFSET_CHECK(struct rogue_fwif_compute_regs, cdm_cb_queue, 8);

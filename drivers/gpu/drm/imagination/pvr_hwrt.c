@@ -249,7 +249,8 @@ hwrt_init_common_fw_structure(struct pvr_file *pvr_file,
 	if (PVR_HAS_FEATURE(pvr_dev, simple_internal_parameter_format)) {
 		u32 parameter_format;
 
-		err = PVR_FEATURE_VALUE(pvr_dev, simple_internal_parameter_format, &parameter_format);
+		err = PVR_FEATURE_VALUE(pvr_dev, simple_internal_parameter_format,
+					&parameter_format);
 		if (WARN_ON(err))
 			return err;
 

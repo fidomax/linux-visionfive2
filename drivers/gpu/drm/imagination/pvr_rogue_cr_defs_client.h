@@ -56,7 +56,6 @@
 #define ROGUE_CR_TE_AA_X2_CLRMSK                            (0xFFFFFFFEU)
 #define ROGUE_CR_TE_AA_X2_EN                                (0x00000001U)
 
-
 /* MacroTile Boundaries X Plane */
 /* Register ROGUE_CR_TE_MTILE1 */
 #define ROGUE_CR_TE_MTILE1 0x0C08

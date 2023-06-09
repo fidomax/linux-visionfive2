@@ -7,10 +7,11 @@
 #include <linux/build_bug.h>
 
 #define OFFSET_CHECK(type, member, offset) \
-	static_assert(offsetof(type, member) == (offset), "offsetof(" #type ", " #member ") incorrect");
+	static_assert(offsetof(type, member) == (offset), \
+		      "offsetof(" #type ", " #member ") incorrect")
 
 #define SIZE_CHECK(type, size) \
-	static_assert(sizeof(type) == (size), #type " is incorrect size");
+	static_assert(sizeof(type) == (size), #type " is incorrect size")
 
 OFFSET_CHECK(struct rogue_fwif_file_info_buf, path, 0);
 OFFSET_CHECK(struct rogue_fwif_file_info_buf, info, 200);
@@ -79,7 +80,6 @@ OFFSET_CHECK(struct rogue_fwif_osdata, kccb_cmds_executed, 568);
 OFFSET_CHECK(struct rogue_fwif_osdata, power_sync_fw_addr, 572);
 OFFSET_CHECK(struct rogue_fwif_osdata, fw_os_data_flags, 576);
 SIZE_CHECK(struct rogue_fwif_osdata, 584);
-
 
 OFFSET_CHECK(struct rogue_bifinfo, bif_req_status, 0);
 OFFSET_CHECK(struct rogue_bifinfo, bif_mmu_status, 8);

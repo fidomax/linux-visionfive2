@@ -390,8 +390,8 @@ pvr_fw_create_os_structures(struct pvr_device *pvr_dev)
 
 	fwif_osinit->hwr_debug_dump_limit = 0;
 
-	ROGUE_FWIF_COMPCHECKS_BVNC_INIT(fwif_osinit->rogue_comp_checks.hw_bvnc);
-	ROGUE_FWIF_COMPCHECKS_BVNC_INIT(fwif_osinit->rogue_comp_checks.fw_bvnc);
+	rogue_fwif_compchecks_bvnc_init(&fwif_osinit->rogue_comp_checks.hw_bvnc);
+	rogue_fwif_compchecks_bvnc_init(&fwif_osinit->rogue_comp_checks.fw_bvnc);
 
 	return 0;
 

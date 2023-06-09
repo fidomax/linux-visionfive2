@@ -49,55 +49,28 @@ struct rogue_fwif_log_group_map_entry {
 	u32 log_group_type;
 };
 
-/* clang-format off */
 /*
  * Macro for use with the ROGUE_FWIF_LOG_GROUP_MAP_ENTRY type to create a lookup
  * table where needed. Keep log group names short, no more than 20 chars.
  */
-#define ROGUE_FWIF_LOG_GROUP_NAME_VALUE_MAP		\
-	{ "none", ROGUE_FWIF_LOG_TYPE_NONE },		\
-	{ "main", ROGUE_FWIF_LOG_TYPE_GROUP_MAIN },	\
-	{ "mts", ROGUE_FWIF_LOG_TYPE_GROUP_MTS },		\
-	{ "cleanup", ROGUE_FWIF_LOG_TYPE_GROUP_CLEANUP },	\
-	{ "csw", ROGUE_FWIF_LOG_TYPE_GROUP_CSW },		\
-	{ "bif", ROGUE_FWIF_LOG_TYPE_GROUP_BIF },		\
-	{ "pm", ROGUE_FWIF_LOG_TYPE_GROUP_PM },		\
-	{ "rtd", ROGUE_FWIF_LOG_TYPE_GROUP_RTD },		\
-	{ "spm", ROGUE_FWIF_LOG_TYPE_GROUP_SPM },		\
-	{ "pow", ROGUE_FWIF_LOG_TYPE_GROUP_POW },		\
-	{ "hwr", ROGUE_FWIF_LOG_TYPE_GROUP_HWR },		\
-	{ "hwp", ROGUE_FWIF_LOG_TYPE_GROUP_HWP },		\
-	{ "rpm", ROGUE_FWIF_LOG_TYPE_GROUP_RPM },		\
-	{ "dma", ROGUE_FWIF_LOG_TYPE_GROUP_DMA },		\
-	{ "misc", ROGUE_FWIF_LOG_TYPE_GROUP_MISC },	\
-	{ "debug", ROGUE_FWIF_LOG_TYPE_GROUP_DEBUG }
-/* clang-format on */
-
-/*
- * Used in print statements to display log group state, one %s per group defined
- */
-#define ROGUE_FWIF_LOG_ENABLED_GROUPS_LIST_PFSPEC \
-	"%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s"
-
-/* clang-format off */
-/* Used in a print statement to display log group state, one per group */
-#define ROGUE_FWIF_LOG_ENABLED_GROUPS_LIST(types)				  \
-	(((types)(&ROGUE_FWIF_LOG_TYPE_GROUP_MAIN)) ? ("main ") : ("")),	  \
-	(((types)(&ROGUE_FWIF_LOG_TYPE_GROUP_MTS)) ? ("mts ") : ("")),	  \
-	(((types)(&ROGUE_FWIF_LOG_TYPE_GROUP_CLEANUP)) ? ("cleanup ") : ("")), \
-	(((types)(&ROGUE_FWIF_LOG_TYPE_GROUP_CSW)) ? ("csw ") : ("")),	  \
-	(((types)(&ROGUE_FWIF_LOG_TYPE_GROUP_BIF)) ? ("bif ") : ("")),	  \
-	(((types)(&ROGUE_FWIF_LOG_TYPE_GROUP_PM)) ? ("pm ") : ("")),		  \
-	(((types)(&ROGUE_FWIF_LOG_TYPE_GROUP_RTD)) ? ("rtd ") : ("")),	  \
-	(((types)(&ROGUE_FWIF_LOG_TYPE_GROUP_SPM)) ? ("spm ") : ("")),	  \
-	(((types)(&ROGUE_FWIF_LOG_TYPE_GROUP_POW)) ? ("pow ") : ("")),	  \
-	(((types)(&ROGUE_FWIF_LOG_TYPE_GROUP_HWR)) ? ("hwr ") : ("")),	  \
-	(((types)(&ROGUE_FWIF_LOG_TYPE_GROUP_HWP)) ? ("hwp ") : ("")),	  \
-	(((types)(&ROGUE_FWIF_LOG_TYPE_GROUP_RPM)) ? ("rpm ") : ("")),	  \
-	(((types)(&ROGUE_FWIF_LOG_TYPE_GROUP_DMA)) ? ("dma ") : ("")),	  \
-	(((types)(&ROGUE_FWIF_LOG_TYPE_GROUP_MISC)) ? ("misc ") : ("")),	  \
-	(((types)(&ROGUE_FWIF_LOG_TYPE_GROUP_DEBUG)) ? ("debug ") : (""))
-/* clang-format on */
+static const struct rogue_fwif_log_group_map_entry rogue_fwif_log_group_name_value_map[] = {
+	{"none", ROGUE_FWIF_LOG_TYPE_NONE},
+	{"main", ROGUE_FWIF_LOG_TYPE_GROUP_MAIN},
+	{"mts", ROGUE_FWIF_LOG_TYPE_GROUP_MTS},
+	{"cleanup", ROGUE_FWIF_LOG_TYPE_GROUP_CLEANUP},
+	{"csw", ROGUE_FWIF_LOG_TYPE_GROUP_CSW},
+	{"bif", ROGUE_FWIF_LOG_TYPE_GROUP_BIF},
+	{"pm", ROGUE_FWIF_LOG_TYPE_GROUP_PM},
+	{"rtd", ROGUE_FWIF_LOG_TYPE_GROUP_RTD},
+	{"spm", ROGUE_FWIF_LOG_TYPE_GROUP_SPM},
+	{"pow", ROGUE_FWIF_LOG_TYPE_GROUP_POW},
+	{"hwr", ROGUE_FWIF_LOG_TYPE_GROUP_HWR},
+	{"hwp", ROGUE_FWIF_LOG_TYPE_GROUP_HWP},
+	{"rpm", ROGUE_FWIF_LOG_TYPE_GROUP_RPM},
+	{"dma", ROGUE_FWIF_LOG_TYPE_GROUP_DMA},
+	{"misc", ROGUE_FWIF_LOG_TYPE_GROUP_MISC},
+	{"debug", ROGUE_FWIF_LOG_TYPE_GROUP_DEBUG}
+};
 
 /*
  ****************************************************************************
@@ -146,23 +119,17 @@ struct rogue_fwif_tracebuf_space {
 struct rogue_fw_fault_info {
 	aligned_u64 cr_timer;
 	aligned_u64 os_timer;
+
 	u32 data __aligned(8);
 	u32 reserved;
 	struct rogue_fwif_file_info_buf fault_buf;
 } __aligned(8);
 
-/* clang-format off */
-#define ROGUE_FWIF_POW_STATES                                               \
-	X(ROGUE_FWIF_POW_OFF) /* idle and ready to full power down */       \
-	X(ROGUE_FWIF_POW_ON) /* running HW commands */                      \
-	X(ROGUE_FWIF_POW_FORCED_IDLE) /* forced idle */                     \
-	X(ROGUE_FWIF_POW_IDLE) /* idle waiting for host handshake */
-/* clang-format on */
-
 enum rogue_fwif_pow_state {
-#define X(NAME) NAME,
-	ROGUE_FWIF_POW_STATES
-#undef X
+	ROGUE_FWIF_POW_OFF, /* idle and ready to full power down */
+	ROGUE_FWIF_POW_ON, /* running HW commands */
+	ROGUE_FWIF_POW_FORCED_IDLE, /* forced idle */
+	ROGUE_FWIF_POW_IDLE, /* idle waiting for host handshake */
 };
 
 /* Firmware HWR states */
@@ -386,20 +353,6 @@ struct rogue_fwif_osdata {
 #define ROGUE_FWT_DEBUG_INFO_STR_APPEND ")"
 
 /*
- * Table of debug info sub-field's masks and corresponding message strings
- * to be appended to firmware trace
- *
- * Mask     : 16 bit mask to be applied to debug-info field
- * String   : debug info message string
- */
-
-#define ROGUE_FWT_DEBUG_INFO_MSKSTRLIST                              \
-	/*Mask,                                           String*/   \
-	X(ROGUE_FWT_DEBUG_INFO_MMU_PAGE_FAULT_SET, "mmu pf")         \
-	X(ROGUE_FWT_DEBUG_INFO_MMU_ENTRY_PENDING_SET, "mmu pending") \
-	X(ROGUE_FWT_DEBUG_INFO_SLAVE_EVENTS_SET, "slave events")
-
-/*
  ******************************************************************************
  * HWR Data
  ******************************************************************************
@@ -597,7 +550,8 @@ struct rogue_fwif_hwrinfobuf {
  * [6:4] Quality
  * [3]   Quality enable
  * [2:1] Compression scheme
- * [0]   Lossy group */
+ * [0]   Lossy group
+ */
 #define ROGUE_FWIF_INICFG_EXT_TFBC_CONTROL_MASK (0xFF)
 #define ROGUE_FWIF_INICFG_EXT_ALL (ROGUE_FWIF_INICFG_EXT_TFBC_CONTROL_MASK)
 
@@ -638,24 +592,6 @@ enum rogue_rd_power_island_conf {
 	ROGUE_RD_POWER_ISLAND_FORCE_ON = 1,
 	ROGUE_RD_POWER_ISLAND_DEFAULT = 2
 };
-
-#if defined(ROGUE_FW_IRQ_OS_COUNTERS)
-/* clang-format off */
-/*
- * Unused registers re-purposed for storing counters of the Firmware's
- * interrupts for each OS
- */
-#	define IRQ_COUNTER_STORAGE_REGS				\
-		0x2028U, /* ROGUE_CR_PM_TA_MMU_FSTACK         */	\
-		0x2050U, /* ROGUE_CR_PM_3D_MMU_FSTACK         */	\
-		0x2030U, /* ROGUE_CR_PM_START_OF_MMU_TACONTEXT*/	\
-		0x2058U, /* ROGUE_CR_PM_START_OF_MMU_3DCONTEXT*/	\
-		0x2058U, /* ROGUE_CR_PM_START_OF_MMU_3DCONTEXT*/	\
-		0x2058U, /* ROGUE_CR_PM_START_OF_MMU_3DCONTEXT*/	\
-		0x2058U, /* ROGUE_CR_PM_START_OF_MMU_3DCONTEXT*/	\
-		0x2058U, /* ROGUE_CR_PM_START_OF_MMU_3DCONTEXT*/
-/* clang-format on */
-#endif
 
 struct rogue_fw_register_list {
 	/* Register number */
@@ -1098,6 +1034,7 @@ struct rogue_fwif_hwperf_select_custom_cntrs {
 
 struct rogue_fwif_zsbuffer_backing_data {
 	u32 zs_buffer_fw_addr; /* ZS-Buffer FW address */
+
 	bool done __aligned(4); /* action backing/unbacking succeeded */
 };
 
@@ -1214,12 +1151,10 @@ struct rogue_fwif_reg_cfg {
 		reg_configs[ROGUE_FWIF_REG_CFG_MAX_SIZE] __aligned(8);
 } __aligned(8);
 
-/* clang-format off */
 enum rogue_fwif_os_state_change {
 	ROGUE_FWIF_OS_ONLINE = 1,
 	ROGUE_FWIF_OS_OFFLINE
 };
-/* clang-format on */
 
 struct rogue_fwif_os_state_change_data {
 	u32 osid;
@@ -1723,11 +1658,12 @@ struct rogue_fwif_init_options {
 		ROGUE_FWIF_COMPCHECKS_LAYOUT_VERSION,     \
 		0,                                        \
 	}
-#define ROGUE_FWIF_COMPCHECKS_BVNC_INIT(name)                                 \
-	do {                                                                  \
-		(name).layout_version = ROGUE_FWIF_COMPCHECKS_LAYOUT_VERSION; \
-		(name).bvnc = 0;                                              \
-	} while (0)
+
+static inline void rogue_fwif_compchecks_bvnc_init(struct rogue_fwif_compchecks_bvnc *compchecks)
+{
+	compchecks->layout_version = ROGUE_FWIF_COMPCHECKS_LAYOUT_VERSION;
+	compchecks->bvnc = 0;
+}
 
 struct rogue_fwif_compchecks {
 	/* hardware BVNC (from the ROGUE registers) */
@@ -1778,6 +1714,7 @@ struct rogue_fwif_runtime_cfg {
 	u32 osid_priority[ROGUE_FW_MAX_NUM_OS];
 	/* On-demand allocated HWPerf buffer address, to be passed to the FW */
 	u32 hwperf_buf_fw_addr;
+
 	bool padding __aligned(4);
 };
 
@@ -1995,7 +1932,6 @@ struct rogue_fwif_sysinit {
 	/* Used in HWPerf for decoding BVNC Features */
 	struct rogue_hwperf_bvnc bvnc_km_feature_flags;
 
-
 	/* Value to write into ROGUE_CR_TFBC_COMPRESSION_CONTROL */
 	u32 tfbc_compression_control;
 } __aligned(8);
@@ -2149,6 +2085,7 @@ struct rogue_fwif_freelist {
 	u32 allocated_page_count;
 	u32 allocated_mmu_page_count;
 	u32 freelist_id;
+
 	bool grow_pending __aligned(4);
 	/* Pages that should be used only when OOM is reached */
 	u32 ready_pages;
