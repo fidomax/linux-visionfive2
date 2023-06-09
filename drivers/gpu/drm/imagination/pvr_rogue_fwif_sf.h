@@ -6,34 +6,30 @@
 
 /*
  ******************************************************************************
- * *DO*NOT* rearrange or delete lines in SFIDLIST or SFGROUPLIST or you
+ * *DO*NOT* rearrange or delete lines in rogue_fw_log_sfgroups or stid_fmts
  *           WILL BREAK fw tracing message compatibility with previous
  *           fw versions. Only add new ones, if so required.
  ******************************************************************************
  */
-/* Available log groups. */
-#define ROGUE_FW_LOG_SFGROUPLIST       \
-	X(ROGUE_FW_GROUP_NULL, NULL)        \
-	X(ROGUE_FW_GROUP_MAIN, MAIN)        \
-	X(ROGUE_FW_GROUP_CLEANUP, CLEANUP)  \
-	X(ROGUE_FW_GROUP_CSW, CSW)          \
-	X(ROGUE_FW_GROUP_PM, PM)           \
-	X(ROGUE_FW_GROUP_RTD, RTD)          \
-	X(ROGUE_FW_GROUP_SPM, SPM)          \
-	X(ROGUE_FW_GROUP_MTS, MTS)          \
-	X(ROGUE_FW_GROUP_BIF, BIF)          \
-	X(ROGUE_FW_GROUP_MISC, MISC)        \
-	X(ROGUE_FW_GROUP_POW, POW)          \
-	X(ROGUE_FW_GROUP_HWR, HWR)          \
-	X(ROGUE_FW_GROUP_HWP, HWP)          \
-	X(ROGUE_FW_GROUP_RPM, RPM)          \
-	X(ROGUE_FW_GROUP_DMA, DMA)          \
-	X(ROGUE_FW_GROUP_DBG, DBG)
 
+/* Available log groups. */
 enum rogue_fw_log_sfgroups {
-#define X(A, B) A,
-	ROGUE_FW_LOG_SFGROUPLIST
-#undef X
+	ROGUE_FW_GROUP_NULL,
+	ROGUE_FW_GROUP_MAIN,
+	ROGUE_FW_GROUP_CLEANUP,
+	ROGUE_FW_GROUP_CSW,
+	ROGUE_FW_GROUP_PM,
+	ROGUE_FW_GROUP_RTD,
+	ROGUE_FW_GROUP_SPM,
+	ROGUE_FW_GROUP_MTS,
+	ROGUE_FW_GROUP_BIF,
+	ROGUE_FW_GROUP_MISC,
+	ROGUE_FW_GROUP_POW,
+	ROGUE_FW_GROUP_HWR,
+	ROGUE_FW_GROUP_HWP,
+	ROGUE_FW_GROUP_RPM,
+	ROGUE_FW_GROUP_DMA,
+	ROGUE_FW_GROUP_DBG,
 };
 
 #define PVR_SF_STRING_MAX_SIZE 256U
@@ -43,818 +39,6 @@ struct rogue_fw_stid_fmt {
 	u32 id;
 	char name[PVR_SF_STRING_MAX_SIZE];
 };
-
-/* pair of string format id and string formats */
-struct rogue_km_stid_fmt {
-	u32 id;
-	const char *name;
-};
-
-/*
- * Table of String Format specifiers, the group they belong and the number of
- * arguments each expects. Xmacro styled macros are used to generate what is
- * needed without requiring hand editing.
- *
- * id       : id within a group
- * gid      : group id
- * Sym name : name of enumerations used to identify message strings
- * String   : Actual string
- * #args    : number of arguments the string format requires
- */
-#define ROGUE_FW_LOG_SFIDLIST \
-/*id, gid,              id name,        string,                           # arguments */ \
-X(  0, ROGUE_FW_GROUP_NULL, ROGUE_FW_SF_FIRST, "You should not use this string", 0) \
-\
-X(  1, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KICK_3D_DEPRECATED, "Kick 3D: FWCtx 0x%08.8x @ %d, RTD 0x%08x. Partial render:%d, CSW resume:%d, prio:%d", 6) \
-X(  2, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_3D_FINISHED, "3D finished, HWRTData0State=%x, HWRTData1State=%x", 2) \
-X(  3, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KICK3D_TQ_DEPRECATED, "Kick 3D TQ: FWCtx 0x%08.8x @ %d, CSW resume:%d, prio: %d", 4) \
-X(  4, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_3D_TQ_FINISHED, "3D Transfer finished", 0) \
-X(  5, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KICK_COMPUTE_DEPRECATED, "Kick Compute: FWCtx 0x%08.8x @ %d, prio: %d", 3) \
-X(  6, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_COMPUTE_FINISHED, "Compute finished", 0) \
-X(  7, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KICK_TA_DEPRECATED, "Kick TA: FWCtx 0x%08.8x @ %d, RTD 0x%08x. First kick:%d, Last kick:%d, CSW resume:%d, prio:%d", 7) \
-X(  8, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_TA_FINISHED, "TA finished", 0) \
-X(  9, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_TA_RESTART_AFTER_PRENDER, "Restart TA after partial render", 0) \
-X( 10, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_TA_RESUME_WOUT_PRENDER, "Resume TA without partial render", 0) \
-X( 11, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_OOM, "Out of memory! Context 0x%08x, HWRTData 0x%x", 2) \
-X( 12, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KICK_TLA_DEPRECATED, "Kick TLA: FWCtx 0x%08.8x @ %d, prio:%d", 3) \
-X( 13, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_TLA_FINISHED, "TLA finished", 0) \
-X( 14, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_CCCB_WOFF_UPDATE, "cCCB Woff update = %d, DM = %d, FWCtx = 0x%08.8x", 3) \
-X( 16, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_UFO_CHECK_START, "UFO Checks for FWCtx 0x%08.8x @ %d", 2) \
-X( 17, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_UFO_CHECK, "UFO Check: [0x%08.8x] is 0x%08.8x requires 0x%08.8x", 3) \
-X( 18, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_UFO_CHECK_SUCCEEDED, "UFO Checks succeeded", 0) \
-X( 19, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_UFO_PR_CHECK, "UFO PR-Check: [0x%08.8x] is 0x%08.8x requires >= 0x%08.8x", 3) \
-X( 20, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_UFO_SPM_PR_CHECK_START, "UFO SPM PR-Checks for FWCtx 0x%08.8x", 1) \
-X( 21, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_UFO_SPM_PR_CHECK_DEPRECATED, "UFO SPM special PR-Check: [0x%08.8x] is 0x%08.8x requires >= ????????, [0x%08.8x] is ???????? requires 0x%08.8x", 4) \
-X( 22, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_UFO_UPDATE_START, "UFO Updates for FWCtx 0x%08.8x @ %d", 2) \
-X( 23, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_UFO_UPDATE, "UFO Update: [0x%08.8x] = 0x%08.8x", 2) \
-X( 24, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_ASSERT_FAILED, "ASSERT Failed: line %d of:", 1) \
-X( 25, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_HWR_LOCKUP_DEPRECATED, "HWR: Lockup detected on DM%d, FWCtx: 0x%08.8x", 2) \
-X( 26, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_HWR_RESET_FW_DEPRECATED, "HWR: Reset fw state for DM%d, FWCtx: 0x%08.8x, MemCtx: 0x%08.8x", 3) \
-X( 27, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_HWR_RESET_HW_DEPRECATED, "HWR: Reset HW", 0) \
-X( 28, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_HWR_TERMINATED_DEPRECATED, "HWR: Lockup recovered.", 0) \
-X( 29, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_HWR_FALSE_LOCKUP_DEPRECATED, "HWR: False lockup detected for DM%u", 1) \
-X( 30, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_ALIGN_FAILED, "Alignment check %d failed: host = 0x%x, fw = 0x%x", 3) \
-X( 31, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_GP_USC_TRIGGERED, "GP USC triggered", 0) \
-X( 32, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_BREAKPOINT_OVERALLOC_REGS, "Overallocating %u temporary registers and %u shared registers for breakpoint handler", 2) \
-X( 33, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_BREAKPOINT_SET_DEPRECATED, "Setting breakpoint: Addr 0x%08.8x", 1) \
-X( 34, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_BREAKPOINT_STORE, "Store breakpoint state", 0) \
-X( 35, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_BREAKPOINT_UNSET, "Unsetting BP Registers", 0) \
-X( 36, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_NONZERO_RT, "Active RTs expected to be zero, actually %u", 1) \
-X( 37, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_RTC_PRESENT, "RTC present, %u active render targets", 1) \
-X( 38, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_EST_POWER_DEPRECATED, "Estimated Power 0x%x", 1) \
-X( 39, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_RTA_TARGET, "RTA render target %u", 1) \
-X( 40, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_RTA_KICK_RENDER, "Kick RTA render %u of %u", 2) \
-X( 41, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_HWR_SIZES_CHECK_DEPRECATED, "HWR sizes check %d failed: addresses = %d, sizes = %d", 3) \
-X( 42, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_POW_DUSTS_ENABLE_DEPRECATED, "Pow: DUSTS_ENABLE = 0x%x", 1) \
-X( 43, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_POW_HWREQ_DEPRECATED, "Pow: On(1)/Off(0): %d, Units: 0x%08.8x", 2) \
-X( 44, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_POW_DUSTS_CHANGE_DEPRECATED, "Pow: Changing number of dusts from %d to %d", 2) \
-X( 45, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_POW_SIDEKICK_IDLE_DEPRECATED, "Pow: Sidekick ready to be powered down", 0) \
-X( 46, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_POW_DUSTS_CHANGE_REQ_DEPRECATED, "Pow: Request to change num of dusts to %d (bPowRascalDust=%d)", 2) \
-X( 47, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_PARTIALRENDER_WITHOUT_ZSBUFFER_STORE, "No ZS Buffer used for partial render (store)", 0) \
-X( 48, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_PARTIALRENDER_WITHOUT_ZSBUFFER_LOAD, "No Depth/Stencil Buffer used for partial render (load)", 0) \
-X( 49, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_HWR_SET_LOCKUP_DEPRECATED, "HWR: Lock-up DM%d FWCtx: 0x%08.8x", 2) \
-X( 50, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_MLIST_CHECKER_REG_VALUE_DEPRECATED, "MLIST%d checker: CatBase TE=0x%08x (%d Pages), VCE=0x%08x (%d Pages), ALIST=0x%08x, IsTA=%d", 7) \
-X( 51, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_MLIST_CHECKER_MLIST_VALUE, "MLIST%d checker: MList[%d] = 0x%08x", 3) \
-X( 52, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_MLIST_CHECKER_OK, "MLIST%d OK", 1) \
-X( 53, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_MLIST_CHECKER_EMPTY, "MLIST%d is empty", 1) \
-X( 54, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_MLIST_CHECKER_REG_VALUE, "MLIST%d checker: CatBase TE=0x%08x%08x, VCE=0x%08x%08x, ALIST=0x%08x%08x, IsTA=%d", 8) \
-X( 55, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_3D_40480KICK, "3D OQ flush kick", 0) \
-X( 56, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_HWP_UNSUPPORTED_BLOCK, "HWPerf block ID (0x%x) unsupported by device", 1) \
-X( 57, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_BREAKPOINT_SET_DEPRECATED2, "Setting breakpoint: Addr 0x%08.8x DM%u", 2) \
-X( 58, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KICK_RTU_DEPRECATED, "Kick RTU: FWCtx 0x%08.8x @ %d, prio: %d", 3) \
-X( 59, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_RTU_FINISHED_DEPRECATED, "RDM finished on context %u", 1) \
-X( 60, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KICK_SHG_DEPRECATED, "Kick SHG: FWCtx 0x%08.8x @ %d, prio: %d", 3) \
-X( 61, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_SHG_FINISHED_DEPRECATED, "SHG finished", 0) \
-X( 62, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_FBA_FINISHED_DEPRECATED, "FBA finished on context %u", 1) \
-X( 63, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_UFO_CHECK_FAILED, "UFO Checks failed", 0) \
-X( 64, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KILLDM_START, "Kill DM%d start", 1) \
-X( 65, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KILLDM_COMPLETE, "Kill DM%d complete", 1) \
-X( 66, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_FC_CCB_UPDATE_DEPRECATED, "FC%u cCCB Woff update = %u", 2) \
-X( 67, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KICK_RTU_DEPRECATED2, "Kick RTU: FWCtx 0x%08.8x @ %d, prio: %d, Frame Context: %d", 4) \
-X( 68, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_GPU_INIT, "GPU init", 0) \
-X( 69, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_UNITS_INIT, "GPU Units init (# mask: 0x%x)", 1) \
-X( 70, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_REGTIMES, "Register access cycles: read: %d cycles, write: %d cycles, iterations: %d", 3) \
-X( 71, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_REGCONFIG_ADD, "Register configuration added. Address: 0x%x Value: 0x%x%x", 3) \
-X( 72, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_REGCONFIG_SET, "Register configuration applied to type %d. (0:pow on, 1:Rascal/dust init, 2-5: TA,3D,CDM,TLA, 6:All)", 1) \
-X( 73, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_TPC_FLUSH, "Perform TPC flush.", 0) \
-X( 74, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_HWR_HIT_LOCKUP_DEPRECATED, "GPU has locked up (see HWR logs for more info)", 0) \
-X( 75, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_HWR_HIT_OUTOFTIME, "HWR has been triggered - GPU has overrun its deadline (see HWR logs)", 0) \
-X( 76, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_HWR_HIT_POLLFAILURE, "HWR has been triggered - GPU has failed a poll (see HWR logs)", 0) \
-X( 77, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_DOPPLER_OOM_DEPRECATED, "Doppler out of memory event for FC %u", 1) \
-X( 78, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_UFO_SPM_PR_CHECK1, "UFO SPM special PR-Check: [0x%08.8x] is 0x%08.8x requires >= 0x%08.8x", 3) \
-X( 79, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_UFO_SPM_PR_CHECK2, "UFO SPM special PR-Check: [0x%08.8x] is 0x%08.8x requires 0x%08.8x", 3) \
-X( 80, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_TIMESTAMP, "TIMESTAMP -> [0x%08.8x]", 1) \
-X( 81, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_UFO_RMW_UPDATE_START, "UFO RMW Updates for FWCtx 0x%08.8x @ %d", 2) \
-X( 82, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_UFO_RMW_UPDATE, "UFO Update: [0x%08.8x] = 0x%08.8x", 2) \
-X( 83, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_NULLCMD, "Kick Null cmd: FWCtx 0x%08.8x @ %d", 2) \
-X( 84, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_RPM_OOM_DEPRECATED, "RPM Out of memory! Context 0x%08x, SH requestor %d", 2) \
-X( 85, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_RTU_ABORT_DISCARD_DEPRECATED, "Discard RTU due to RPM abort: FWCtx 0x%08.8x @ %d, prio: %d, Frame Context: %d", 4) \
-X( 86, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_DEFERRED, "Deferring DM%u from running context 0x%08x @ %d (deferred DMs = 0x%08x)", 4) \
-X( 87, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_DEFERRED_WAITING_TURN_DEPRECATED, "Deferring DM%u from running context 0x%08x @ %d to let other deferred DMs run (deferred DMs = 0x%08x)", 4) \
-X( 88, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_DEFERRED_NO_LONGER, "No longer deferring DM%u from running context = 0x%08x @ %d (deferred DMs = 0x%08x)", 4) \
-X( 89, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_WAITING_FOR_FWCCB_DEPRECATED, "FWCCB for DM%u is full, we will have to wait for space! (Roff = %u, Woff = %u)", 3) \
-X( 90, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_WAITING_FOR_FWCCB, "FWCCB for OSid %u is full, we will have to wait for space! (Roff = %u, Woff = %u)", 3) \
-X( 91, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_SYNC_PART, "Host Sync Partition marker: %d", 1) \
-X( 92, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_SYNC_PART_RPT, "Host Sync Partition repeat: %d", 1) \
-X( 93, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_CLOCK_SPEED_CHANGE, "Core clock set to %d Hz", 1) \
-X( 94, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_COMPUTE_OFFSETS, "Compute Queue: FWCtx 0x%08.8x, prio: %d, queue: 0x%08x%08x (Roff = %u, Woff = %u, Size = %u)", 7) \
-X( 95, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_SIGNAL_WAIT_FAILURE_DEPRECATED, "Signal check failed, Required Data: 0x%x, Address: 0x%08x%08x", 3) \
-X( 96, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_SIGNAL_UPDATE_DEPRECATED, "Signal update, Snoop Filter: %u, MMU Ctx: %u, Signal Id: %u, Signals Base: 0x%08x%08x", 5) \
-X( 97, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_FWCONTEXT_SIGNALED, "Signalled the previously waiting FWCtx: 0x%08.8x, OSId: %u, Signal Address: 0x%08x%08x", 4) \
-X( 98, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_COMPUTE_STALLED_DEPRECATED, "Compute stalled", 0) \
-X( 99, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_COMPUTE_STALLED, "Compute stalled (Roff = %u, Woff = %u, Size = %u)", 3) \
-X(100, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_COMPUTE_RESUMED_FROM_STALL, "Compute resumed (Roff = %u, Woff = %u, Size = %u)", 3) \
-X(101, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_NOTIFY_SIGNAL_UPDATE, "Signal update notification from the host, PC Physical Address: 0x%08x%08x, Signal Virtual Address: 0x%08x%08x", 4) \
-X(102, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_SIGNAL_UPDATE_OSID_DM_DEPRECATED, "Signal update from DM: %u, OSId: %u, PC Physical Address: 0x%08x%08x", 4) \
-X(103, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_SIGNAL_WAIT_FAILURE_DM_DEPRECATED, "DM: %u signal check failed", 1) \
-X(104, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KICK_TDM_DEPRECATED, "Kick TDM: FWCtx 0x%08.8x @ %d, prio:%d", 3) \
-X(105, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_TDM_FINISHED, "TDM finished", 0) \
-X(106, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_TE_PIPE_STATUS_DEPRECATED, "MMU_PM_CAT_BASE_TE[%d]_PIPE[%d]:  0x%08x 0x%08x)", 4) \
-X(107, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_BRN_54141_HIT_DEPRECATED, "BRN 54141 HIT", 0) \
-X(108, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_BRN_54141_APPLYING_DUMMY_TA_DEPRECATED, "BRN 54141 Dummy TA kicked", 0) \
-X(109, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_BRN_54141_RESUME_TA_DEPRECATED, "BRN 54141 resume TA", 0) \
-X(110, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_BRN_54141_DOUBLE_HIT_DEPRECATED, "BRN 54141 double hit after applying WA", 0) \
-X(111, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_BRN_54141_DUMMY_TA_VDM_BASE_DEPRECATED, "BRN 54141 Dummy TA VDM base address: 0x%08x%08x", 2) \
-X(112, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_SIGNAL_WAIT_FAILURE_WITH_CURRENT, "Signal check failed, Required Data: 0x%x, Current Data: 0x%x, Address: 0x%08x%08x", 4) \
-X(113, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_TDM_BUFFER_STALL_DEPRECATED, "TDM stalled (Roff = %u, Woff = %u)", 2) \
-X(114, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_NOTIFY_WRITE_OFFSET_UPDATE, "Write Offset update notification for stalled FWCtx 0x%08.8x", 1) \
-X(115, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_OS_PRIORITY_CHANGE_DEPRECATED, "Changing OSid %d's priority from %u to %u", 3) \
-X(116, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_COMPUTE_RESUMED, "Compute resumed", 0) \
-X(117, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KICK_TLA, "Kick TLA: FWCtx 0x%08.8x @ %d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)", 7) \
-X(118, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KICK_TDM, "Kick TDM: FWCtx 0x%08.8x @ %d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)", 7) \
-X(119, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KICK_TA, "Kick TA: FWCtx 0x%08.8x @ %d, RTD 0x%08x, First kick:%d, Last kick:%d, CSW resume:%d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)", 11) \
-X(120, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KICK_3D, "Kick 3D: FWCtx 0x%08.8x @ %d, RTD 0x%08x, Partial render:%d, CSW resume:%d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)", 10) \
-X(121, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KICK_3DTQ, "Kick 3D TQ: FWCtx 0x%08.8x @ %d, CSW resume:%d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)", 8) \
-X(122, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KICK_COMPUTE, "Kick Compute: FWCtx 0x%08.8x @ %d. (PID:%d, prio:%d, ext:0x%08x, int:0x%08x)", 6) \
-X(123, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KICK_RTU_DEPRECATED3, "Kick RTU: FWCtx 0x%08.8x @ %d, Frame Context:%d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)", 8) \
-X(124, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KICK_SHG_DEPRECATED2, "Kick SHG: FWCtx 0x%08.8x @ %d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)", 7) \
-X(125, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_CSRM_RECONFIG, "Reconfigure CSRM: special coeff support enable %d.", 1) \
-X(127, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_TA_REQ_MAX_COEFFS, "TA requires max coeff mode, deferring: %d.", 1) \
-X(128, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_3D_REQ_MAX_COEFFS, "3D requires max coeff mode, deferring: %d.", 1) \
-X(129, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KILLDM_FAILED, "Kill DM%d failed", 1) \
-X(130, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_WAITING_FOR_QUEUE, "Thread Queue is full, we will have to wait for space! (Roff = %u, Woff = %u)", 2) \
-X(131, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_WAITING_FOR_QUEUE_FENCE, "Thread Queue is fencing, we are waiting for Roff = %d (Roff = %u, Woff = %u)", 3) \
-X(132, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_SET_HCS_TRIGGERED, "DM %d failed to Context Switch on time. Triggered HCS (see HWR logs).", 1) \
-X(133, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_HCS_SET_DEPRECATED, "HCS changed to %d ms", 1) \
-X(134, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_UPDATE_TILES_IN_FLIGHT_DEPRECATED, "Updating Tiles In Flight (Dusts=%d, PartitionMask=0x%08x, ISPCtl=0x%08x%08x)", 4) \
-X(135, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_SET_TILES_IN_FLIGHT, "  Phantom %d: USCTiles=%d", 2) \
-X(136, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_ISOLATION_CONF_OFF_DEPRECATED, "Isolation grouping is disabled", 0) \
-X(137, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_ISOLATION_CONF_DEPRECATED, "Isolation group configured with a priority threshold of %d", 1) \
-X(138, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_OS_ONLINE_DEPRECATED, "OS %d has come online", 1) \
-X(139, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_OS_OFFLINE_DEPRECATED, "OS %d has gone offline", 1) \
-X(140, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_FWCONTEXT_SIGNAL_REKICK, "Signalled the previously stalled FWCtx: 0x%08.8x, OSId: %u, Signal Address: 0x%08x%08x", 4) \
-X(141, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_TDM_OFFSETS_DEPRECATED, "TDM Queue: FWCtx 0x%08.8x, prio: %d, queue: 0x%08x%08x (Roff = %u, Woff = %u, Size = %u)", 7) \
-X(142, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_TDM_OFFSET_READ_RESET, "Reset TDM Queue Read Offset: FWCtx 0x%08.8x, queue: 0x%08x%08x (Roff = %u becomes 0, Woff = %u, Size = %u)", 6) \
-X(143, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_UMQ_MISMATCHED_READ_OFFSET, "User Mode Queue mismatched stream start: FWCtx 0x%08.8x, queue: 0x%08x%08x (Roff = %u, StreamStartOffset = %u)", 5) \
-X(144, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_GPU_DEINIT, "GPU deinit", 0) \
-X(145, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_UNITS_DEINIT, "GPU units deinit", 0) \
-X(146, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_OS_INIT_CONFIG, "Initialised OS %d with config flags 0x%08x", 2) \
-X(147, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_UFO_LIMIT, "UFO limit exceeded %d/%d", 2) \
-X(148, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_3D_62850KICK, "3D Dummy stencil store", 0) \
-X(149, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_OS_INIT_CONFIG_DEPRECATED, "Initialised OS %d with config flags 0x%08x and extended config flags 0x%08x", 3) \
-X(150, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_UNKNOWN_COMMAND_DEPRECATED, "Unknown Command (eCmdType=0x%08x)", 1) \
-X(151, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_UFO_FORCED_UPDATE, "UFO forced update: FWCtx 0x%08.8x @ %d [0x%08.8x] = 0x%08.8x", 4) \
-X(152, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_UFO_FORCED_UPDATE_NOP, "UFO forced update NOP: FWCtx 0x%08.8x @ %d [0x%08.8x] = 0x%08.8x, reason %d", 5) \
-X(153, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_TDM_BRN66075_CHECK, "TDM context switch check: Roff %u points to 0x%08x, Match=%u", 3) \
-X(154, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_OS_INIT_CCBS, "OSid %d CCB init status: %d (1-ok 0-fail): kCCBCtl@0x%x kCCB@0x%x fwCCBCtl@0x%x fwCCB@0x%x", 6) \
-X(155, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_FWIRQ, "FW IRQ # %u @ %u", 2) \
-X(156, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_BREAKPOINT_SET, "Setting breakpoint: Addr 0x%08.8x DM%u usc_breakpoint_ctrl_dm = %u", 3) \
-X(157, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_INVALID_KERNEL_CCB_DEPRECATED, "Invalid KCCB setup for OSid %u: KCCB 0x%08x, KCCB Ctrl 0x%08x", 3) \
-X(158, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_INVALID_KERNEL_CCB_CMD, "Invalid KCCB cmd (%u) for OSid %u @ KCCB 0x%08x", 3) \
-X(159, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_FW_FAULT, "FW FAULT: At line %d in file 0x%08x%08x, additional data=0x%08x", 4) \
-X(160, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_BREAKPOINT_INVALID, "Invalid breakpoint: MemCtx 0x%08x Addr 0x%08.8x DM%u usc_breakpoint_ctrl_dm = %u", 4) \
-X(161, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_FLUSHINVAL_CMD_INVALID_DEPRECATED, "Discarding invalid SLC flushinval command for OSid %u: DM %u, FWCtx 0x%08x", 3) \
-X(162, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_INVALID_NOTIFY_WRITE_OFFSET_UPDATE_DEPRECATED, "Invalid Write Offset update notification from OSid %u to DM %u: FWCtx 0x%08x, MemCtx 0x%08x", 4) \
-X(163, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_INVALID_KCCB_KICK_CMD_DEPRECATED, "Null FWCtx in KCCB kick cmd for OSid %u: KCCB 0x%08x, ROff %u, WOff %u", 4) \
-X(164, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_FULL_CHPTCCB, "Checkpoint CCB for OSid %u is full, signalling host for full check state (Roff = %u, Woff = %u)", 3) \
-X(165, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_OS_INIT_CCBS_DEPRECATED, "OSid %d CCB init status: %d (1-ok 0-fail): kCCBCtl@0x%x kCCB@0x%x fwCCBCtl@0x%x fwCCB@0x%x chptCCBCtl@0x%x chptCCB@0x%x", 8) \
-X(166, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_OS_STATE_CHANGE, "OSid %d fw state transition request: from %d to %d (0-offline 1-ready 2-active 3-offloading). Status %d (1-ok 0-fail)", 4) \
-X(167, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_STALE_KCCB_CMDS, "OSid %u has %u stale commands in its KCCB", 2) \
-X(168, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_TA_VCE_PAUSE, "Applying VCE pause", 0) \
-X(169, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KCCB_UPDATE_RTN_SLOT_DEPRECATED, "OSid %u KCCB slot %u value updated to %u", 3) \
-X(170, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_UNKNOWN_KCCB_COMMAND, "Unknown KCCB Command: KCCBCtl=0x%08x, KCCB=0x%08x, Roff=%u, Woff=%u, Wrap=%u, Cmd=0x%08x, CmdType=0x%08x", 7) \
-X(171, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_UNKNOWN_CCB_COMMAND1, "Unknown Client CCB Command processing fences: FWCtx=0x%08x, CCBCtl=0x%08x, CCB=0x%08x, Roff=%u, Doff=%u, Woff=%u, Wrap=%u, CmdHdr=0x%08x, CmdType=0x%08x, CmdSize=%u", 10) \
-X(172, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_UNKNOWN_CCB_COMMAND2, "Unknown Client CCB Command executing kick: FWCtx=0x%08x, CCBCtl=0x%08x, CCB=0x%08x, Roff=%u, Doff=%u, Woff=%u, Wrap=%u, CmdHdr=0x%08x, CmdType=0x%08x, CmdSize=%u", 10) \
-X(173, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_INVALID_KCCB_KICK_CMD, "Null FWCtx in KCCB kick cmd for OSid %u with WOff %u", 2) \
-X(174, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_FLUSHINVAL_CMD_INVALID, "Discarding invalid SLC flushinval command for OSid %u, FWCtx 0x%08x", 2) \
-X(175, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_INVALID_NOTIFY_WRITE_OFFSET_UPDATE, "Invalid Write Offset update notification from OSid %u: FWCtx 0x%08x, MemCtx 0x%08x", 3) \
-X(176, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_FW_INIT_CONFIG, "Initialised Firmware with config flags 0x%08x and extended config flags 0x%08x", 2) \
-X(177, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_PHR_CONFIG, "Set Periodic Hardware Reset Mode: %d", 1) \
-X(179, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_PHR_TRIG, "PHR mode %d, FW state: 0x%08x, HWR flags: 0x%08x", 3) \
-X(180, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_PHR_RESET_DEPRECATED, "PHR mode %d triggered a reset", 1) \
-X(181, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_SIGNAL_UPDATE, "Signal update, Snoop Filter: %u, Signal Id: %u", 2) \
-X(182, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_DEV_SERIES8_DEPRECATED, "WARNING: Skipping FW KCCB Cmd type %d which is not yet supported on Series8.", 1) \
-X(183, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_INCONSISTENT_MMU_FLAGS, "MMU context cache data NULL, but cache flags=0x%x (sync counter=%u, update value=%u) OSId=%u", 4) \
-X(184, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_SLC_FLUSH, "SLC range based flush: Context=%u VAddr=0x%02x%08x, Size=0x%08x, Invalidate=%d", 5) \
-X(185, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_FBSC_INVAL, "FBSC invalidate for Context Set [0x%08x]: Entry mask 0x%08x%08x.", 3) \
-X(186, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_TDM_BRN66284_UPDATE, "TDM context switch check: Roff %u was not valid for kick starting at %u, moving back to %u", 3) \
-X(187, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_SPFILTER_UPDATES, "Signal updates: FIFO: %u, Signals: 0x%08x", 2) \
-X(188, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_INVALID_FBSC_CMD, "Invalid FBSC cmd: FWCtx 0x%08x, MemCtx 0x%08x", 2) \
-X(189, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_TDM_BRN68497_BLIT, "Insert BRN68497 WA blit after TDM Context store.", 0) \
-X(190, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_PENDING_UFO_UPDATE_START, "UFO Updates for previously finished FWCtx 0x%08.8x", 1) \
-X(191, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_RTC_RTA_PRESENT, "RTC with RTA present, %u active render targets", 1) \
-X(192, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_NULL_RTAS, "Invalid RTA Set-up. The ValidRenderTargets array in RTACtl is Null!", 0) \
-X(193, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_INVALID_COUNTER, "Block 0x%x / Counter 0x%x INVALID and ignored", 2) \
-X(194, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_ECC_FAULT_DEPRECATED, "ECC fault GPU=0x%08x FW=0x%08x", 2) \
-X(195, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_PROCESS_XPU_EVENT, "Processing XPU event on DM = %d", 1) \
-X(196, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_VZ_WDG_TRIGGER, "OSid %u failed to respond to the virtualisation watchdog in time. Timestamp of its last input = %u", 2) \
-X(197, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_HWR_HIT_LOCKUP, "GPU-%u has locked up (see HWR logs for more info)", 1) \
-X(198, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_UPDATE_TILES_IN_FLIGHT, "Updating Tiles In Flight (Dusts=%d, PartitionMask=0x%08x, ISPCtl=0x%08x)", 3) \
-X(199, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_HWR_HIT_LOCKUP_DM, "GPU has locked up (see HWR logs for more info)", 0) \
-X(200, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_REPROCESS_XPU_EVENTS, "Reprocessing outstanding XPU events from cores 0x%02x", 1) \
-X(201, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_SECONDARY_XPU_EVENT, "Secondary XPU event on DM=%d, CoreMask=0x%02x, Raised=0x%02x", 3) \
-X(202, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_TDM_OFFSETS, "TDM Queue: Core %u, FWCtx 0x%08.8x, prio: %d, queue: 0x%08x%08x (Roff = %u, Woff = %u, Size = %u)", 8) \
-X(203, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_TDM_BUFFER_STALL, "TDM stalled Core %u (Roff = %u, Woff = %u)", 3) \
-X(204, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_COMPUTE_CORE_OFFSETS, "Compute Queue: Core %u, FWCtx 0x%08.8x, prio: %d, queue: 0x%08x%08x (Roff = %u, Woff = %u, Size = %u)", 8) \
-X(205, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_COMPUTE_CORE_STALLED, "Compute stalled core %u (Roff = %u, Woff = %u, Size = %u)", 4) \
-X(206, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_UMQ_MISMATCHED_CORE_READ_OFFSET, "User Mode Queue mismatched stream start: Core %u, FWCtx 0x%08.8x, queue: 0x%08x%08x (Roff = %u, StreamStartOffset = %u)", 6) \
-X(207, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_TDM_RESUMED_FROM_STALL, "TDM resumed core %u (Roff = %u, Woff = %u)", 3) \
-X(208, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_COMPUTE_CORE_RESUMED_FROM_STALL, "Compute resumed core %u (Roff = %u, Woff = %u, Size = %u)", 4) \
-X(209, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_OS_MTS_PERMISSION_CHANGED, " Updated permission for OSid %u to perform MTS kicks: %u (1 = allowed, 0 = not allowed)", 2) \
-X(210, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_TEST1, "Mask = 0x%X, mask2 = 0x%X", 2) \
-X(211, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_TEST2, "  core %u, reg = %u, mask = 0x%X)", 3) \
-X(212, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_ECC_FAULT_SAFETY_BUS, "ECC fault received from safety bus: 0x%08x", 1) \
-X(213, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_SAFETY_WDG_CONFIG, "Safety Watchdog threshold period set to 0x%x clock cycles", 1) \
-X(214, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_SAFETY_WDG_TRIGGER, "MTS Safety Event trigged by the safety watchdog.", 0) \
-X(215, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_USC_TASKS_RANGE, "DM%d USC tasks range limit 0 - %d, stride %d", 3) \
-X(216, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_GPU_ECC_FAULT, "ECC fault GPU=0x%08x", 1) \
-X(217, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_GPU_SAFETY_RESET, "GPU Hardware units reset to prevent transient faults.", 0) \
-X(218, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_ABORTCMD, "Kick Abort cmd: FWCtx 0x%08.8x @ %d", 2) \
-X(219, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KICK_RAY_DEPRECATED, "Kick Ray: FWCtx 0x%08.8x @ %d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)", 7)\
-X(220, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_RAY_FINISHED_DEPRECATED, "Ray finished", 0) \
-X(221, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_FWDATA_INIT_STATUS, "State of firmware's private data at boot time: %d (0 = uninitialised, 1 = initialised); Fw State Flags = 0x%08X", 2) \
-X(222, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_CFI_TIMEOUT, "CFI Timeout detected (%d increasing to %d)", 2) \
-X(223, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_CFI_TIMEOUT_FBM, "CFI Timeout detected for FBM (%d increasing to %d)", 2) \
-X(224, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_GEOM_OOM_DISALLOWED, "Geom OOM event not allowed", 0) \
-X(225, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_OS_PRIORITY_CHANGE, "Changing OSid %d's priority from %u to %u; Isolation = %u (0 = off; 1 = on)", 4) \
-X(226, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_SKIP_ALREADY_RUN_GEOM, "Skipping already executed TA FWCtx 0x%08.8x @ %d", 2) \
-X(227, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_ATTEMPT_TO_RUN_AHEAD_GEOM, "Attempt to execute TA FWCtx 0x%08.8x @ %d ahead of time on other GEOM", 2) \
-X(228, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KICK_TDM_DEPRECATED2, "Kick TDM: Kick ID %u FWCtx 0x%08.8x @ %d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)", 8) \
-X(229, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KICK_TA_PIPELINE, "Kick TA: Kick ID %u FWCtx 0x%08.8x @ %d, RTD 0x%08x, First kick:%d, Last kick:%d, CSW resume:%d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)", 12) \
-X(230, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KICK_3D_PIPELINE, "Kick 3D: Kick ID %u FWCtx 0x%08.8x @ %d, RTD 0x%08x, Partial render:%d, CSW resume:%d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)", 11) \
-X(231, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KICK_COMPUTE_PIPELINE, "Kick Compute: Kick ID %u FWCtx 0x%08.8x @ %d. (PID:%d, prio:%d, ext:0x%08x, int:0x%08x)", 7) \
-X(232, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_TDM_FINISHED_PIPELINE, "TDM finished: Kick ID %u ", 1) \
-X(233, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_TA_FINISHED_PIPELINE, "TA finished: Kick ID %u ", 1) \
-X(234, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_3D_FINISHED_PIPELINE, "3D finished: Kick ID %u , HWRTData0State=%x, HWRTData1State=%x", 3) \
-X(235, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_COMPUTE_FINISHED_PIPELINE, "Compute finished: Kick ID %u ", 1) \
-X(236, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KICK_TDM_PIPELINE, "Kick TDM: Kick ID %u FWCtx 0x%08.8x @ %d, Base 0x%08x%08x. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)", 10) \
-X(237, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_KICK_RAY_PIPELINE, "Kick Ray: Kick ID %u FWCtx 0x%08.8x @ %d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)", 8)\
-X(238, ROGUE_FW_GROUP_MAIN, ROGUE_FW_SF_MAIN_RAY_FINISHED_PIPELINE, "Ray finished: Kick ID %u ", 1) \
-\
-X(  1, ROGUE_FW_GROUP_MTS, ROGUE_FW_SF_MTS_BG_KICK_DEPRECATED, "Bg Task DM = %u, counted = %d", 2) \
-X(  2, ROGUE_FW_GROUP_MTS, ROGUE_FW_SF_MTS_BG_COMPLETE_DEPRECATED, "Bg Task complete DM = %u", 1) \
-X(  3, ROGUE_FW_GROUP_MTS, ROGUE_FW_SF_MTS_IRQ_KICK_DEPRECATED, "Irq Task DM = %u, Breq = %d, SBIrq = 0x%x", 3) \
-X(  4, ROGUE_FW_GROUP_MTS, ROGUE_FW_SF_MTS_IRQ_COMPLETE_DEPRECATED, "Irq Task complete DM = %u", 1) \
-X(  5, ROGUE_FW_GROUP_MTS, ROGUE_FW_SF_MTS_KICK_MTS_BG_ALL_DEPRECATED, "Kick MTS Bg task DM=All", 0) \
-X(  6, ROGUE_FW_GROUP_MTS, ROGUE_FW_SF_MTS_KICK_MTS_IRQ, "Kick MTS Irq task DM=%d", 1) \
-X(  7, ROGUE_FW_GROUP_MTS, ROGUE_FW_SF_MTS_READYCELLTYPE_DEPRECATED, "Ready queue debug DM = %u, celltype = %d", 2) \
-X(  8, ROGUE_FW_GROUP_MTS, ROGUE_FW_SF_MTS_READYTORUN_DEPRECATED, "Ready-to-run debug DM = %u, item = 0x%x", 2) \
-X(  9, ROGUE_FW_GROUP_MTS, ROGUE_FW_SF_MTS_CMDHEADER, "Client command header DM = %u, client CCB = 0x%x, cmd = 0x%x", 3) \
-X( 10, ROGUE_FW_GROUP_MTS, ROGUE_FW_SF_MTS_READYTORUN, "Ready-to-run debug OSid = %u, DM = %u, item = 0x%x", 3) \
-X( 11, ROGUE_FW_GROUP_MTS, ROGUE_FW_SF_MTS_READYCELLTYPE_DEPRECATED2, "Ready queue debug DM = %u, celltype = %d, OSid = %u", 3) \
-X( 12, ROGUE_FW_GROUP_MTS, ROGUE_FW_SF_MTS_BG_KICK_DEPRECATED2, "Bg Task DM = %u, counted = %d, OSid = %u", 3) \
-X( 13, ROGUE_FW_GROUP_MTS, ROGUE_FW_SF_MTS_BG_COMPLETE, "Bg Task complete DM Bitfield: %u", 1) \
-X( 14, ROGUE_FW_GROUP_MTS, ROGUE_FW_SF_MTS_IRQ_COMPLETE, "Irq Task complete.", 0) \
-X( 15, ROGUE_FW_GROUP_MTS, ROGUE_FW_SF_MTS_CMD_DISCARD, "Discarded Command Type: %d OS ID = %d PID = %d context = 0x%08x cccb ROff = 0x%x, due to USC breakpoint hit by OS ID = %d PID = %d.", 7) \
-X( 16, ROGUE_FW_GROUP_MTS, ROGUE_FW_SF_MTS_KCCBCMD_EXEC_DEPRECATED, "KCCB Slot %u: DM=%u, Cmd=0x%08x, OSid=%u", 4) \
-X( 17, ROGUE_FW_GROUP_MTS, ROGUE_FW_SF_MTS_KCCBCMD_RTN_VALUE, "KCCB Slot %u: Return value %u", 2) \
-X( 18, ROGUE_FW_GROUP_MTS, ROGUE_FW_SF_MTS_BG_KICK, "Bg Task OSid = %u", 1) \
-X( 19, ROGUE_FW_GROUP_MTS, ROGUE_FW_SF_MTS_KCCBCMD_EXEC, "KCCB Slot %u: Cmd=0x%08x, OSid=%u", 3) \
-X( 20, ROGUE_FW_GROUP_MTS, ROGUE_FW_SF_MTS_IRQ_KICK, "Irq Task (EVENT_STATUS=0x%08x)", 1) \
-X( 21, ROGUE_FW_GROUP_MTS, ROGUE_FW_SF_MTS_VZ_SIDEBAND, "VZ sideband test, kicked with OSid=%u from MTS, OSid for test=%u", 2) \
-\
-X(  1, ROGUE_FW_GROUP_CLEANUP, ROGUE_FW_SF_CLEANUP_FWCTX_CLEANUP, "FwCommonContext [0x%08x] cleaned", 1) \
-X(  2, ROGUE_FW_GROUP_CLEANUP, ROGUE_FW_SF_CLEANUP_FWCTX_BUSY, "FwCommonContext [0x%08x] is busy: ReadOffset = %d, WriteOffset = %d", 3) \
-X(  3, ROGUE_FW_GROUP_CLEANUP, ROGUE_FW_SF_CLEANUP_HWRTD_CLEANUP_DEPRECATED, "HWRTData [0x%08x] for DM=%d, received cleanup request", 2) \
-X(  4, ROGUE_FW_GROUP_CLEANUP, ROGUE_FW_SF_CLEANUP_HWRTD_CLEANED_FOR_DM_DEPRECATED, "HWRTData [0x%08x] HW Context cleaned for DM%u, executed commands = %d", 3) \
-X(  5, ROGUE_FW_GROUP_CLEANUP, ROGUE_FW_SF_CLEANUP_HWRTD_BUSY_DEPRECATED, "HWRTData [0x%08x] HW Context for DM%u is busy", 2) \
-X(  6, ROGUE_FW_GROUP_CLEANUP, ROGUE_FW_SF_CLEANUP_HWRTD_CLEANED_DEPRECATED, "HWRTData [0x%08x] HW Context %u cleaned", 2) \
-X(  7, ROGUE_FW_GROUP_CLEANUP, ROGUE_FW_SF_CLEANUP_FL_CLEANED, "Freelist [0x%08x] cleaned", 1) \
-X(  8, ROGUE_FW_GROUP_CLEANUP, ROGUE_FW_SF_CLEANUP_ZSBUFFER_CLEANED, "ZSBuffer [0x%08x] cleaned", 1) \
-X(  9, ROGUE_FW_GROUP_CLEANUP, ROGUE_FW_SF_CLEANUP_ZSBUFFER_BUSY, "ZSBuffer [0x%08x] is busy: submitted = %d, executed = %d", 3) \
-X( 10, ROGUE_FW_GROUP_CLEANUP, ROGUE_FW_SF_CLEANUP_HWRTD_BUSY_DEPRECATED2, "HWRTData [0x%08x] HW Context for DM%u is busy: submitted = %d, executed = %d", 4) \
-X( 11, ROGUE_FW_GROUP_CLEANUP, ROGUE_FW_SF_CLEANUP_HWRFD_CLEANUP_DEPRECATED, "HW Ray Frame data [0x%08x] for DM=%d, received cleanup request", 2) \
-X( 12, ROGUE_FW_GROUP_CLEANUP, ROGUE_FW_SF_CLEANUP_HWRFD_CLEANED_FOR_DM_DEPRECATED, "HW Ray Frame Data [0x%08x] cleaned for DM%u, executed commands = %d", 3) \
-X( 13, ROGUE_FW_GROUP_CLEANUP, ROGUE_FW_SF_CLEANUP_HWRFD_BUSY_DEPRECATED, "HW Ray Frame Data [0x%08x] for DM%u is busy: submitted = %d, executed = %d", 4) \
-X( 14, ROGUE_FW_GROUP_CLEANUP, ROGUE_FW_SF_CLEANUP_HWRFD_CLEANED_DEPRECATED, "HW Ray Frame Data [0x%08x] HW Context %u cleaned", 2) \
-X( 15, ROGUE_FW_GROUP_CLEANUP, ROGUE_FW_SF_CLEANUP_INVALID_REQUEST, "Discarding invalid cleanup request of type 0x%x", 1) \
-X( 16, ROGUE_FW_GROUP_CLEANUP, ROGUE_FW_SF_CLEANUP_HWRTD_CLEANUP, "Received cleanup request for HWRTData [0x%08x]", 1) \
-X( 17, ROGUE_FW_GROUP_CLEANUP, ROGUE_FW_SF_CLEANUP_HWRTD_BUSY, "HWRTData [0x%08x] HW Context is busy: submitted = %d, executed = %d", 3) \
-X( 18, ROGUE_FW_GROUP_CLEANUP, ROGUE_FW_SF_CLEANUP_HWRTD_CLEANED, "HWRTData [0x%08x] HW Context %u cleaned, executed commands = %d", 3) \
-\
-X(  1, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_CDM_NEEDS_RESUME, "CDM FWCtx 0x%08.8x needs resume", 1) \
-X(  2, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_CDM_RESUME_DEPRECATED, "*** CDM FWCtx 0x%08.8x resume from snapshot buffer 0x%08x%08x", 3) \
-X(  3, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_CDM_SHARED, "CDM FWCtx shared alloc size load 0x%x", 1) \
-X(  4, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_CDM_STORE_COMPLETE, "*** CDM FWCtx store complete", 0) \
-X(  5, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_CDM_STORE_START, "*** CDM FWCtx store start", 0) \
-X(  6, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_CDM_SOFT_RESET, "CDM Soft Reset", 0) \
-X(  7, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_3D_NEEDS_RESUME, "3D FWCtx 0x%08.8x needs resume", 1) \
-X(  8, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_3D_RESUME, "*** 3D FWCtx 0x%08.8x resume", 1) \
-X(  9, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_3D_STORE_COMPLETE, "*** 3D context store complete", 0) \
-X( 10, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_3D_STORE_PIPE_STATE_DEPRECATED, "3D context store pipe state: 0x%08.8x 0x%08.8x 0x%08.8x", 3) \
-X( 11, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_3D_STORE_START, "*** 3D context store start", 0) \
-X( 12, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_3D_TQ_RESUME, "*** 3D TQ FWCtx 0x%08.8x resume", 1) \
-X( 13, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_TA_NEEDS_RESUME, "TA FWCtx 0x%08.8x needs resume", 1) \
-X( 14, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_TA_RESUME, "*** TA FWCtx 0x%08.8x resume from snapshot buffer 0x%08x%08x", 3) \
-X( 15, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_TA_SHARED, "TA context shared alloc size store 0x%x, load 0x%x", 2) \
-X( 16, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_TA_STORE_COMPLETE, "*** TA context store complete", 0) \
-X( 17, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_TA_STORE_START, "*** TA context store start", 0) \
-X( 18, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_HIGHER_PRIORITY_SCHEDULED_DEPRECATED, "Higher priority context scheduled for DM %u, old prio:%d, new prio:%d", 3) \
-X( 19, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_SET_CONTEXT_PRIORITY, "Set FWCtx 0x%x priority to %u", 2) \
-X( 20, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_3D_STORE_PIPE_STATE_DEPRECATED2, "3D context store pipe%d state: 0x%08.8x", 2) \
-X( 21, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_3D_RESUME_PIPE_STATE_DEPRECATED, "3D context resume pipe%d state: 0x%08.8x", 2) \
-X( 22, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_SHG_NEEDS_RESUME_DEPRECATED, "SHG FWCtx 0x%08.8x needs resume", 1) \
-X( 23, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_SHG_RESUME_DEPRECATED, "*** SHG FWCtx 0x%08.8x resume from snapshot buffer 0x%08x%08x", 3) \
-X( 24, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_SHG_SHARED_DEPRECATED, "SHG context shared alloc size store 0x%x, load 0x%x", 2) \
-X( 25, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_SHG_STORE_COMPLETE_DEPRECATED, "*** SHG context store complete", 0) \
-X( 26, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_SHG_STORE_START_DEPRECATED, "*** SHG context store start", 0) \
-X( 27, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_TA_PIPE_INDIRECT, "Performing TA indirection, last used pipe %d", 1) \
-X( 28, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_CDM_STORE_CTRL_STREAM_TERMINATE, "CDM context store hit ctrl stream terminate. Skip resume.", 0) \
-X( 29, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_CDM_RESUME_AB_BUFFER, "*** CDM FWCtx 0x%08.8x resume from snapshot buffer 0x%08x%08x, shader state %u", 4) \
-X( 30, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_TA_STATE_BUFFER_FLIP, "TA PDS/USC state buffer flip (%d->%d)", 2) \
-X( 31, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_TA_STORE_52563_HIT_DEPRECATED, "TA context store hit BRN 52563: vertex store tasks outstanding", 0) \
-X( 32, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_TA_STORE_USC_POLL_FAILED, "TA USC poll failed (USC vertex task count: %d)", 1) \
-X( 33, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_TA_STORE_DEFERRED_DEPRECATED, "TA context store deferred due to BRN 54141.", 0) \
-X( 34, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_HIGHER_PRIORITY_SCHEDULED_DEPRECATED2, "Higher priority context scheduled for DM %u. Prios (OSid, OSid Prio, Context Prio): Current: %u, %u, %u New: %u, %u, %u", 7) \
-X( 35, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_TDM_STORE_START, "*** TDM context store start", 0) \
-X( 36, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_TDM_STORE_COMPLETE, "*** TDM context store complete", 0) \
-X( 37, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_TDM_STORE_NEEDS_RESUME_DEPRECATED, "TDM context needs resume, header [0x%08.8x, 0x%08.8x]", 2) \
-X( 38, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_HIGHER_PRIORITY_SCHEDULED, "Higher priority context scheduled for DM %u. Prios (OSid, OSid Prio, Context Prio): Current: %u, %u, %u New: %u, %u, %u. Hard Context Switching: %u", 8) \
-X( 39, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_3D_STORE_PIPE_STATE, "3D context store pipe %2d (%2d) state: 0x%08.8x", 3) \
-X( 40, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_3D_RESUME_PIPE_STATE, "3D context resume pipe %2d (%2d) state: 0x%08.8x", 3) \
-X( 41, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_3D_STORE_START_VOLCANIC, "*** 3D context store start version %d (1=IPP_TILE, 2=ISP_TILE)", 1) \
-X( 42, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_3D_STORE_PIPE_STATE_VOLCANIC, "3D context store pipe%d state: 0x%08.8x%08x", 3) \
-X( 43, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_3D_RESUME_PIPE_STATE_VOLCANIC, "3D context resume pipe%d state: 0x%08.8x%08x", 3) \
-X( 44, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_3D_RESUME_IPP_STATE,  "3D context resume IPP state: 0x%08.8x%08x", 2) \
-X( 45, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_3D_PIPES_EMPTY, "All 3D pipes empty after ISP tile mode store! IPP_status: 0x%08x", 1) \
-X( 46, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_TDM_RESUME_PIPE_STATE_DEPRECATED, "TDM context resume pipe%d state: 0x%08.8x%08x", 3) \
-X( 47, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_3D_LEVEL4_STORE_START, "*** 3D context store start version 4", 0) \
-X( 48, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_RESUME_MULTICORE, "Multicore context resume on DM%d active core mask 0x%04.4x", 2) \
-X( 49, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_STORE_MULTICORE, "Multicore context store on DM%d active core mask 0x%04.4x", 2) \
-X( 50, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_TDM_RESUME_PIPE_STATE, "TDM context resume Core %d, pipe%d state: 0x%08.8x%08x%08x", 5) \
-X( 51, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_RDM_STORE_COMPLETE, "*** RDM FWCtx store complete", 0) \
-X( 52, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_RDM_STORE_START, "*** RDM FWCtx store start", 0) \
-X( 53, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_RDM_NEEDS_RESUME, "RDM FWCtx 0x%08.8x needs resume", 1) \
-X( 54, ROGUE_FW_GROUP_CSW, ROGUE_FW_SF_CSW_RDM_RESUME, "RDM FWCtx 0x%08.8x resume", 1) \
-\
-X(  1, ROGUE_FW_GROUP_BIF, ROGUE_FW_SF_BIF_ACTIVATE_BIFREQ_DEPRECATED, "Activate MemCtx=0x%08x BIFreq=%d secure=%d", 3) \
-X(  2, ROGUE_FW_GROUP_BIF, ROGUE_FW_SF_BIF_DEACTIVATE, "Deactivate MemCtx=0x%08x", 1) \
-X(  3, ROGUE_FW_GROUP_BIF, ROGUE_FW_SF_BIF_PCREG_ALLOC_DEPRECATED, "Alloc PC reg %d", 1) \
-X(  4, ROGUE_FW_GROUP_BIF, ROGUE_FW_SF_BIF_PCSET_GRAB, "Grab reg set %d refcount now %d", 2) \
-X(  5, ROGUE_FW_GROUP_BIF, ROGUE_FW_SF_BIF_PCSET_UNGRAB, "Ungrab reg set %d refcount now %d", 2) \
-X(  6, ROGUE_FW_GROUP_BIF, ROGUE_FW_SF_BIF_SETUP_REG_BIFREQ_DEPRECATED, "Setup reg=%d BIFreq=%d, expect=0x%08x%08x, actual=0x%08x%08x", 6) \
-X(  7, ROGUE_FW_GROUP_BIF, ROGUE_FW_SF_BIF_TRUST_DEPRECATED, "Trust enabled:%d, for BIFreq=%d", 2) \
-X(  8, ROGUE_FW_GROUP_BIF, ROGUE_FW_SF_BIF_TILECFG_DEPRECATED, "BIF Tiling Cfg %d base 0x%08x%08x len 0x%08x%08x enable %d stride %d --> 0x%08x%08x", 9) \
-X(  9, ROGUE_FW_GROUP_BIF, ROGUE_FW_SF_BIF_OSID0, "Wrote the Value %d to OSID0, Cat Base %d, Register's contents are now 0x%08x 0x%08x", 4) \
-X( 10, ROGUE_FW_GROUP_BIF, ROGUE_FW_SF_BIF_OSID1, "Wrote the Value %d to OSID1, Context  %d, Register's contents are now 0x%04x", 3) \
-X( 11, ROGUE_FW_GROUP_BIF, ROGUE_FW_SF_BIF_OSIDx, "ui32OSid = %u, Catbase = %u, Reg Address = 0x%x, Reg index = %u, Bitshift index = %u, Val = 0x%08x%08x", 7) \
-X( 12, ROGUE_FW_GROUP_BIF, ROGUE_FW_SF_BIF_MAP_GPU_MEMORY_BIFREQ_DEPRECATED, "Map GPU memory DevVAddr 0x%x%08x, Size %u, Context ID %u, BIFREQ %u", 5) \
-X( 13, ROGUE_FW_GROUP_BIF, ROGUE_FW_SF_BIF_UNMAP_GPU_MEMORY, "Unmap GPU memory (event status 0x%x)", 1) \
-X( 14, ROGUE_FW_GROUP_BIF, ROGUE_FW_SF_BIF_ACTIVATE_DM, "Activate MemCtx=0x%08x DM=%d secure=%d", 3) \
-X( 15, ROGUE_FW_GROUP_BIF, ROGUE_FW_SF_BIF_SETUP_REG_DM_DEPRECATED, "Setup reg=%d DM=%d, expect=0x%08x%08x, actual=0x%08x%08x", 6) \
-X( 16, ROGUE_FW_GROUP_BIF, ROGUE_FW_SF_BIF_MAP_GPU_MEMORY, "Map GPU memory DevVAddr 0x%x%08x, Size %u, Context ID %u", 4) \
-X( 17, ROGUE_FW_GROUP_BIF, ROGUE_FW_SF_BIF_TRUST_DM, "Trust enabled:%d, for DM=%d", 2) \
-X( 18, ROGUE_FW_GROUP_BIF, ROGUE_FW_SF_BIF_MAP_GPU_MEMORY_DM, "Map GPU memory DevVAddr 0x%x%08x, Size %u, Context ID %u, DM %u", 5) \
-X( 19, ROGUE_FW_GROUP_BIF, ROGUE_FW_SF_BIF_SETUP_REG_DM, "Setup register set=%d DM=%d, PC address=0x%08x%08x, OSid=%u, NewPCRegRequired=%d", 6) \
-X( 20, ROGUE_FW_GROUP_BIF, ROGUE_FW_SF_BIF_PCSET_ALLOC, "Alloc PC set %d as register range [%u - %u]", 3) \
-\
-X(  1, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_GPIO_WRITE, "GPIO write 0x%02x", 1) \
-X(  2, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_GPIO_READ, "GPIO read 0x%02x", 1) \
-X(  3, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_GPIO_ENABLED, "GPIO enabled", 0) \
-X(  4, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_GPIO_DISABLED, "GPIO disabled", 0) \
-X(  5, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_GPIO_STATUS, "GPIO status=%d (0=OK, 1=Disabled)", 1) \
-X(  6, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_GPIO_AP_READ, "GPIO_AP: Read address=0x%02x (%d byte(s))", 2) \
-X(  7, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_GPIO_AP_WRITE, "GPIO_AP: Write address=0x%02x (%d byte(s))", 2) \
-X(  8, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_GPIO_AP_TIMEOUT, "GPIO_AP timeout!", 0) \
-X(  9, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_GPIO_AP_ERROR, "GPIO_AP error. GPIO status=%d (0=OK, 1=Disabled)", 1) \
-X( 10, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_GPIO_ALREADY_READ, "GPIO already read 0x%02x", 1) \
-X( 11, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_SR_CHECK_BUFFER_AVAILABLE, "SR: Check buffer %d available returned %d", 2) \
-X( 12, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_SR_WAITING_BUFFER_AVAILABLE, "SR: Waiting for buffer %d", 1) \
-X( 13, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_SR_WAIT_BUFFER_TIMEOUT, "SR: Timeout waiting for buffer %d (after %d ticks)", 2) \
-X( 14, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_SR_SKIP_FRAME_CHECK, "SR: Skip frame check for strip %d returned %d (0=No skip, 1=Skip frame)", 2) \
-X( 15, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_SR_SKIP_REMAINING_STRIPS, "SR: Skip remaining strip %d in frame", 1) \
-X( 16, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_SR_FRAME_SKIP_NEW_FRAME, "SR: Inform HW that strip %d is a new frame", 1) \
-X( 17, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_SR_SKIP_FRAME_TIMEOUT, "SR: Timeout waiting for INTERRUPT_FRAME_SKIP (after %d ticks)", 1) \
-X( 18, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_SR_STRIP_MODE, "SR: Strip mode is %d", 1) \
-X( 19, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_SR_STRIP_INDEX, "SR: Strip Render start (strip %d)", 1) \
-X( 20, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_SR_BUFFER_RENDERED, "SR: Strip Render complete (buffer %d)", 1) \
-X( 21, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_SR_BUFFER_FAULT, "SR: Strip Render fault (buffer %d)", 1) \
-X( 22, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_TRP_STATE, "TRP state: %d", 1) \
-X( 23, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_TRP_FAILURE, "TRP failure: %d", 1) \
-X( 24, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_SW_TRP_STATE, "SW TRP State: %d", 1) \
-X( 25, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_SW_TRP_FAILURE, "SW TRP failure: %d", 1) \
-X( 26, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_HW_KICK, "HW kick event (%u)", 1) \
-X( 27, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_WGP_CHECKSUMS, "GPU core (%u/%u): checksum 0x%08x vs. 0x%08x", 4) \
-X( 28, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_WGP_UNIT_CHECKSUMS, "GPU core (%u/%u), unit (%u,%u): checksum 0x%08x vs. 0x%08x", 6) \
-X( 29, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_HWR_CHECK_REG, "HWR: Core%u, Register=0x%08x, OldValue=0x%08x%08x, CurrValue=0x%08x%08x", 6) \
-X( 30, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_HWR_USC_SLOTS_CHECK, "HWR: USC Core%u, ui32TotalSlotsUsedByDM=0x%08x, psDMHWCtl->ui32USCSlotsUsedByDM=0x%08x, bHWRNeeded=%u", 4) \
-X( 31, ROGUE_FW_GROUP_MISC, ROGUE_FW_SF_MISC_HWR_USC_REG_CHECK, "HWR: USC Core%u, Register=0x%08x, OldValue=0x%08x%08x, CurrValue=0x%08x%08x", 6) \
-\
-X(  1, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_AMLIST, "ALIST%d SP = %u, MLIST%d SP = %u (VCE 0x%08x%08x, TE 0x%08x%08x, ALIST 0x%08x%08x)", 10) \
-X(  2, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_UFL_SHARED_DEPRECATED, "Is TA: %d, finished: %d on HW %u (HWRTData = 0x%08x, MemCtx = 0x%08x). FL different between TA/3D: global:%d, local:%d, mmu:%d", 8) \
-X(  3, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_UFL_3DBASE_DEPRECATED, "UFL-3D-Base: 0x%08x%08x (SP = %u, 4PB = %u, 4PT = %u), FL-3D-Base: 0x%08x%08x (SP = %u, 4PB = %u, 4PT = %u), MFL-3D-Base: 0x%08x%08x (SP = %u, 4PT = %u)", 14) \
-X(  4, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_UFL_TABASE_DEPRECATED, "UFL-TA-Base: 0x%08x%08x (SP = %u, 4PB = %u, 4PT = %u), FL-TA-Base: 0x%08x%08x (SP = %u, 4PB = %u, 4PT = %u), MFL-TA-Base: 0x%08x%08x (SP = %u, 4PT = %u)", 14) \
-X(  5, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_FL_GROW_COMPLETE_DEPRECATED, "Freelist grow completed [0x%08x]: added pages 0x%08x, total pages 0x%08x, new DevVirtAddr 0x%08x%08x", 5) \
-X(  6, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_FL_GROW_DENIED_DEPRECATED, "Grow for freelist ID=0x%08x denied by host", 1) \
-X(  7, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_FL_UPDATE_COMPLETE, "Freelist update completed [0x%08x]: old total pages 0x%08x, new total pages 0x%08x, new DevVirtAddr 0x%08x%08x", 5) \
-X(  8, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_FL_RECONSTRUCTION_FAILED_DEPRECATED, "Reconstruction of freelist ID=0x%08x failed", 1) \
-X(  9, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_DM_PAUSE_WARNING, "Ignored attempt to pause or unpause the DM while there is no relevant operation in progress (0-TA,1-3D): %d, operation(0-unpause, 1-pause): %d", 2) \
-X( 10, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_3D_TIMEOUT_STATUS, "Force free 3D Context memory, FWCtx: 0x%08x, status(1:success, 0:fail): %d", 2)\
-X( 11, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_DM_PAUSE_ALLOC, "PM pause TA ALLOC: PM_PAGE_MANAGEOP set to 0x%x", 1) \
-X( 12, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_DM_UNPAUSE_ALLOC, "PM unpause TA ALLOC: PM_PAGE_MANAGEOP set to 0x%x", 1) \
-X( 13, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_DM_PAUSE_DALLOC, "PM pause 3D DALLOC: PM_PAGE_MANAGEOP set to 0x%x", 1) \
-X( 14, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_DM_UNPAUSE_DALLOC, "PM unpause 3D DALLOC: PM_PAGE_MANAGEOP set to 0x%x", 1) \
-X( 15, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_DM_PAUSE_FAILED, "PM ALLOC/DALLOC change was not actioned: PM_PAGE_MANAGEOP_STATUS=0x%x", 1) \
-X( 16, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_UFL_SHARED, "Is TA: %d, finished: %d on HW %u (HWRTData = 0x%08x, MemCtx = 0x%08x). FL different between TA/3D: global:%d, local:%d", 7) \
-X( 17, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_UFL_3DBASE, "UFL-3D-Base: 0x%08x%08x (SP = %u, 4PB = %u, 4PT = %u), FL-3D-Base: 0x%08x%08x (SP = %u, 4PB = %u, 4PT = %u)", 10) \
-X( 18, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_UFL_TABASE, "UFL-TA-Base: 0x%08x%08x (SP = %u, 4PB = %u, 4PT = %u), FL-TA-Base: 0x%08x%08x (SP = %u, 4PB = %u, 4PT = %u)", 10) \
-X( 19, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_FL_UPDATE_COMPLETE_VOLCANIC, "Freelist update completed [0x%08x / FL State 0x%08x%08x]: old total pages 0x%08x, new total pages 0x%08x, new DevVirtAddr 0x%08x%08x", 7) \
-X( 20, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_FL_UPDATE_FAILED, "Freelist update failed [0x%08x / FL State 0x%08x%08x]: old total pages 0x%08x, new total pages 0x%08x, new DevVirtAddr 0x%08x%08x", 7) \
-X( 21, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_UFL_3DBASE_VOLCANIC, "UFL-3D-State-Base: 0x%08x%08x (SP = %u, 4PB = %u, 4PT = %u), FL-3D-State-Base: 0x%08x%08x (SP = %u, 4PB = %u, 4PT = %u)", 10) \
-X( 22, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_UFL_TABASE_VOLCANIC, "UFL-TA-State-Base: 0x%08x%08x (SP = %u, 4PB = %u, 4PT = %u), FL-TA-State-Base: 0x%08x%08x (SP = %u, 4PB = %u, 4PT = %u)", 10) \
-X( 23, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_CHECK_FL_BASEADDR, "Freelist 0x%08x base address from HW: 0x%02x%08x (expected value: 0x%02x%08x)", 5) \
-X( 24, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_ANALYSE_FL_GROW, "Analysis of FL grow: Pause=(%u,%u) Paused+Valid(%u,%u) PMStateBuffer=0x%x", 5) \
-X( 25, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_ATTEMPT_FL_GROW, "Attempt FL grow for FL: 0x%08x, new dev address: 0x%02x%08x, new page count: %u, new ready count: %u", 5) \
-X( 26, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_DEFER_FL_GROW, "Deferring FL grow for non-loaded FL: 0x%08x, new dev address: 0x%02x%08x, new page count: %u, new ready count: %u", 5) \
-X( 27, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_UFL_SHARED_ALBIORIX, "Is GEOM: %d, finished: %d (HWRTData = 0x%08x, MemCtx = 0x%08x)", 4) \
-X( 28, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_3D_TIMEOUT, "3D Timeout Now for FWCtx 0x%08.8x", 1) \
-X( 29, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_RECYCLE, "GEOM PM Recycle for FWCtx 0x%08.8x", 1) \
-X( 30, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_PRIMARY_CONFIG, "PM running primary config (Core %d)", 1) \
-X( 31, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_SECONDARY_CONFIG, "PM running secondary config (Core %d)", 1) \
-X( 32, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_TERTIARY_CONFIG, "PM running tertiary config (Core %d)", 1) \
-X( 33, ROGUE_FW_GROUP_PM, ROGUE_FW_SF_PM_QUATERNARY_CONFIG, "PM running quaternary config (Core %d)", 1) \
-\
-X(  1, ROGUE_FW_GROUP_RPM, ROGUE_FW_SF_RPM_GLL_DYNAMIC_STATUS_DEPRECATED, "Global link list dynamic page count: vertex 0x%x, varying 0x%x, node 0x%x", 3) \
-X(  2, ROGUE_FW_GROUP_RPM, ROGUE_FW_SF_RPM_GLL_STATIC_STATUS_DEPRECATED, "Global link list static page count: vertex 0x%x, varying 0x%x, node 0x%x", 3) \
-X(  3, ROGUE_FW_GROUP_RPM, ROGUE_FW_SF_RPM_STATE_WAIT_FOR_GROW_DEPRECATED, "RPM request failed. Waiting for freelist grow.", 0) \
-X(  4, ROGUE_FW_GROUP_RPM, ROGUE_FW_SF_RPM_STATE_ABORT_DEPRECATED, "RPM request failed. Aborting the current frame.", 0) \
-X(  5, ROGUE_FW_GROUP_RPM, ROGUE_FW_SF_RPM_STATE_WAIT_FOR_PENDING_GROW_DEPRECATED, "RPM waiting for pending grow on freelist 0x%08x", 1) \
-X(  6, ROGUE_FW_GROUP_RPM, ROGUE_FW_SF_RPM_REQUEST_HOST_GROW_DEPRECATED, "Request freelist grow [0x%08x] current pages %d, grow size %d", 3) \
-X(  7, ROGUE_FW_GROUP_RPM, ROGUE_FW_SF_RPM_FREELIST_LOAD_DEPRECATED, "Freelist load: SHF = 0x%08x, SHG = 0x%08x", 2) \
-X(  8, ROGUE_FW_GROUP_RPM, ROGUE_FW_SF_RPM_SHF_FPL_DEPRECATED, "SHF FPL register: 0x%08x.0x%08x", 2) \
-X(  9, ROGUE_FW_GROUP_RPM, ROGUE_FW_SF_RPM_SHG_FPL_DEPRECATED, "SHG FPL register: 0x%08x.0x%08x", 2) \
-X( 10, ROGUE_FW_GROUP_RPM, ROGUE_FW_SF_RPM_GROW_FREELIST_DEPRECATED, "Kernel requested RPM grow on freelist (type %d) at 0x%08x from current size %d to new size %d, RPM restart: %d (1=Yes)", 5) \
-X( 11, ROGUE_FW_GROUP_RPM, ROGUE_FW_SF_RPM_GROW_RESTART_DEPRECATED, "Restarting SHG", 0) \
-X( 12, ROGUE_FW_GROUP_RPM, ROGUE_FW_SF_RPM_GROW_ABORTED_DEPRECATED, "Grow failed, aborting the current frame.", 0) \
-X( 13, ROGUE_FW_GROUP_RPM, ROGUE_FW_SF_RPM_ABORT_COMPLETE_DEPRECATED, "RPM abort complete on HWFrameData [0x%08x].", 1) \
-X( 14, ROGUE_FW_GROUP_RPM, ROGUE_FW_SF_RPM_CLEANUP_NEEDS_ABORT_DEPRECATED, "RPM freelist cleanup [0x%08x] requires abort to proceed.", 1) \
-X( 15, ROGUE_FW_GROUP_RPM, ROGUE_FW_SF_RPM_RPM_PT_DEPRECATED, "RPM page table base register: 0x%08x.0x%08x", 2) \
-X( 16, ROGUE_FW_GROUP_RPM, ROGUE_FW_SF_RPM_OOM_ABORT_DEPRECATED, "Issuing RPM abort.", 0) \
-X( 17, ROGUE_FW_GROUP_RPM, ROGUE_FW_SF_RPM_OOM_TOGGLE_CHECK_FULL_DEPRECATED, "RPM OOM received but toggle bits indicate free pages available", 0) \
-X( 18, ROGUE_FW_GROUP_RPM, ROGUE_FW_SF_RPM_STATE_HW_TIMEOUT_DEPRECATED, "RPM hardware timeout. Unable to process OOM event.", 0) \
-X( 19, ROGUE_FW_GROUP_RPM, ROGUE_FW_SF_RPM_SHF_FPL_LOAD_DEPRECATED_DEPRECATED, "SHF FL (0x%08x) load, FPL: 0x%08x.0x%08x, roff: 0x%08x, woff: 0x%08x", 5) \
-X( 20, ROGUE_FW_GROUP_RPM, ROGUE_FW_SF_RPM_SHG_FPL_LOAD_DEPRECATED, "SHG FL (0x%08x) load, FPL: 0x%08x.0x%08x, roff: 0x%08x, woff: 0x%08x", 5) \
-X( 21, ROGUE_FW_GROUP_RPM, ROGUE_FW_SF_RPM_SHF_FPL_STORE_DEPRECATED, "SHF FL (0x%08x) store, roff: 0x%08x, woff: 0x%08x", 3) \
-X( 22, ROGUE_FW_GROUP_RPM, ROGUE_FW_SF_RPM_SHG_FPL_STORE_DEPRECATED, "SHG FL (0x%08x) store, roff: 0x%08x, woff: 0x%08x", 3) \
-\
-X(  1, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_3D_RTDATA_FINISHED, "3D RTData 0x%08x finished on HW context %u", 2) \
-X(  2, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_3D_RTDATA_READY, "3D RTData 0x%08x ready on HW context %u", 2) \
-X(  3, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_PB_SET_TO_DEPRECATED, "CONTEXT_PB_BASE set to 0x%x, FL different between TA/3D: local: %d, global: %d, mmu: %d", 4) \
-X(  4, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_LOADVFP_3D_DEPRECATED, "Loading VFP table 0x%08x%08x for 3D", 2) \
-X(  5, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_LOADVFP_TA_DEPRECATED, "Loading VFP table 0x%08x%08x for TA", 2) \
-X(  6, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_LOAD_FL_DEPRECATED, "Load Freelist 0x%x type: %d (0:local,1:global,2:mmu) for DM%d: TotalPMPages = %d, FL-addr = 0x%08x%08x, stacktop = 0x%08x%08x, Alloc Page Count = %u, Alloc MMU Page Count = %u", 10) \
-X(  7, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_VHEAP_STORE, "Perform VHEAP table store", 0) \
-X(  8, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_RTDATA_MATCH_FOUND, "RTData 0x%08x: found match in Context=%d: Load=No, Store=No", 2) \
-X(  9, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_RTDATA_NULL_FOUND, "RTData 0x%08x: found NULL in Context=%d: Load=Yes, Store=No", 2) \
-X( 10, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_RTDATA_3D_FINISHED, "RTData 0x%08x: found state 3D finished (0x%08x) in Context=%d: Load=Yes, Store=Yes", 3) \
-X( 11, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_RTDATA_TA_FINISHED, "RTData 0x%08x: found state TA finished (0x%08x) in Context=%d: Load=Yes, Store=Yes", 3) \
-X( 12, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_LOAD_STACK_POINTERS, "Loading stack-pointers for %d (0:MidTA,1:3D) on context %d, MLIST = 0x%08x, ALIST = 0x%08x%08x", 5) \
-X( 13, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_STORE_PB_DEPRECATED, "Store Freelist 0x%x type: %d (0:local,1:global,2:mmu) for DM%d: TotalPMPages = %d, FL-addr = 0x%08x%08x, stacktop = 0x%08x%08x, Alloc Page Count = %u, Alloc MMU Page Count = %u", 10) \
-X( 14, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_TA_RTDATA_FINISHED, "TA RTData 0x%08x finished on HW context %u", 2) \
-X( 15, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_TA_RTDATA_LOADED, "TA RTData 0x%08x loaded on HW context %u", 2) \
-X( 16, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_STORE_PB_DEPRECATED2, "Store Freelist 0x%x type: %d (0:local,1:global,2:mmu) for DM%d: FL Total Pages %u (max=%u,grow size=%u), FL-addr = 0x%08x%08x, stacktop = 0x%08x%08x, Alloc Page Count = %u, Alloc MMU Page Count = %u", 12) \
-X( 17, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_LOAD_FL_DEPRECATED2, "Load  Freelist 0x%x type: %d (0:local,1:global,2:mmu) for DM%d: FL Total Pages %u (max=%u,grow size=%u), FL-addr = 0x%08x%08x, stacktop = 0x%08x%08x, Alloc Page Count = %u, Alloc MMU Page Count = %u", 12) \
-X( 18, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_DEBUG_DEPRECATED, "Freelist 0x%x RESET!!!!!!!!", 1) \
-X( 19, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_DEBUG2_DEPRECATED, "Freelist 0x%x stacktop = 0x%08x%08x, Alloc Page Count = %u, Alloc MMU Page Count = %u", 5) \
-X( 20, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_FL_RECON_DEPRECATED, "Request reconstruction of Freelist 0x%x type: %d (0:local,1:global,2:mmu) on HW context %u", 3) \
-X( 21, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_FL_RECON_ACK_DEPRECATED, "Freelist reconstruction ACK from host (HWR state :%u)", 1) \
-X( 22, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_FL_RECON_ACK_DEPRECATED2, "Freelist reconstruction completed", 0) \
-X( 23, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_TA_RTDATA_LOADED_DEPRECATED, "TA RTData 0x%08x loaded on HW context %u HWRTDataNeedsLoading=%d", 3) \
-X( 24, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_TE_RGNHDR_INFO, "TE Region headers base 0x%08x%08x (RGNHDR Init: %d)", 3) \
-X( 25, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_TA_RTDATA_BUFFER_ADDRS_DEPRECATED, "TA Buffers: FWCtx 0x%08x, RT 0x%08x, RTData 0x%08x, VHeap 0x%08x%08x, TPC 0x%08x%08x (MemCtx 0x%08x)", 8) \
-X( 26, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_3D_RTDATA_LOADED_DEPRECATED, "3D RTData 0x%08x loaded on HW context %u", 2) \
-X( 27, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_3D_RTDATA_BUFFER_ADDRS_DEPRECATED, "3D Buffers: FWCtx 0x%08x, RT 0x%08x, RTData 0x%08x (MemCtx 0x%08x)", 4) \
-X( 28, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_TA_RESTART_AFTER_PR_EXECUTED, "Restarting TA after partial render, HWRTData0State=0x%x, HWRTData1State=0x%x", 2) \
-X( 29, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_PB_SET_TO, "CONTEXT_PB_BASE set to 0x%x, FL different between TA/3D: local: %d, global: %d", 3) \
-X( 30, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_STORE_FL, "Store Freelist 0x%x type: %d (0:local,1:global) for PMDM%d: FL Total Pages %u (max=%u,grow size=%u), FL-addr = 0x%08x%08x, stacktop = 0x%08x%08x, Alloc Page Count = %u, Alloc MMU Page Count = %u", 12) \
-X( 31, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_LOAD_FL, "Load  Freelist 0x%x type: %d (0:local,1:global) for PMDM%d: FL Total Pages %u (max=%u,grow size=%u), FL-addr = 0x%08x%08x, stacktop = 0x%08x%08x, Alloc Page Count = %u, Alloc MMU Page Count = %u", 12) \
-X( 32, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_3D_RTDATA_BUFFER_ADDRS_DEPRECATED2, "3D Buffers: FWCtx 0x%08x, parent RT 0x%08x, RTData 0x%08x on ctx %d, (MemCtx 0x%08x)", 5) \
-X( 33, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_TA_RTDATA_BUFFER_ADDRS, "TA Buffers: FWCtx 0x%08x, RTData 0x%08x, VHeap 0x%08x%08x, TPC 0x%08x%08x (MemCtx 0x%08x)", 7) \
-X( 34, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_3D_RTDATA_BUFFER_ADDRS, "3D Buffers: FWCtx 0x%08x, RTData 0x%08x on ctx %d, (MemCtx 0x%08x)", 4) \
-X( 35, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_LOAD_FL_V2, "Load  Freelist 0x%x type: %d (0:local,1:global) for PMDM%d: FL Total Pages %u (max=%u,grow size=%u)", 6) \
-X( 36, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_KILLED_TA, "TA RTData 0x%08x marked as killed.", 1) \
-X( 37, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_KILLED_3D, "3D RTData 0x%08x marked as killed.", 1) \
-X( 38, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_KILL_TA_AFTER_RESTART, "RTData 0x%08x will be killed after TA restart.", 1) \
-X( 39, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_RENDERSTATE_RESET, "RTData 0x%08x Render State Buffer 0x%02x%08x will be reset.", 3) \
-X( 40, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_GEOM_RENDERSTATE, "GEOM RTData 0x%08x using Render State Buffer 0x%02x%08x.", 3) \
-X( 41, ROGUE_FW_GROUP_RTD, ROGUE_FW_SF_RTD_FRAG_RENDERSTATE, "FRAG RTData 0x%08x using Render State Buffer 0x%02x%08x.", 3) \
-\
-X(  1, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_ZLOAD_DEPRECATED, "Force Z-Load for partial render", 0) \
-X(  2, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_ZSTORE_DEPRECATED, "Force Z-Store for partial render", 0) \
-X(  3, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_3DMEMFREE_LOCAL_DEPRECATED, "3D MemFree: Local FL 0x%08x", 1) \
-X(  4, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_3DMEMFREE_MMU_DEPRECATED, "3D MemFree: MMU FL 0x%08x", 1) \
-X(  5, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_3DMEMFREE_GLOBAL_DEPRECATED, "3D MemFree: Global FL 0x%08x", 1) \
-X(  6, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_OOM_TACMD_DEPRECATED, "OOM TA/3D PR Check: [0x%08.8x] is 0x%08.8x requires 0x%08.8x, HardwareSync Fence [0x%08.8x] is 0x%08.8x requires 0x%08.8x", 6) \
-X(  7, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_OOM_TACMD_UN_FL, "OOM TA_cmd=0x%08x, U-FL 0x%08x, N-FL 0x%08x", 3) \
-X(  8, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_OOM_TACMD_UN_MMU_FL_DEPRECATED, "OOM TA_cmd=0x%08x, OOM MMU:%d, U-FL 0x%08x, N-FL 0x%08x, MMU-FL 0x%08x", 5) \
-X(  9, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_PRENDER_AVOIDED_DEPRECATED, "Partial render avoided", 0) \
-X( 10, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_PRENDER_DISCARDED_DEPRECATED, "Partial render discarded", 0) \
-X( 11, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_PRENDER_FINISHED, "Partial Render finished", 0) \
-X( 12, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_OWNER_3DBG_DEPRECATED, "SPM Owner = 3D-BG", 0) \
-X( 13, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_OWNER_3DIRQ_DEPRECATED, "SPM Owner = 3D-IRQ", 0) \
-X( 14, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_OWNER_NONE_DEPRECATED, "SPM Owner = NONE", 0) \
-X( 15, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_OWNER_TABG_DEPRECATED, "SPM Owner = TA-BG", 0) \
-X( 16, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_OWNER_TAIRQ_DEPRECATED, "SPM Owner = TA-IRQ", 0) \
-X( 17, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_ZSTORE_ADDRESS, "ZStore address 0x%08x%08x", 2) \
-X( 18, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_SSTORE_ADDRESS, "SStore address 0x%08x%08x", 2) \
-X( 19, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_ZLOAD_ADDRESS, "ZLoad address 0x%08x%08x", 2) \
-X( 20, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_SLOAD_ADDRESS, "SLoad address 0x%08x%08x", 2) \
-X( 21, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_NO_DEFERRED_ZSBUFFER_DEPRECATED, "No deferred ZS Buffer provided", 0) \
-X( 22, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_ZSBUFFER_POPULATED, "ZS Buffer successfully populated (ID=0x%08x)", 1) \
-X( 23, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_ZSBUFFER_POP_UNNEEDED_DEPRECATED, "No need to populate ZS Buffer (ID=0x%08x)", 1) \
-X( 24, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_ZSBUFFER_UNPOPULATED, "ZS Buffer successfully unpopulated (ID=0x%08x)", 1) \
-X( 25, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_ZSBUFFER_UNPOP_UNNEEDED_DEPRECATED, "No need to unpopulate ZS Buffer (ID=0x%08x)", 1) \
-X( 26, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_ZSBUFFER_BACKING_REQUEST_DEPRECATED, "Send ZS-Buffer backing request to host (ID=0x%08x)", 1) \
-X( 27, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_ZSBUFFER_UNBACKING_REQUEST_DEPRECATED, "Send ZS-Buffer unbacking request to host (ID=0x%08x)", 1) \
-X( 28, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_ZSBUFFER_BACKING_REQUEST_PENDING_DEPRECATED, "Don't send ZS-Buffer backing request. Previous request still pending (ID=0x%08x)", 1) \
-X( 29, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_ZSBUFFER_UNBACKING_REQUEST_PENDING_DEPRECATED, "Don't send ZS-Buffer unbacking request. Previous request still pending (ID=0x%08x)", 1) \
-X( 30, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_ZBUFFER_NOT_READY_DEPRECATED, "Partial Render waiting for ZBuffer to be backed (ID=0x%08x)", 1) \
-X( 31, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_SBUFFER_NOT_READY_DEPRECATED, "Partial Render waiting for SBuffer to be backed (ID=0x%08x)", 1) \
-X( 32, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_STATE_NONE, "SPM State = none", 0) \
-X( 33, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_STATE_PR_BLOCKED, "SPM State = PR blocked", 0) \
-X( 34, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_STATE_WAIT_FOR_GROW, "SPM State = wait for grow", 0) \
-X( 35, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_STATE_WAIT_FOR_HW, "SPM State = wait for HW", 0) \
-X( 36, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_STATE_PR_RUNNING, "SPM State = PR running", 0) \
-X( 37, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_STATE_PR_AVOIDED, "SPM State = PR avoided", 0) \
-X( 38, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_STATE_PR_EXECUTED, "SPM State = PR executed", 0) \
-X( 39, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_FREELIST_MATCH, "3DMemFree matches freelist 0x%08x (FL type = %u)", 2) \
-X( 40, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_3DMEMFREE_FLAG_SET, "Raise the 3DMemFreeDedected flag", 0) \
-X( 41, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_STATE_WAIT_FOR_PENDING_GROW, "Wait for pending grow on Freelist 0x%08x", 1) \
-X( 42, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_ZSBUFFER_BACKING_REQUEST_FAILED, "ZS Buffer failed to be populated (ID=0x%08x)", 1) \
-X( 43, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_FL_GROW_DEBUG, "Grow update inconsistency: FL addr: 0x%02x%08x, curr pages: %u, ready: %u, new: %u", 5) \
-X( 44, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_RESUMED_TA_WITH_SP, "OOM: Resumed TA with ready pages, FL addr: 0x%02x%08x, current pages: %u, SP : %u", 4) \
-X( 45, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_ACK_GROW_UPDATE_DEPRECATED, "Received grow update, FL addr: 0x%02x%08x, current pages: %u, ready pages: %u, threshold: %u", 5) \
-X( 46, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_NO_DEFERRED_PRBUFFER, "No deferred partial render FW (Type=%d) Buffer provided", 1) \
-X( 47, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_BUFFER_POP_UNNEEDED, "No need to populate PR Buffer (ID=0x%08x)", 1) \
-X( 48, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_BUFFER_UNPOP_UNNEEDED, "No need to unpopulate PR Buffer (ID=0x%08x)", 1) \
-X( 49, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_BUFFER_BACKING_REQUEST, "Send PR Buffer backing request to host (ID=0x%08x)", 1) \
-X( 50, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_BUFFER_UNBACKING_REQUEST, "Send PR Buffer unbacking request to host (ID=0x%08x)", 1) \
-X( 51, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_BUFFER_BACKING_REQUEST_PENDING, "Don't send PR Buffer backing request. Previous request still pending (ID=0x%08x)", 1) \
-X( 52, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_BUFFER_UNBACKING_REQUEST_PENDING, "Don't send PR Buffer unbacking request. Previous request still pending (ID=0x%08x)", 1) \
-X( 53, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_BUFFER_NOT_READY, "Partial Render waiting for Buffer %d type to be backed (ID=0x%08x)", 2) \
-X( 54, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_ACK_GROW_UPDATE, "Received grow update, FL addr: 0x%02x%08x, new pages: %u, ready pages: %u", 4) \
-X( 66, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_OOM_TACMD, "OOM TA/3D PR Check: [0x%08.8x] is 0x%08.8x requires 0x%08.8x", 3) \
-X( 67, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_RESUMED_TA, "OOM: Resumed TA with ready pages, FL addr: 0x%02x%08x, current pages: %u", 3) \
-X( 68, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_PR_DEADLOCK_UNBLOCKED, "OOM TA/3D PR deadlock unblocked reordering DM%d runlist head from Context 0x%08x to 0x%08x", 3) \
-X( 69, ROGUE_FW_GROUP_SPM, ROGUE_FW_SF_SPM_STATE_PR_FORCEFREE, "SPM State = PR force free", 0) \
-\
-X(  1, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_CHECK_DEPRECATED, "Check Pow state DM%d int: 0x%x, ext: 0x%x, pow flags: 0x%x", 4) \
-X(  2, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_GPU_IDLE, "GPU idle (might be powered down). Pow state int: 0x%x, ext: 0x%x, flags: 0x%x", 3) \
-X(  3, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_OSREQ_DEPRECATED, "OS requested pow off (forced = %d), DM%d, pow flags: 0x%x", 3) \
-X(  4, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_INIOFF_DEPRECATED, "Initiate powoff query. Inactive DMs: %d %d %d %d", 4) \
-X(  5, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_CHECKOFF_DEPRECATED, "Any RD-DM pending? %d, Any RD-DM Active? %d", 2) \
-X(  6, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_GPU_OFF, "GPU ready to be powered down. Pow state int: 0x%x, ext: 0x%x, flags: 0x%x", 3) \
-X(  7, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_HWREQ, "HW Request On(1)/Off(0): %d, Units: 0x%08.8x", 2) \
-X(  8, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_DUSTS_CHANGE_REQ, "Request to change num of dusts to %d (Power flags=%d)", 2) \
-X(  9, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_DUSTS_CHANGE, "Changing number of dusts from %d to %d", 2) \
-X( 11, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_SIDEKICK_INIT_DEPRECATED, "Sidekick init", 0) \
-X( 12, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_RD_INIT_DEPRECATED, "Rascal+Dusts init (# dusts mask: 0x%x)", 1) \
-X( 13, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_INIOFF_RD, "Initiate powoff query for RD-DMs.", 0) \
-X( 14, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_INIOFF_TLA, "Initiate powoff query for TLA-DM.", 0) \
-X( 15, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_REQUESTEDOFF_RD, "Any RD-DM pending? %d, Any RD-DM Active? %d", 2) \
-X( 16, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_REQUESTEDOFF_TLA, "TLA-DM pending? %d, TLA-DM Active? %d", 2) \
-X( 17, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_BRN37270_DEPRECATED, "Request power up due to BRN37270. Pow stat int: 0x%x", 1) \
-X( 18, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_REQ_CANCEL, "Cancel power off request int: 0x%x, ext: 0x%x, pow flags: 0x%x", 3) \
-X( 19, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_FORCED_IDLE, "OS requested forced IDLE, pow flags: 0x%x", 1) \
-X( 20, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_CANCEL_FORCED_IDLE, "OS cancelled forced IDLE, pow flags: 0x%x", 1) \
-X( 21, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_IDLE_TIMER, "Idle timer start. Pow state int: 0x%x, ext: 0x%x, flags: 0x%x", 3) \
-X( 22, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_CANCEL_IDLE_TIMER, "Cancel idle timer. Pow state int: 0x%x, ext: 0x%x, flags: 0x%x", 3) \
-X( 23, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_APM_LATENCY_CHANGE, "Active PM latency set to %dms. Core clock: %d Hz", 2) \
-X( 24, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_CDM_CLUSTERS, "Compute cluster mask change to 0x%x, %d dusts powered.", 2) \
-X( 25, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_NULL_CMD_INIOFF_RD, "Null command executed, repeating initiate powoff query for RD-DMs.", 0) \
-X( 26, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_POWMON_ENERGY, "Power monitor: Estimate of dynamic energy %u", 1) \
-X( 27, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_CHECK_DEPRECATED2, "Check Pow state: Int: 0x%x, Ext: 0x%x, Pow flags: 0x%x", 3) \
-X( 28, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_PDVFS_NEW_DEADLINE, "Proactive DVFS: New deadline, time = 0x%08x%08x", 2) \
-X( 29, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_PDVFS_NEW_WORKLOAD, "Proactive DVFS: New workload, cycles = 0x%08x%08x", 2) \
-X( 30, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_PDVFS_CALCULATE, "Proactive DVFS: Proactive frequency calculated = %u", 1) \
-X( 31, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_PDVFS_UTILISATION, "Proactive DVFS: Reactive utilisation = %u percent", 1) \
-X( 32, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_PDVFS_REACT, "Proactive DVFS: Reactive frequency calculated = %u.%u", 2) \
-X( 33, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_PDVFS_GPIO_SEND_DEPRECATED, "Proactive DVFS: OPP Point Sent = 0x%x", 1) \
-X( 34, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_PDVFS_DEADLINE_REMOVED, "Proactive DVFS: Deadline removed = 0x%08x%08x", 2) \
-X( 35, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_PDVFS_WORKLOAD_REMOVED, "Proactive DVFS: Workload removed = 0x%08x%08x", 2) \
-X( 36, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_PDVFS_THROTTLE, "Proactive DVFS: Throttle to a maximum = 0x%x", 1) \
-X( 37, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_PDVFS_GPIO_FAILURE, "Proactive DVFS: Failed to pass OPP point via GPIO.", 0) \
-X( 38, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_PDVFS_INVALID_NODE_DEPRECATED, "Proactive DVFS: Invalid node passed to function.", 0) \
-X( 39, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_PDVFS_GUEST_BAD_ACCESS_DEPRECATED, "Proactive DVFS: Guest OS attempted to do a privileged action. OSid = %u", 1) \
-X( 40, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_PDVFS_UNPROFILED_STARTED, "Proactive DVFS: Unprofiled work started. Total unprofiled work present: %u", 1) \
-X( 41, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_PDVFS_UNPROFILED_FINISHED, "Proactive DVFS: Unprofiled work finished. Total unprofiled work present: %u", 1) \
-X( 42, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_PDVFS_DISABLED, "Proactive DVFS: Disabled: Not enabled by host.", 0) \
-X( 43, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_HWREQ_RESULT, "HW Request Completed(1)/Aborted(0): %d, Ticks: %d", 2) \
-X( 44, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_DUSTS_CHANGE_FIX_59042_DEPRECATED, "Allowed number of dusts is %d due to BRN59042.", 1) \
-X( 45, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_HOST_TIMEOUT_NOTIFICATION, "Host timed out while waiting for a forced idle state. Pow state int: 0x%x, ext: 0x%x, flags: 0x%x", 3) \
-X( 46, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_CHECK, "Check Pow state: Int: 0x%x, Ext: 0x%x, Pow flags: 0x%x, Fence Counters: Check: %u - Update: %u", 5) \
-X( 47, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_PDVFS_GPIO_SEND, "Proactive DVFS: OPP Point Sent = 0x%x, Success = 0x%x", 2) \
-X( 48, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_PDVFS_TO_IDLE, "Proactive DVFS: GPU transitioned to idle", 0) \
-X( 49, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_PDVFS_TO_ACTIVE, "Proactive DVFS: GPU transitioned to active", 0) \
-X( 50, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_POWDUMP_BUFFER_SIZE, "Power counter dumping: Data truncated writing register %u. Buffer too small.", 1) \
-X( 51, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_POWCTRL_ABORT, "Power controller returned ABORT for last request so retrying.", 0) \
-X( 52, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_INVALID_POWER_REQUEST_DEPRECATED, "Discarding invalid power request: type 0x%x, DM %u", 2) \
-X( 53, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_CANCEL_FORCED_IDLE_NOT_IDLE, "Detected attempt to cancel forced idle while not forced idle (pow state 0x%x, pow flags 0x%x)", 2) \
-X( 54, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_FORCED_POW_OFF_NOT_IDLE, "Detected attempt to force power off while not forced idle (pow state 0x%x, pow flags 0x%x)", 2) \
-X( 55, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_NUMDUST_CHANGE_NOT_IDLE, "Detected attempt to change dust count while not forced idle (pow state 0x%x)", 1) \
-X( 56, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_POWMON_RESULT, "Power monitor: Type = %d (0 = power, 1 = energy), Estimate result = 0x%08x%08x", 3) \
-X( 57, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_MINMAX_CONFLICT, "Conflicting clock frequency range: OPP min = %u, max = %u", 2) \
-X( 58, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_PDVFS_FLOOR, "Proactive DVFS: Set floor to a minimum = 0x%x", 1) \
-X( 59, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_OSREQ, "OS requested pow off (forced = %d), pow flags: 0x%x", 2) \
-X( 60, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_INVALID_POWER_REQUEST, "Discarding invalid power request: type 0x%x", 1) \
-X( 61, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_SPU_POW_STATE_CHANGE_REQ, "Request to change SPU power state mask from 0x%x to 0x%x. Pow flags: 0x%x", 3) \
-X( 62, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_SPU_POW_STATE_CHANGE, "Changing SPU power state mask from 0x%x to 0x%x", 2) \
-X( 63, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_SPU_POW_CHANGE_NOT_IDLE, "Detected attempt to change SPU power state mask while not forced idle (pow state 0x%x)", 1) \
-X( 64, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_INVALID_SPU_POWER_MASK, "Invalid SPU power mask 0x%x! Changing to 1", 1) \
-X( 65, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_CLKDIV_UPDATE, "Proactive DVFS: Send OPP %u with clock divider value %u", 2) \
-X( 66, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_POWMON_PERF_MODE, "PPA block started in perf validation mode.", 0) \
-X( 67, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_POWMON_RESET, "Reset PPA block state %u (1=reset, 0=recalculate).", 1) \
-X( 68, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_POWCTRL_ABORT_WITH_CORE, "Power controller returned ABORT for Core-%d last request so retrying.", 1) \
-X( 69, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_HWREQ64BIT, "HW Request On(1)/Off(0): %d, Units: 0x%08x%08x", 3) \
-X( 70, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_SPU_RAC_POW_STATE_CHANGE_REQ, "Request to change SPU power state mask from 0x%x to 0x%x and RAC from 0x%x to 0x%x. Pow flags: 0x%x", 5) \
-X( 71, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_SPU_RAC_POW_STATE_CHANGE, "Changing SPU power state mask from 0x%x to 0x%x and RAC from 0x%x to 0x%x", 4) \
-X( 72, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_REQUESTEDOFF_RAC, "RAC pending? %d, RAC Active? %d", 2) \
-X( 73, ROGUE_FW_GROUP_POW, ROGUE_FW_SF_POW_INIOFF_RAC, "Initiate powoff query for RAC.", 0) \
-\
-X(  1, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_LOCKUP_DEPRECATED, "Lockup detected on DM%d, FWCtx: 0x%08.8x", 2) \
-X(  2, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_RESET_FW_DEPRECATED, "Reset fw state for DM%d, FWCtx: 0x%08.8x, MemCtx: 0x%08.8x", 3) \
-X(  3, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_RESET_HW_DEPRECATED, "Reset HW", 0) \
-X(  4, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_TERMINATED_DEPRECATED, "Lockup recovered.", 0) \
-X(  5, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_SET_LOCKUP_DEPRECATED, "Lock-up DM%d FWCtx: 0x%08.8x", 2) \
-X(  6, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_LOCKUP_DETECTED_DEPRECATED, "Lockup detected: GLB(%d->%d), PER-DM(0x%08x->0x%08x)", 4) \
-X(  7, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_EARLY_FAULT_DETECTION_DEPRECATED, "Early fault detection: GLB(%d->%d), PER-DM(0x%08x)", 3) \
-X(  8, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_HOLD_SCHEDULING_DUE_TO_LOCKUP_DEPRECATED, "Hold scheduling due lockup: GLB(%d), PER-DM(0x%08x->0x%08x)", 3) \
-X(  9, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_FALSE_LOCKUP_DEPRECATED, "False lockup detected: GLB(%d->%d), PER-DM(0x%08x->0x%08x)", 4) \
-X( 10, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_BRN37729_DEPRECATED, "BRN37729: GLB(%d->%d), PER-DM(0x%08x->0x%08x)", 4) \
-X( 11, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_FREELISTS_RECONSTRUCTED_DEPRECATED, "Freelists reconstructed: GLB(%d->%d), PER-DM(0x%08x)", 3) \
-X( 12, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_RECONSTRUCTING_FREELISTS_DEPRECATED, "Reconstructing freelists: %u (0-No, 1-Yes): GLB(%d->%d), PER-DM(0x%08x)", 4) \
-X( 13, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_FAILED_HW_POLL, "HW poll %u (0-Unset 1-Set) failed (reg:0x%08x val:0x%08x)", 3) \
-X( 14, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_DM_DISCARDED_DEPRECATED, "Discarded cmd on DM%u FWCtx=0x%08x", 2) \
-X( 15, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_DM_DISCARDED, "Discarded cmd on DM%u (reason=%u) HWRTData=0x%08x (st: %d), FWCtx 0x%08x @ %d", 6) \
-X( 16, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_PM_FENCE_DEPRECATED, "PM fence WA could not be applied, Valid TA Setup: %d, RD powered off: %d", 2) \
-X( 17, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_FL_SNAPSHOT, "FL snapshot RTD 0x%08.8x - local (0x%08.8x): %d, global (0x%08.8x): %d", 5) \
-X( 18, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_FL_CHECK, "FL check RTD 0x%08.8x, discard: %d - local (0x%08.8x): s%d?=c%d, global (0x%08.8x): s%d?=c%d", 8) \
-X( 19, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_FL_RECON_DEPRECATED, "FL reconstruction 0x%08.8x c%d", 2) \
-X( 20, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_3D_CHECK, "3D check: missing TA FWCtx 0x%08.8x @ %d, RTD 0x%08x.", 3) \
-X( 21, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_RESET_HW_DEPRECATED2, "Reset HW (mmu:%d, extmem: %d)", 2) \
-X( 22, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_ZERO_TA_CACHES, "Zero TA caches for FWCtx: 0x%08.8x (TPC addr: 0x%08x%08x, size: %d bytes)", 4) \
-X( 23, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_FREELISTS_RECONSTRUCTED_DEPRECATED2, "Recovery DM%u: Freelists reconstructed. New R-Flags=0x%08x", 2) \
-X( 24, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_SKIPPED_CMD, "Recovery DM%u: FWCtx 0x%08x skipped to command @ %u. PR=%u. New R-Flags=0x%08x", 5) \
-X( 25, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_DM_RECOVERED, "Recovery DM%u: DM fully recovered", 1) \
-X( 26, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_HOLD_SCHEDULING_DUE_TO_LOCKUP, "DM%u: Hold scheduling due to R-Flag = 0x%08x", 2) \
-X( 27, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_NEEDS_RECONSTRUCTION, "Analysis: Need freelist reconstruction", 0) \
-X( 28, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_NEEDS_SKIP, "Analysis DM%u: Lockup FWCtx: 0x%08.8x. Need to skip to next command", 2) \
-X( 29, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_NEEDS_SKIP_OOM_TA, "Analysis DM%u: Lockup while TA is OOM FWCtx: 0x%08.8x. Need to skip to next command", 2) \
-X( 30, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_NEEDS_PR_CLEANUP, "Analysis DM%u: Lockup while partial render FWCtx: 0x%08.8x. Need PR cleanup", 2) \
-X( 31, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_SET_LOCKUP_DEPRECATED2, "GPU has locked up", 0) \
-X( 32, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_READY, "DM%u ready for HWR", 1) \
-X( 33, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_DM_UPDATE_RECOVERY, "Recovery DM%u: Updated Recovery counter. New R-Flags=0x%08x", 2) \
-X( 34, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_BRN37729_DEPRECATED2, "Analysis: BRN37729 detected, reset TA and re-kicked 0x%08x)", 1) \
-X( 35, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_DM_TIMED_OUT, "DM%u timed out", 1) \
-X( 36, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_EVENT_STATUS_REG, "RGX_CR_EVENT_STATUS=0x%08x", 1) \
-X( 37, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_DM_FALSE_LOCKUP, "DM%u lockup falsely detected, R-Flags=0x%08x", 2) \
-X( 38, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_SET_OUTOFTIME, "GPU has overrun its deadline", 0) \
-X( 39, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_SET_POLLFAILURE, "GPU has failed a poll", 0) \
-X( 40, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_PERF_PHASE_REG, "RGX DM%u phase count=0x%08x", 2) \
-X( 41, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_RESET_HW_DEPRECATED3, "Reset HW (loop:%d, poll failures: 0x%08x)", 2) \
-X( 42, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_MMU_FAULT_EVENT, "MMU fault event: 0x%08x", 1) \
-X( 43, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_BIF1_FAULT, "BIF1 page fault detected (Bank1 MMU Status: 0x%08x)", 1) \
-X( 44, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_CRC_CHECK_TRUE_DEPRECATED, "Fast CRC Failed. Proceeding to full register checking (DM: %u).", 1) \
-X( 45, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_MMU_META_FAULT, "Meta MMU page fault detected (Meta MMU Status: 0x%08x%08x)", 2) \
-X( 46, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_CRC_CHECK_DEPRECATED, "Fast CRC Check result for DM%u is HWRNeeded=%u", 2) \
-X( 47, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_FULL_CHECK_DEPRECATED, "Full Signature Check result for DM%u is HWRNeeded=%u", 2) \
-X( 48, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_FINAL_RESULT, "Final result for DM%u is HWRNeeded=%u with HWRChecksToGo=%u", 3) \
-X( 49, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_USC_SLOTS_CHECK_DEPRECATED, "USC Slots result for DM%u is HWRNeeded=%u USCSlotsUsedByDM=%d", 3) \
-X( 50, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_DEADLINE_CHECK_DEPRECATED, "Deadline counter for DM%u is HWRDeadline=%u", 2) \
-X( 51, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_HOLD_SCHEDULING_DUE_TO_FREELIST_DEPRECATED, "Holding Scheduling on OSid %u due to pending freelist reconstruction", 1) \
-X( 52, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_FL_RECON_REQUEST, "Requesting reconstruction for freelist 0x%x (ID=%d)", 2) \
-X( 53, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_FL_RECON_PASSED, "Reconstruction of freelist ID=%d complete", 1) \
-X( 54, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_FL_RECON_NEEDED_DEPRECATED, "Reconstruction needed for freelist 0x%x (ID=%d) type: %d (0:local,1:global,2:mmu) on HW context %u", 4) \
-X( 55, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_FL_RECON_FAILED, "Reconstruction of freelist ID=%d failed", 1) \
-X( 56, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_RESTRICTING_PDS_TASKS, "Restricting PDS Tasks to help other stalling DMs (RunningMask=0x%02x, StallingMask=0x%02x, PDS_CTRL=0x%08x%08x)", 4) \
-X( 57, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_UNRESTRICTING_PDS_TASKS, "Unrestricting PDS Tasks again (RunningMask=0x%02x, StallingMask=0x%02x, PDS_CTRL=0x%08x%08x)", 4) \
-X( 58, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_USC_SLOTS_USED, "USC slots: %u used by DM%u", 2) \
-X( 59, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_USC_SLOTS_EMPTY, "USC slots: %u empty", 1) \
-X( 60, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_HCS_FIRE, "HCS DM%d's Context Switch failed to meet deadline. Current time: 0x%08x%08x, deadline: 0x%08x%08x", 5) \
-X( 61, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_START_HW_RESET, "Begin hardware reset (HWR Counter=%d)", 1) \
-X( 62, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_FINISH_HW_RESET, "Finished hardware reset (HWR Counter=%d)", 1) \
-X( 63, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_HOLD_SCHEDULING_DUE_TO_FREELIST, "Holding Scheduling on DM %u for OSid %u due to pending freelist reconstruction", 2) \
-X( 64, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_RESET_UMQ_READ_OFFSET, "User Mode Queue ROff reset: FWCtx 0x%08.8x, queue: 0x%08x%08x (Roff = %u becomes StreamStartOffset = %u)", 5) \
-X( 65, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_FL_RECON_NEEDED_DEPRECATED2, "Reconstruction needed for freelist 0x%x (ID=%d) type: %d (0:local,1:global) on HW context %u", 4) \
-X( 66, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_MIPS_FAULT, "Mips page fault detected (BadVAddr: 0x%08x, EntryLo0: 0x%08x, EntryLo1: 0x%08x)", 3) \
-X( 67, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_ANOTHER_CHANCE, "At least one other DM is running okay so DM%u will get another chance", 1) \
-X( 68, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_FL_RECON_FW, "Reconstructing in FW, FL: 0x%x (ID=%d)", 2) \
-X( 69, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_ZERO_RTC, "Zero RTC for FWCtx: 0x%08.8x (RTC addr: 0x%08x%08x, size: %d bytes)", 4) \
-X( 70, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_FL_RECON_NEEDED_DEPRECATED3, "Reconstruction needed for freelist 0x%x (ID=%d) type: %d (0:local,1:global) phase: %d (0:TA, 1:3D) on HW context %u", 5) \
-X( 71, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_START_LONG_HW_POLL, "Start long HW poll %u (0-Unset 1-Set) for (reg:0x%08x val:0x%08x)", 3) \
-X( 72, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_END_LONG_HW_POLL, "End long HW poll (result=%d)", 1) \
-X( 73, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_DEADLINE_CHECK, "DM%u has taken %d ticks and deadline is %d ticks", 3) \
-X( 74, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_WATCHDOG_CHECK_DEPRECATED, "USC Watchdog result for DM%u is HWRNeeded=%u Status=%u USCs={0x%x} with HWRChecksToGo=%u", 5) \
-X( 75, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_FL_RECON_NEEDED, "Reconstruction needed for freelist 0x%x (ID=%d) OSid: %d type: %d (0:local,1:global) phase: %d (0:TA, 1:3D) on HW context %u", 6) \
-X( 76, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_SET_LOCKUP, "GPU-%u has locked up", 1) \
-X( 77, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_SET_LOCKUP_DM, "DM%u has locked up", 1) \
-X( 78, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_CORE_EVENT_STATUS_REG, "Core %d RGX_CR_EVENT_STATUS=0x%08x", 2) \
-X( 79, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_MULTICORE_EVENT_STATUS_REG, "RGX_CR_MULTICORE_EVENT_STATUS%u=0x%08x", 2) \
-X( 80, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_CORE_BIF0_FAULT, "BIF0 page fault detected (Core %d MMU Status: 0x%08x%08x Req Status: 0x%08x%08x)", 5) \
-X( 81, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_CORE_MMU_FAULT_S7, "MMU page fault detected (Core %d MMU Status: 0x%08x%08x)", 3) \
-X( 82, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_CORE_MMU_FAULT, "MMU page fault detected (Core %d MMU Status: 0x%08x%08x 0x%08x)", 4) \
-X( 83, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_RESET_HW, "Reset HW (core:%d of %d, loop:%d, poll failures: 0x%08x)", 4) \
-X( 84, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_CRC_CHECK, "Fast CRC Check result for Core%u, DM%u is HWRNeeded=%u", 3) \
-X( 85, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_FULL_CHECK, "Full Signature Check result for Core%u, DM%u is HWRNeeded=%u", 3) \
-X( 86, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_USC_SLOTS_CHECK, "USC Slots result for Core%u, DM%u is HWRNeeded=%u USCSlotsUsedByDM=%d", 4) \
-X( 87, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_WATCHDOG_CHECK, "USC Watchdog result for Core%u DM%u is HWRNeeded=%u Status=%u USCs={0x%x} with HWRChecksToGo=%u", 6) \
-X( 88, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_MMU_RISCV_FAULT, "RISC-V MMU page fault detected (FWCORE MMU Status 0x%08x Req Status 0x%08x%08x)", 3) \
-X( 89, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_HWR_FAULT_POLL_BIF_TEXAS1_PFS_DEPRECATED, "TEXAS1_PFS poll failed on core %d with value 0x%08x", 2) \
-X( 90, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_HWR_FAULT_POLL_BIF_PFS, "BIF_PFS poll failed on core %d with value 0x%08x", 2) \
-X( 91, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_HWR_FAULT_POLL_SET_ABORT_PM_STATUS, "MMU_ABORT_PM_STATUS set poll failed on core %d with value 0x%08x", 2) \
-X( 92, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_HWR_FAULT_POLL_UNSET_ABORT_PM_STATUS, "MMU_ABORT_PM_STATUS unset poll failed on core %d with value 0x%08x", 2) \
-X( 93, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_HWR_FAULT_POLL_SLC_INVAL, "MMU_CTRL_INVAL poll (all but fw) failed on core %d with value 0x%08x", 2) \
-X( 94, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_HWR_FAULT_POLL_SLCMMU_INVAL, "MMU_CTRL_INVAL poll (all) failed on core %d with value 0x%08x", 2) \
-X( 95, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_HWR_FAULT_POLL_BIF_TEXAS_PFS, "TEXAS%d_PFS poll failed on core %d with value 0x%08x", 3) \
-X( 96, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_EXTRA_CHECK, "Extra Registers Check result for Core%u, DM%u is HWRNeeded=%u", 3) \
-X( 97, ROGUE_FW_GROUP_HWR, ROGUE_FW_SF_HWR_WRITE_TO_GPU_READONLY_ADDR, "FW attempted to write to read-only GPU address 0x%08x", 1) \
-\
-X(  1, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_CFGBLK, "Block 0x%x mapped to Config Idx %u", 2) \
-X(  2, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_OMTBLK, "Block 0x%x omitted from event - not enabled in HW", 1) \
-X(  3, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_INCBLK, "Block 0x%x included in event - enabled in HW", 1) \
-X(  4, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_SELREG, "Select register state hi_0x%x lo_0x%x", 2) \
-X(  5, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_CSBHDR, "Counter stream block header word 0x%x", 1) \
-X(  6, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_CTROFF, "Counter register offset 0x%x", 1) \
-X(  7, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_CFGSKP, "Block 0x%x config unset, skipping", 1) \
-X(  8, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_INDBLK, "Accessing Indirect block 0x%x", 1) \
-X(  9, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_DIRBLK, "Accessing Direct block 0x%x", 1) \
-X( 10, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_CNTPRG, "Programmed counter select register at offset 0x%x", 1) \
-X( 11, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_BLKPRG, "Block register offset 0x%x and value 0x%x", 2) \
-X( 12, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_UBLKCG, "Reading config block from driver 0x%x", 1) \
-X( 13, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_UBLKRG, "Reading block range 0x%x to 0x%x", 2) \
-X( 14, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_BLKREC, "Recording block 0x%x config from driver", 1) \
-X( 15, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_UBLKED, "Finished reading config block from driver", 0) \
-X( 16, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_CUSTOM_COUNTER, "Custom Counter offset: 0x%x  value: 0x%x", 2) \
-X( 17, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_SELECT_CNTR, "Select counter n:%u  ID:0x%x", 2) \
-X( 18, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_DROP_SELECT_PACK, "The counter ID 0x%x is not allowed. The package [b:%u, n:%u] will be discarded", 3) \
-X( 19, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_CHANGE_FILTER_STATUS_CUSTOM, "Custom Counters filter status %d", 1) \
-X( 20, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_DROP_WRONG_BLOCK, "The Custom block %d is not allowed. Use only blocks lower than %d. The package will be discarded", 2) \
-X( 21, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_DROP_TOO_MANY_ID, "The package will be discarded because it contains %d counters IDs while the upper limit is %d", 2) \
-X( 22, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_CHECK_FILTER, "Check Filter 0x%x is 0x%x ?", 2) \
-X( 23, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_RESET_CUSTOM_BLOCK, "The custom block %u is reset", 1) \
-X( 24, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_INVALID_CMD_DEPRECATED, "Encountered an invalid command (%d)", 1) \
-X( 25, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_WAITING_FOR_QUEUE_DEPRECATED, "HWPerf Queue is full, we will have to wait for space! (Roff = %u, Woff = %u)", 2) \
-X( 26, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_WAITING_FOR_QUEUE_FENCE_DEPRECATED, "HWPerf Queue is fencing, we are waiting for Roff = %d (Roff = %u, Woff = %u)", 3) \
-X( 27, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_CUSTOM_BLOCK, "Custom Counter block: %d", 1) \
-X( 28, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_BLKENA, "Block 0x%x ENABLED", 1) \
-X( 29, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_BLKDIS, "Block 0x%x DISABLED", 1) \
-X( 30, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_INDBLK_INSTANCE, "Accessing Indirect block 0x%x, instance %u", 2) \
-X( 31, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_CTRVAL, "Counter register 0x%x, Value 0x%x", 2) \
-X( 32, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_CHANGE_FILTER_STATUS, "Counters filter status %d", 1) \
-X( 33, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_CTLBLK, "Block 0x%x mapped to Ctl Idx %u", 2) \
-X( 34, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_WORKEST_EN, "Block(s) in use for workload estimation.", 0) \
-X( 35, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_CYCCTR, "GPU %u Cycle counter 0x%x, Value 0x%x", 3) \
-X( 36, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_CYCMAX, "GPU Mask 0x%x Cycle counter 0x%x, Value 0x%x", 3) \
-X( 37, ROGUE_FW_GROUP_HWP, ROGUE_FW_SF_HWP_I_IGNORE_BLOCKS, "Blocks IGNORED for GPU %u", 1) \
-\
-X(  1, ROGUE_FW_GROUP_DMA, ROGUE_FW_SF_DMA_TRANSFER_REQUEST_DEPRECATED, "Transfer 0x%02x request: 0x%02x%08x -> 0x%08x, size %u", 5) \
-X(  2, ROGUE_FW_GROUP_DMA, ROGUE_FW_SF_DMA_TRANSFER_COMPLETE, "Transfer of type 0x%02x expected on channel %u, 0x%02x found, status %u", 4) \
-X(  3, ROGUE_FW_GROUP_DMA, ROGUE_FW_SF_DMA_INT_REG, "DMA Interrupt register 0x%08x", 1) \
-X(  4, ROGUE_FW_GROUP_DMA, ROGUE_FW_SF_DMA_WAIT, "Waiting for transfer of type 0x%02x completion...", 1) \
-X(  5, ROGUE_FW_GROUP_DMA, ROGUE_FW_SF_DMA_CCB_LOADING_FAILED, "Loading of cCCB data from FW common context 0x%08x (offset: %u, size: %u) failed", 3) \
-X(  6, ROGUE_FW_GROUP_DMA, ROGUE_FW_SF_DMA_CCB_LOAD_INVALID, "Invalid load of cCCB data from FW common context 0x%08x (offset: %u, size: %u)", 3) \
-X(  7, ROGUE_FW_GROUP_DMA, ROGUE_FW_SF_DMA_POLL_FAILED, "Transfer 0x%02x request poll failure", 1) \
-X(  8, ROGUE_FW_GROUP_DMA, ROGUE_FW_SF_DMA_BOOT_TRANSFER_FAILED, "Boot transfer(s) failed (code? %u, data? %u), used slower memcpy instead", 2) \
-X(  9, ROGUE_FW_GROUP_DMA, ROGUE_FW_SF_DMA_TRANSFER_REQUEST, "Transfer 0x%02x request on ch. %u: system 0x%02x%08x, coremem 0x%08x, flags 0x%x, size %u", 7) \
-\
-X(  1, ROGUE_FW_GROUP_DBG, ROGUE_FW_SF_DBG_INTPAIR, "0x%08x 0x%08x", 2) \
-X(  2, ROGUE_FW_GROUP_DBG, ROGUE_FW_SF_DBG_1HEX, "0x%08x", 1) \
-X(  3, ROGUE_FW_GROUP_DBG, ROGUE_FW_SF_DBG_2HEX, "0x%08x 0x%08x", 2) \
-X(  4, ROGUE_FW_GROUP_DBG, ROGUE_FW_SF_DBG_3HEX, "0x%08x 0x%08x 0x%08x", 3) \
-X(  5, ROGUE_FW_GROUP_DBG, ROGUE_FW_SF_DBG_4HEX, "0x%08x 0x%08x 0x%08x 0x%08x", 4) \
-X(  6, ROGUE_FW_GROUP_DBG, ROGUE_FW_SF_DBG_5HEX, "0x%08x 0x%08x 0x%08x 0x%08x 0x%08x", 5) \
-X(  7, ROGUE_FW_GROUP_DBG, ROGUE_FW_SF_DBG_6HEX, "0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x", 6) \
-X(  8, ROGUE_FW_GROUP_DBG, ROGUE_FW_SF_DBG_7HEX, "0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x", 7) \
-X(  9, ROGUE_FW_GROUP_DBG, ROGUE_FW_SF_DBG_8HEX, "0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x", 8) \
-X( 10, ROGUE_FW_GROUP_DBG, ROGUE_FW_SF_DBG_1SIGNED, "%d", 1) \
-X( 11, ROGUE_FW_GROUP_DBG, ROGUE_FW_SF_DBG_2SIGNED, "%d %d", 2) \
-X( 12, ROGUE_FW_GROUP_DBG, ROGUE_FW_SF_DBG_3SIGNED, "%d %d %d", 3) \
-X( 13, ROGUE_FW_GROUP_DBG, ROGUE_FW_SF_DBG_4SIGNED, "%d %d %d %d", 4) \
-X( 14, ROGUE_FW_GROUP_DBG, ROGUE_FW_SF_DBG_5SIGNED, "%d %d %d %d %d", 5) \
-X( 15, ROGUE_FW_GROUP_DBG, ROGUE_FW_SF_DBG_6SIGNED, "%d %d %d %d %d %d", 6) \
-X( 16, ROGUE_FW_GROUP_DBG, ROGUE_FW_SF_DBG_7SIGNED, "%d %d %d %d %d %d %d", 7) \
-X( 17, ROGUE_FW_GROUP_DBG, ROGUE_FW_SF_DBG_8SIGNED, "%d %d %d %d %d %d %d %d", 8) \
-X( 18, ROGUE_FW_GROUP_DBG, ROGUE_FW_SF_DBG_1UNSIGNED, "%u", 1) \
-X( 19, ROGUE_FW_GROUP_DBG, ROGUE_FW_SF_DBG_2UNSIGNED, "%u %u", 2) \
-X( 20, ROGUE_FW_GROUP_DBG, ROGUE_FW_SF_DBG_3UNSIGNED, "%u %u %u", 3) \
-X( 21, ROGUE_FW_GROUP_DBG, ROGUE_FW_SF_DBG_4UNSIGNED, "%u %u %u %u", 4) \
-X( 22, ROGUE_FW_GROUP_DBG, ROGUE_FW_SF_DBG_5UNSIGNED, "%u %u %u %u %u", 5) \
-X( 23, ROGUE_FW_GROUP_DBG, ROGUE_FW_SF_DBG_6UNSIGNED, "%u %u %u %u %u %u", 6) \
-X( 24, ROGUE_FW_GROUP_DBG, ROGUE_FW_SF_DBG_7UNSIGNED, "%u %u %u %u %u %u %u", 7) \
-X( 25, ROGUE_FW_GROUP_DBG, ROGUE_FW_SF_DBG_8UNSIGNED, "%u %u %u %u %u %u %u %u", 8) \
-\
-X(65535, ROGUE_FW_GROUP_NULL, ROGUE_FW_SF_LAST, "You should not use this string", 15)
-
 
 /*
  *  The symbolic names found in the table above are assigned an u32 value of
@@ -871,20 +55,1594 @@ X(65535, ROGUE_FW_GROUP_NULL, ROGUE_FW_SF_LAST, "You should not use this string"
  *   The following macro assigns those values to the enum generated SF ids list.
  */
 #define ROGUE_FW_LOG_IDMARKER (0x70000000U)
-#define ROGUE_FW_LOG_CREATESFID(a, b, e) ((u32)(a) | ((u32)(b)<<12U) | ((u32)(e)<<16U) | ROGUE_FW_LOG_IDMARKER)
+#define ROGUE_FW_LOG_CREATESFID(a, b, e) ((u32)(a) | ((u32)(b) << 12) | ((u32)(e) << 16) | \
+					  ROGUE_FW_LOG_IDMARKER)
 
 #define ROGUE_FW_LOG_IDMASK (0xFFF00000)
 #define ROGUE_FW_LOG_VALIDID(I) (((I) & ROGUE_FW_LOG_IDMASK) == ROGUE_FW_LOG_IDMARKER)
 
-enum rogue_fw_log_sfids {
-#define X(a, b, c, d, e) c = ROGUE_FW_LOG_CREATESFID(a, b, e),
-	ROGUE_FW_LOG_SFIDLIST
-#undef X
+/* Return the group id that the given (enum generated) id belongs to */
+#define ROGUE_FW_SF_GID(x) (((u32)(x) >> 12) & 0xfU)
+/* Returns how many arguments the SF(string format) for the given (enum generated) id requires */
+#define ROGUE_FW_SF_PARAMNUM(x) (((u32)(x) >> 16) & 0xfU)
+
+/* pair of string format id and string formats */
+struct rogue_km_stid_fmt {
+	u32 id;
+	const char *name;
 };
 
-/* Return the group id that the given (enum generated) id belongs to */
-#define ROGUE_FW_SF_GID(x) (((u32)(x)>>12) & 0xfU)
-/* Returns how many arguments the SF(string format) for the given (enum generated) id requires */
-#define ROGUE_FW_SF_PARAMNUM(x) (((u32)(x)>>16) & 0xfU)
+static const struct rogue_km_stid_fmt stid_fmts[] = {
+	{ ROGUE_FW_LOG_CREATESFID(0, ROGUE_FW_GROUP_NULL, 0),
+	  "You should not use this string" },
+
+	{ ROGUE_FW_LOG_CREATESFID(1, ROGUE_FW_GROUP_MAIN, 6),
+	  "Kick 3D: FWCtx 0x%08.8x @ %d, RTD 0x%08x. Partial render:%d, CSW resume:%d, prio:%d" },
+	{ ROGUE_FW_LOG_CREATESFID(2, ROGUE_FW_GROUP_MAIN, 2),
+	  "3D finished, HWRTData0State=%x, HWRTData1State=%x" },
+	{ ROGUE_FW_LOG_CREATESFID(3, ROGUE_FW_GROUP_MAIN, 4),
+	  "Kick 3D TQ: FWCtx 0x%08.8x @ %d, CSW resume:%d, prio: %d" },
+	{ ROGUE_FW_LOG_CREATESFID(4, ROGUE_FW_GROUP_MAIN, 0),
+	  "3D Transfer finished" },
+	{ ROGUE_FW_LOG_CREATESFID(5, ROGUE_FW_GROUP_MAIN, 3),
+	  "Kick Compute: FWCtx 0x%08.8x @ %d, prio: %d" },
+	{ ROGUE_FW_LOG_CREATESFID(6, ROGUE_FW_GROUP_MAIN, 0),
+	  "Compute finished" },
+	{ ROGUE_FW_LOG_CREATESFID(7, ROGUE_FW_GROUP_MAIN, 7),
+	  "Kick TA: FWCtx 0x%08.8x @ %d, RTD 0x%08x. First kick:%d, Last kick:%d, CSW resume:%d, prio:%d" },
+	{ ROGUE_FW_LOG_CREATESFID(8, ROGUE_FW_GROUP_MAIN, 0),
+	  "TA finished" },
+	{ ROGUE_FW_LOG_CREATESFID(9, ROGUE_FW_GROUP_MAIN, 0),
+	  "Restart TA after partial render" },
+	{ ROGUE_FW_LOG_CREATESFID(10, ROGUE_FW_GROUP_MAIN, 0),
+	  "Resume TA without partial render" },
+	{ ROGUE_FW_LOG_CREATESFID(11, ROGUE_FW_GROUP_MAIN, 2),
+	  "Out of memory! Context 0x%08x, HWRTData 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(12, ROGUE_FW_GROUP_MAIN, 3),
+	  "Kick TLA: FWCtx 0x%08.8x @ %d, prio:%d" },
+	{ ROGUE_FW_LOG_CREATESFID(13, ROGUE_FW_GROUP_MAIN, 0),
+	  "TLA finished" },
+	{ ROGUE_FW_LOG_CREATESFID(14, ROGUE_FW_GROUP_MAIN, 3),
+	  "cCCB Woff update = %d, DM = %d, FWCtx = 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(16, ROGUE_FW_GROUP_MAIN, 2),
+	  "UFO Checks for FWCtx 0x%08.8x @ %d" },
+	{ ROGUE_FW_LOG_CREATESFID(17, ROGUE_FW_GROUP_MAIN, 3),
+	  "UFO Check: [0x%08.8x] is 0x%08.8x requires 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(18, ROGUE_FW_GROUP_MAIN, 0),
+	  "UFO Checks succeeded" },
+	{ ROGUE_FW_LOG_CREATESFID(19, ROGUE_FW_GROUP_MAIN, 3),
+	  "UFO PR-Check: [0x%08.8x] is 0x%08.8x requires >= 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(20, ROGUE_FW_GROUP_MAIN, 1),
+	  "UFO SPM PR-Checks for FWCtx 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(21, ROGUE_FW_GROUP_MAIN, 4),
+	  "UFO SPM special PR-Check: [0x%08.8x] is 0x%08.8x requires >= ????????, [0x%08.8x] is ???????? requires 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(22, ROGUE_FW_GROUP_MAIN, 2),
+	  "UFO Updates for FWCtx 0x%08.8x @ %d" },
+	{ ROGUE_FW_LOG_CREATESFID(23, ROGUE_FW_GROUP_MAIN, 2),
+	  "UFO Update: [0x%08.8x] = 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(24, ROGUE_FW_GROUP_MAIN, 1),
+	  "ASSERT Failed: line %d of:" },
+	{ ROGUE_FW_LOG_CREATESFID(25, ROGUE_FW_GROUP_MAIN, 2),
+	  "HWR: Lockup detected on DM%d, FWCtx: 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(26, ROGUE_FW_GROUP_MAIN, 3),
+	  "HWR: Reset fw state for DM%d, FWCtx: 0x%08.8x, MemCtx: 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(27, ROGUE_FW_GROUP_MAIN, 0),
+	  "HWR: Reset HW" },
+	{ ROGUE_FW_LOG_CREATESFID(28, ROGUE_FW_GROUP_MAIN, 0),
+	  "HWR: Lockup recovered." },
+	{ ROGUE_FW_LOG_CREATESFID(29, ROGUE_FW_GROUP_MAIN, 1),
+	  "HWR: False lockup detected for DM%u" },
+	{ ROGUE_FW_LOG_CREATESFID(30, ROGUE_FW_GROUP_MAIN, 3),
+	  "Alignment check %d failed: host = 0x%x, fw = 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(31, ROGUE_FW_GROUP_MAIN, 0),
+	  "GP USC triggered" },
+	{ ROGUE_FW_LOG_CREATESFID(32, ROGUE_FW_GROUP_MAIN, 2),
+	  "Overallocating %u temporary registers and %u shared registers for breakpoint handler" },
+	{ ROGUE_FW_LOG_CREATESFID(33, ROGUE_FW_GROUP_MAIN, 1),
+	  "Setting breakpoint: Addr 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(34, ROGUE_FW_GROUP_MAIN, 0),
+	  "Store breakpoint state" },
+	{ ROGUE_FW_LOG_CREATESFID(35, ROGUE_FW_GROUP_MAIN, 0),
+	  "Unsetting BP Registers" },
+	{ ROGUE_FW_LOG_CREATESFID(36, ROGUE_FW_GROUP_MAIN, 1),
+	  "Active RTs expected to be zero, actually %u" },
+	{ ROGUE_FW_LOG_CREATESFID(37, ROGUE_FW_GROUP_MAIN, 1),
+	  "RTC present, %u active render targets" },
+	{ ROGUE_FW_LOG_CREATESFID(38, ROGUE_FW_GROUP_MAIN, 1),
+	  "Estimated Power 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(39, ROGUE_FW_GROUP_MAIN, 1),
+	  "RTA render target %u" },
+	{ ROGUE_FW_LOG_CREATESFID(40, ROGUE_FW_GROUP_MAIN, 2),
+	  "Kick RTA render %u of %u" },
+	{ ROGUE_FW_LOG_CREATESFID(41, ROGUE_FW_GROUP_MAIN, 3),
+	  "HWR sizes check %d failed: addresses = %d, sizes = %d" },
+	{ ROGUE_FW_LOG_CREATESFID(42, ROGUE_FW_GROUP_MAIN, 1),
+	  "Pow: DUSTS_ENABLE = 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(43, ROGUE_FW_GROUP_MAIN, 2),
+	  "Pow: On(1)/Off(0): %d, Units: 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(44, ROGUE_FW_GROUP_MAIN, 2),
+	  "Pow: Changing number of dusts from %d to %d" },
+	{ ROGUE_FW_LOG_CREATESFID(45, ROGUE_FW_GROUP_MAIN, 0),
+	  "Pow: Sidekick ready to be powered down" },
+	{ ROGUE_FW_LOG_CREATESFID(46, ROGUE_FW_GROUP_MAIN, 2),
+	  "Pow: Request to change num of dusts to %d (bPowRascalDust=%d)" },
+	{ ROGUE_FW_LOG_CREATESFID(47, ROGUE_FW_GROUP_MAIN, 0),
+	  "No ZS Buffer used for partial render (store)" },
+	{ ROGUE_FW_LOG_CREATESFID(48, ROGUE_FW_GROUP_MAIN, 0),
+	  "No Depth/Stencil Buffer used for partial render (load)" },
+	{ ROGUE_FW_LOG_CREATESFID(49, ROGUE_FW_GROUP_MAIN, 2),
+	  "HWR: Lock-up DM%d FWCtx: 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(50, ROGUE_FW_GROUP_MAIN, 7),
+	  "MLIST%d checker: CatBase TE=0x%08x (%d Pages), VCE=0x%08x (%d Pages), ALIST=0x%08x, IsTA=%d" },
+	{ ROGUE_FW_LOG_CREATESFID(51, ROGUE_FW_GROUP_MAIN, 3),
+	  "MLIST%d checker: MList[%d] = 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(52, ROGUE_FW_GROUP_MAIN, 1),
+	  "MLIST%d OK" },
+	{ ROGUE_FW_LOG_CREATESFID(53, ROGUE_FW_GROUP_MAIN, 1),
+	  "MLIST%d is empty" },
+	{ ROGUE_FW_LOG_CREATESFID(54, ROGUE_FW_GROUP_MAIN, 8),
+	  "MLIST%d checker: CatBase TE=0x%08x%08x, VCE=0x%08x%08x, ALIST=0x%08x%08x, IsTA=%d" },
+	{ ROGUE_FW_LOG_CREATESFID(55, ROGUE_FW_GROUP_MAIN, 0),
+	  "3D OQ flush kick" },
+	{ ROGUE_FW_LOG_CREATESFID(56, ROGUE_FW_GROUP_MAIN, 1),
+	  "HWPerf block ID (0x%x) unsupported by device" },
+	{ ROGUE_FW_LOG_CREATESFID(57, ROGUE_FW_GROUP_MAIN, 2),
+	  "Setting breakpoint: Addr 0x%08.8x DM%u" },
+	{ ROGUE_FW_LOG_CREATESFID(58, ROGUE_FW_GROUP_MAIN, 3),
+	  "Kick RTU: FWCtx 0x%08.8x @ %d, prio: %d" },
+	{ ROGUE_FW_LOG_CREATESFID(59, ROGUE_FW_GROUP_MAIN, 1),
+	  "RDM finished on context %u" },
+	{ ROGUE_FW_LOG_CREATESFID(60, ROGUE_FW_GROUP_MAIN, 3),
+	  "Kick SHG: FWCtx 0x%08.8x @ %d, prio: %d" },
+	{ ROGUE_FW_LOG_CREATESFID(61, ROGUE_FW_GROUP_MAIN, 0),
+	  "SHG finished" },
+	{ ROGUE_FW_LOG_CREATESFID(62, ROGUE_FW_GROUP_MAIN, 1),
+	  "FBA finished on context %u" },
+	{ ROGUE_FW_LOG_CREATESFID(63, ROGUE_FW_GROUP_MAIN, 0),
+	  "UFO Checks failed" },
+	{ ROGUE_FW_LOG_CREATESFID(64, ROGUE_FW_GROUP_MAIN, 1),
+	  "Kill DM%d start" },
+	{ ROGUE_FW_LOG_CREATESFID(65, ROGUE_FW_GROUP_MAIN, 1),
+	  "Kill DM%d complete" },
+	{ ROGUE_FW_LOG_CREATESFID(66, ROGUE_FW_GROUP_MAIN, 2),
+	  "FC%u cCCB Woff update = %u" },
+	{ ROGUE_FW_LOG_CREATESFID(67, ROGUE_FW_GROUP_MAIN, 4),
+	  "Kick RTU: FWCtx 0x%08.8x @ %d, prio: %d, Frame Context: %d" },
+	{ ROGUE_FW_LOG_CREATESFID(68, ROGUE_FW_GROUP_MAIN, 0),
+	  "GPU init" },
+	{ ROGUE_FW_LOG_CREATESFID(69, ROGUE_FW_GROUP_MAIN, 1),
+	  "GPU Units init (# mask: 0x%x)" },
+	{ ROGUE_FW_LOG_CREATESFID(70, ROGUE_FW_GROUP_MAIN, 3),
+	  "Register access cycles: read: %d cycles, write: %d cycles, iterations: %d" },
+	{ ROGUE_FW_LOG_CREATESFID(71, ROGUE_FW_GROUP_MAIN, 3),
+	  "Register configuration added. Address: 0x%x Value: 0x%x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(72, ROGUE_FW_GROUP_MAIN, 1),
+	  "Register configuration applied to type %d. (0:pow on, 1:Rascal/dust init, 2-5: TA,3D,CDM,TLA, 6:All)" },
+	{ ROGUE_FW_LOG_CREATESFID(73, ROGUE_FW_GROUP_MAIN, 0),
+	  "Perform TPC flush." },
+	{ ROGUE_FW_LOG_CREATESFID(74, ROGUE_FW_GROUP_MAIN, 0),
+	  "GPU has locked up (see HWR logs for more info)" },
+	{ ROGUE_FW_LOG_CREATESFID(75, ROGUE_FW_GROUP_MAIN, 0),
+	  "HWR has been triggered - GPU has overrun its deadline (see HWR logs)" },
+	{ ROGUE_FW_LOG_CREATESFID(76, ROGUE_FW_GROUP_MAIN, 0),
+	  "HWR has been triggered - GPU has failed a poll (see HWR logs)" },
+	{ ROGUE_FW_LOG_CREATESFID(77, ROGUE_FW_GROUP_MAIN, 1),
+	  "Doppler out of memory event for FC %u" },
+	{ ROGUE_FW_LOG_CREATESFID(78, ROGUE_FW_GROUP_MAIN, 3),
+	  "UFO SPM special PR-Check: [0x%08.8x] is 0x%08.8x requires >= 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(79, ROGUE_FW_GROUP_MAIN, 3),
+	  "UFO SPM special PR-Check: [0x%08.8x] is 0x%08.8x requires 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(80, ROGUE_FW_GROUP_MAIN, 1),
+	  "TIMESTAMP -> [0x%08.8x]" },
+	{ ROGUE_FW_LOG_CREATESFID(81, ROGUE_FW_GROUP_MAIN, 2),
+	  "UFO RMW Updates for FWCtx 0x%08.8x @ %d" },
+	{ ROGUE_FW_LOG_CREATESFID(82, ROGUE_FW_GROUP_MAIN, 2),
+	  "UFO Update: [0x%08.8x] = 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(83, ROGUE_FW_GROUP_MAIN, 2),
+	  "Kick Null cmd: FWCtx 0x%08.8x @ %d" },
+	{ ROGUE_FW_LOG_CREATESFID(84, ROGUE_FW_GROUP_MAIN, 2),
+	  "RPM Out of memory! Context 0x%08x, SH requestor %d" },
+	{ ROGUE_FW_LOG_CREATESFID(85, ROGUE_FW_GROUP_MAIN, 4),
+	  "Discard RTU due to RPM abort: FWCtx 0x%08.8x @ %d, prio: %d, Frame Context: %d" },
+	{ ROGUE_FW_LOG_CREATESFID(86, ROGUE_FW_GROUP_MAIN, 4),
+	  "Deferring DM%u from running context 0x%08x @ %d (deferred DMs = 0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(87, ROGUE_FW_GROUP_MAIN, 4),
+	  "Deferring DM%u from running context 0x%08x @ %d to let other deferred DMs run (deferred DMs = 0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(88, ROGUE_FW_GROUP_MAIN, 4),
+	  "No longer deferring DM%u from running context = 0x%08x @ %d (deferred DMs = 0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(89, ROGUE_FW_GROUP_MAIN, 3),
+	  "FWCCB for DM%u is full, we will have to wait for space! (Roff = %u, Woff = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(90, ROGUE_FW_GROUP_MAIN, 3),
+	  "FWCCB for OSid %u is full, we will have to wait for space! (Roff = %u, Woff = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(91, ROGUE_FW_GROUP_MAIN, 1),
+	  "Host Sync Partition marker: %d" },
+	{ ROGUE_FW_LOG_CREATESFID(92, ROGUE_FW_GROUP_MAIN, 1),
+	  "Host Sync Partition repeat: %d" },
+	{ ROGUE_FW_LOG_CREATESFID(93, ROGUE_FW_GROUP_MAIN, 1),
+	  "Core clock set to %d Hz" },
+	{ ROGUE_FW_LOG_CREATESFID(94, ROGUE_FW_GROUP_MAIN, 7),
+	  "Compute Queue: FWCtx 0x%08.8x, prio: %d, queue: 0x%08x%08x (Roff = %u, Woff = %u, Size = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(95, ROGUE_FW_GROUP_MAIN, 3),
+	  "Signal check failed, Required Data: 0x%x, Address: 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(96, ROGUE_FW_GROUP_MAIN, 5),
+	  "Signal update, Snoop Filter: %u, MMU Ctx: %u, Signal Id: %u, Signals Base: 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(97, ROGUE_FW_GROUP_MAIN, 4),
+	  "Signalled the previously waiting FWCtx: 0x%08.8x, OSId: %u, Signal Address: 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(98, ROGUE_FW_GROUP_MAIN, 0),
+	  "Compute stalled" },
+	{ ROGUE_FW_LOG_CREATESFID(99, ROGUE_FW_GROUP_MAIN, 3),
+	  "Compute stalled (Roff = %u, Woff = %u, Size = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(100, ROGUE_FW_GROUP_MAIN, 3),
+	  "Compute resumed (Roff = %u, Woff = %u, Size = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(101, ROGUE_FW_GROUP_MAIN, 4),
+	  "Signal update notification from the host, PC Physical Address: 0x%08x%08x, Signal Virtual Address: 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(102, ROGUE_FW_GROUP_MAIN, 4),
+	  "Signal update from DM: %u, OSId: %u, PC Physical Address: 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(103, ROGUE_FW_GROUP_MAIN, 1),
+	  "DM: %u signal check failed" },
+	{ ROGUE_FW_LOG_CREATESFID(104, ROGUE_FW_GROUP_MAIN, 3),
+	  "Kick TDM: FWCtx 0x%08.8x @ %d, prio:%d" },
+	{ ROGUE_FW_LOG_CREATESFID(105, ROGUE_FW_GROUP_MAIN, 0),
+	  "TDM finished" },
+	{ ROGUE_FW_LOG_CREATESFID(106, ROGUE_FW_GROUP_MAIN, 4),
+	  "MMU_PM_CAT_BASE_TE[%d]_PIPE[%d]:  0x%08x 0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(107, ROGUE_FW_GROUP_MAIN, 0),
+	  "BRN 54141 HIT" },
+	{ ROGUE_FW_LOG_CREATESFID(108, ROGUE_FW_GROUP_MAIN, 0),
+	  "BRN 54141 Dummy TA kicked" },
+	{ ROGUE_FW_LOG_CREATESFID(109, ROGUE_FW_GROUP_MAIN, 0),
+	  "BRN 54141 resume TA" },
+	{ ROGUE_FW_LOG_CREATESFID(110, ROGUE_FW_GROUP_MAIN, 0),
+	  "BRN 54141 double hit after applying WA" },
+	{ ROGUE_FW_LOG_CREATESFID(111, ROGUE_FW_GROUP_MAIN, 2),
+	  "BRN 54141 Dummy TA VDM base address: 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(112, ROGUE_FW_GROUP_MAIN, 4),
+	  "Signal check failed, Required Data: 0x%x, Current Data: 0x%x, Address: 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(113, ROGUE_FW_GROUP_MAIN, 2),
+	  "TDM stalled (Roff = %u, Woff = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(114, ROGUE_FW_GROUP_MAIN, 1),
+	  "Write Offset update notification for stalled FWCtx 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(115, ROGUE_FW_GROUP_MAIN, 3),
+	  "Changing OSid %d's priority from %u to %u" },
+	{ ROGUE_FW_LOG_CREATESFID(116, ROGUE_FW_GROUP_MAIN, 0),
+	  "Compute resumed" },
+	{ ROGUE_FW_LOG_CREATESFID(117, ROGUE_FW_GROUP_MAIN, 7),
+	  "Kick TLA: FWCtx 0x%08.8x @ %d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(118, ROGUE_FW_GROUP_MAIN, 7),
+	  "Kick TDM: FWCtx 0x%08.8x @ %d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(119, ROGUE_FW_GROUP_MAIN, 11),
+	  "Kick TA: FWCtx 0x%08.8x @ %d, RTD 0x%08x, First kick:%d, Last kick:%d, CSW resume:%d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(120, ROGUE_FW_GROUP_MAIN, 10),
+	  "Kick 3D: FWCtx 0x%08.8x @ %d, RTD 0x%08x, Partial render:%d, CSW resume:%d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(121, ROGUE_FW_GROUP_MAIN, 8),
+	  "Kick 3D TQ: FWCtx 0x%08.8x @ %d, CSW resume:%d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(122, ROGUE_FW_GROUP_MAIN, 6),
+	  "Kick Compute: FWCtx 0x%08.8x @ %d. (PID:%d, prio:%d, ext:0x%08x, int:0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(123, ROGUE_FW_GROUP_MAIN, 8),
+	  "Kick RTU: FWCtx 0x%08.8x @ %d, Frame Context:%d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(124, ROGUE_FW_GROUP_MAIN, 7),
+	  "Kick SHG: FWCtx 0x%08.8x @ %d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(125, ROGUE_FW_GROUP_MAIN, 1),
+	  "Reconfigure CSRM: special coeff support enable %d." },
+	{ ROGUE_FW_LOG_CREATESFID(127, ROGUE_FW_GROUP_MAIN, 1),
+	  "TA requires max coeff mode, deferring: %d." },
+	{ ROGUE_FW_LOG_CREATESFID(128, ROGUE_FW_GROUP_MAIN, 1),
+	  "3D requires max coeff mode, deferring: %d." },
+	{ ROGUE_FW_LOG_CREATESFID(129, ROGUE_FW_GROUP_MAIN, 1),
+	  "Kill DM%d failed" },
+	{ ROGUE_FW_LOG_CREATESFID(130, ROGUE_FW_GROUP_MAIN, 2),
+	  "Thread Queue is full, we will have to wait for space! (Roff = %u, Woff = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(131, ROGUE_FW_GROUP_MAIN, 3),
+	  "Thread Queue is fencing, we are waiting for Roff = %d (Roff = %u, Woff = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(132, ROGUE_FW_GROUP_MAIN, 1),
+	  "DM %d failed to Context Switch on time. Triggered HCS (see HWR logs)." },
+	{ ROGUE_FW_LOG_CREATESFID(133, ROGUE_FW_GROUP_MAIN, 1),
+	  "HCS changed to %d ms" },
+	{ ROGUE_FW_LOG_CREATESFID(134, ROGUE_FW_GROUP_MAIN, 4),
+	  "Updating Tiles In Flight (Dusts=%d, PartitionMask=0x%08x, ISPCtl=0x%08x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(135, ROGUE_FW_GROUP_MAIN, 2),
+	  "  Phantom %d: USCTiles=%d" },
+	{ ROGUE_FW_LOG_CREATESFID(136, ROGUE_FW_GROUP_MAIN, 0),
+	  "Isolation grouping is disabled" },
+	{ ROGUE_FW_LOG_CREATESFID(137, ROGUE_FW_GROUP_MAIN, 1),
+	  "Isolation group configured with a priority threshold of %d" },
+	{ ROGUE_FW_LOG_CREATESFID(138, ROGUE_FW_GROUP_MAIN, 1),
+	  "OS %d has come online" },
+	{ ROGUE_FW_LOG_CREATESFID(139, ROGUE_FW_GROUP_MAIN, 1),
+	  "OS %d has gone offline" },
+	{ ROGUE_FW_LOG_CREATESFID(140, ROGUE_FW_GROUP_MAIN, 4),
+	  "Signalled the previously stalled FWCtx: 0x%08.8x, OSId: %u, Signal Address: 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(141, ROGUE_FW_GROUP_MAIN, 7),
+	  "TDM Queue: FWCtx 0x%08.8x, prio: %d, queue: 0x%08x%08x (Roff = %u, Woff = %u, Size = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(142, ROGUE_FW_GROUP_MAIN, 6),
+	  "Reset TDM Queue Read Offset: FWCtx 0x%08.8x, queue: 0x%08x%08x (Roff = %u becomes 0, Woff = %u, Size = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(143, ROGUE_FW_GROUP_MAIN, 5),
+	  "User Mode Queue mismatched stream start: FWCtx 0x%08.8x, queue: 0x%08x%08x (Roff = %u, StreamStartOffset = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(144, ROGUE_FW_GROUP_MAIN, 0),
+	  "GPU deinit" },
+	{ ROGUE_FW_LOG_CREATESFID(145, ROGUE_FW_GROUP_MAIN, 0),
+	  "GPU units deinit" },
+	{ ROGUE_FW_LOG_CREATESFID(146, ROGUE_FW_GROUP_MAIN, 2),
+	  "Initialised OS %d with config flags 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(147, ROGUE_FW_GROUP_MAIN, 2),
+	  "UFO limit exceeded %d/%d" },
+	{ ROGUE_FW_LOG_CREATESFID(148, ROGUE_FW_GROUP_MAIN, 0),
+	  "3D Dummy stencil store" },
+	{ ROGUE_FW_LOG_CREATESFID(149, ROGUE_FW_GROUP_MAIN, 3),
+	  "Initialised OS %d with config flags 0x%08x and extended config flags 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(150, ROGUE_FW_GROUP_MAIN, 1),
+	  "Unknown Command (eCmdType=0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(151, ROGUE_FW_GROUP_MAIN, 4),
+	  "UFO forced update: FWCtx 0x%08.8x @ %d [0x%08.8x] = 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(152, ROGUE_FW_GROUP_MAIN, 5),
+	  "UFO forced update NOP: FWCtx 0x%08.8x @ %d [0x%08.8x] = 0x%08.8x, reason %d" },
+	{ ROGUE_FW_LOG_CREATESFID(153, ROGUE_FW_GROUP_MAIN, 3),
+	  "TDM context switch check: Roff %u points to 0x%08x, Match=%u" },
+	{ ROGUE_FW_LOG_CREATESFID(154, ROGUE_FW_GROUP_MAIN, 6),
+	  "OSid %d CCB init status: %d (1-ok 0-fail): kCCBCtl@0x%x kCCB@0x%x fwCCBCtl@0x%x fwCCB@0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(155, ROGUE_FW_GROUP_MAIN, 2),
+	  "FW IRQ # %u @ %u" },
+	{ ROGUE_FW_LOG_CREATESFID(156, ROGUE_FW_GROUP_MAIN, 3),
+	  "Setting breakpoint: Addr 0x%08.8x DM%u usc_breakpoint_ctrl_dm = %u" },
+	{ ROGUE_FW_LOG_CREATESFID(157, ROGUE_FW_GROUP_MAIN, 3),
+	  "Invalid KCCB setup for OSid %u: KCCB 0x%08x, KCCB Ctrl 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(158, ROGUE_FW_GROUP_MAIN, 3),
+	  "Invalid KCCB cmd (%u) for OSid %u @ KCCB 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(159, ROGUE_FW_GROUP_MAIN, 4),
+	  "FW FAULT: At line %d in file 0x%08x%08x, additional data=0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(160, ROGUE_FW_GROUP_MAIN, 4),
+	  "Invalid breakpoint: MemCtx 0x%08x Addr 0x%08.8x DM%u usc_breakpoint_ctrl_dm = %u" },
+	{ ROGUE_FW_LOG_CREATESFID(161, ROGUE_FW_GROUP_MAIN, 3),
+	  "Discarding invalid SLC flushinval command for OSid %u: DM %u, FWCtx 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(162, ROGUE_FW_GROUP_MAIN, 4),
+	  "Invalid Write Offset update notification from OSid %u to DM %u: FWCtx 0x%08x, MemCtx 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(163, ROGUE_FW_GROUP_MAIN, 4),
+	  "Null FWCtx in KCCB kick cmd for OSid %u: KCCB 0x%08x, ROff %u, WOff %u" },
+	{ ROGUE_FW_LOG_CREATESFID(164, ROGUE_FW_GROUP_MAIN, 3),
+	  "Checkpoint CCB for OSid %u is full, signalling host for full check state (Roff = %u, Woff = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(165, ROGUE_FW_GROUP_MAIN, 8),
+	  "OSid %d CCB init status: %d (1-ok 0-fail): kCCBCtl@0x%x kCCB@0x%x fwCCBCtl@0x%x fwCCB@0x%x chptCCBCtl@0x%x chptCCB@0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(166, ROGUE_FW_GROUP_MAIN, 4),
+	  "OSid %d fw state transition request: from %d to %d (0-offline 1-ready 2-active 3-offloading). Status %d (1-ok 0-fail)" },
+	{ ROGUE_FW_LOG_CREATESFID(167, ROGUE_FW_GROUP_MAIN, 2),
+	  "OSid %u has %u stale commands in its KCCB" },
+	{ ROGUE_FW_LOG_CREATESFID(168, ROGUE_FW_GROUP_MAIN, 0),
+	  "Applying VCE pause" },
+	{ ROGUE_FW_LOG_CREATESFID(169, ROGUE_FW_GROUP_MAIN, 3),
+	  "OSid %u KCCB slot %u value updated to %u" },
+	{ ROGUE_FW_LOG_CREATESFID(170, ROGUE_FW_GROUP_MAIN, 7),
+	  "Unknown KCCB Command: KCCBCtl=0x%08x, KCCB=0x%08x, Roff=%u, Woff=%u, Wrap=%u, Cmd=0x%08x, CmdType=0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(171, ROGUE_FW_GROUP_MAIN, 10),
+	  "Unknown Client CCB Command processing fences: FWCtx=0x%08x, CCBCtl=0x%08x, CCB=0x%08x, Roff=%u, Doff=%u, Woff=%u, Wrap=%u, CmdHdr=0x%08x, CmdType=0x%08x, CmdSize=%u" },
+	{ ROGUE_FW_LOG_CREATESFID(172, ROGUE_FW_GROUP_MAIN, 10),
+	  "Unknown Client CCB Command executing kick: FWCtx=0x%08x, CCBCtl=0x%08x, CCB=0x%08x, Roff=%u, Doff=%u, Woff=%u, Wrap=%u, CmdHdr=0x%08x, CmdType=0x%08x, CmdSize=%u" },
+	{ ROGUE_FW_LOG_CREATESFID(173, ROGUE_FW_GROUP_MAIN, 2),
+	  "Null FWCtx in KCCB kick cmd for OSid %u with WOff %u" },
+	{ ROGUE_FW_LOG_CREATESFID(174, ROGUE_FW_GROUP_MAIN, 2),
+	  "Discarding invalid SLC flushinval command for OSid %u, FWCtx 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(175, ROGUE_FW_GROUP_MAIN, 3),
+	  "Invalid Write Offset update notification from OSid %u: FWCtx 0x%08x, MemCtx 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(176, ROGUE_FW_GROUP_MAIN, 2),
+	  "Initialised Firmware with config flags 0x%08x and extended config flags 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(177, ROGUE_FW_GROUP_MAIN, 1),
+	  "Set Periodic Hardware Reset Mode: %d" },
+	{ ROGUE_FW_LOG_CREATESFID(179, ROGUE_FW_GROUP_MAIN, 3),
+	  "PHR mode %d, FW state: 0x%08x, HWR flags: 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(180, ROGUE_FW_GROUP_MAIN, 1),
+	  "PHR mode %d triggered a reset" },
+	{ ROGUE_FW_LOG_CREATESFID(181, ROGUE_FW_GROUP_MAIN, 2),
+	  "Signal update, Snoop Filter: %u, Signal Id: %u" },
+	{ ROGUE_FW_LOG_CREATESFID(182, ROGUE_FW_GROUP_MAIN, 1),
+	  "WARNING: Skipping FW KCCB Cmd type %d which is not yet supported on Series8." },
+	{ ROGUE_FW_LOG_CREATESFID(183, ROGUE_FW_GROUP_MAIN, 4),
+	  "MMU context cache data NULL, but cache flags=0x%x (sync counter=%u, update value=%u) OSId=%u" },
+	{ ROGUE_FW_LOG_CREATESFID(184, ROGUE_FW_GROUP_MAIN, 5),
+	  "SLC range based flush: Context=%u VAddr=0x%02x%08x, Size=0x%08x, Invalidate=%d" },
+	{ ROGUE_FW_LOG_CREATESFID(185, ROGUE_FW_GROUP_MAIN, 3),
+	  "FBSC invalidate for Context Set [0x%08x]: Entry mask 0x%08x%08x." },
+	{ ROGUE_FW_LOG_CREATESFID(186, ROGUE_FW_GROUP_MAIN, 3),
+	  "TDM context switch check: Roff %u was not valid for kick starting at %u, moving back to %u" },
+	{ ROGUE_FW_LOG_CREATESFID(187, ROGUE_FW_GROUP_MAIN, 2),
+	  "Signal updates: FIFO: %u, Signals: 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(188, ROGUE_FW_GROUP_MAIN, 2),
+	  "Invalid FBSC cmd: FWCtx 0x%08x, MemCtx 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(189, ROGUE_FW_GROUP_MAIN, 0),
+	  "Insert BRN68497 WA blit after TDM Context store." },
+	{ ROGUE_FW_LOG_CREATESFID(190, ROGUE_FW_GROUP_MAIN, 1),
+	  "UFO Updates for previously finished FWCtx 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(191, ROGUE_FW_GROUP_MAIN, 1),
+	  "RTC with RTA present, %u active render targets" },
+	{ ROGUE_FW_LOG_CREATESFID(192, ROGUE_FW_GROUP_MAIN, 0),
+	  "Invalid RTA Set-up. The ValidRenderTargets array in RTACtl is Null!" },
+	{ ROGUE_FW_LOG_CREATESFID(193, ROGUE_FW_GROUP_MAIN, 2),
+	  "Block 0x%x / Counter 0x%x INVALID and ignored" },
+	{ ROGUE_FW_LOG_CREATESFID(194, ROGUE_FW_GROUP_MAIN, 2),
+	  "ECC fault GPU=0x%08x FW=0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(195, ROGUE_FW_GROUP_MAIN, 1),
+	  "Processing XPU event on DM = %d" },
+	{ ROGUE_FW_LOG_CREATESFID(196, ROGUE_FW_GROUP_MAIN, 2),
+	  "OSid %u failed to respond to the virtualisation watchdog in time. Timestamp of its last input = %u" },
+	{ ROGUE_FW_LOG_CREATESFID(197, ROGUE_FW_GROUP_MAIN, 1),
+	  "GPU-%u has locked up (see HWR logs for more info)" },
+	{ ROGUE_FW_LOG_CREATESFID(198, ROGUE_FW_GROUP_MAIN, 3),
+	  "Updating Tiles In Flight (Dusts=%d, PartitionMask=0x%08x, ISPCtl=0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(199, ROGUE_FW_GROUP_MAIN, 0),
+	  "GPU has locked up (see HWR logs for more info)" },
+	{ ROGUE_FW_LOG_CREATESFID(200, ROGUE_FW_GROUP_MAIN, 1),
+	  "Reprocessing outstanding XPU events from cores 0x%02x" },
+	{ ROGUE_FW_LOG_CREATESFID(201, ROGUE_FW_GROUP_MAIN, 3),
+	  "Secondary XPU event on DM=%d, CoreMask=0x%02x, Raised=0x%02x" },
+	{ ROGUE_FW_LOG_CREATESFID(202, ROGUE_FW_GROUP_MAIN, 8),
+	  "TDM Queue: Core %u, FWCtx 0x%08.8x, prio: %d, queue: 0x%08x%08x (Roff = %u, Woff = %u, Size = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(203, ROGUE_FW_GROUP_MAIN, 3),
+	  "TDM stalled Core %u (Roff = %u, Woff = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(204, ROGUE_FW_GROUP_MAIN, 8),
+	  "Compute Queue: Core %u, FWCtx 0x%08.8x, prio: %d, queue: 0x%08x%08x (Roff = %u, Woff = %u, Size = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(205, ROGUE_FW_GROUP_MAIN, 4),
+	  "Compute stalled core %u (Roff = %u, Woff = %u, Size = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(206, ROGUE_FW_GROUP_MAIN, 6),
+	  "User Mode Queue mismatched stream start: Core %u, FWCtx 0x%08.8x, queue: 0x%08x%08x (Roff = %u, StreamStartOffset = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(207, ROGUE_FW_GROUP_MAIN, 3),
+	  "TDM resumed core %u (Roff = %u, Woff = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(208, ROGUE_FW_GROUP_MAIN, 4),
+	  "Compute resumed core %u (Roff = %u, Woff = %u, Size = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(209, ROGUE_FW_GROUP_MAIN, 2),
+	  " Updated permission for OSid %u to perform MTS kicks: %u (1 = allowed, 0 = not allowed)" },
+	{ ROGUE_FW_LOG_CREATESFID(210, ROGUE_FW_GROUP_MAIN, 2),
+	  "Mask = 0x%X, mask2 = 0x%X" },
+	{ ROGUE_FW_LOG_CREATESFID(211, ROGUE_FW_GROUP_MAIN, 3),
+	  "  core %u, reg = %u, mask = 0x%X)" },
+	{ ROGUE_FW_LOG_CREATESFID(212, ROGUE_FW_GROUP_MAIN, 1),
+	  "ECC fault received from safety bus: 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(213, ROGUE_FW_GROUP_MAIN, 1),
+	  "Safety Watchdog threshold period set to 0x%x clock cycles" },
+	{ ROGUE_FW_LOG_CREATESFID(214, ROGUE_FW_GROUP_MAIN, 0),
+	  "MTS Safety Event trigged by the safety watchdog." },
+	{ ROGUE_FW_LOG_CREATESFID(215, ROGUE_FW_GROUP_MAIN, 3),
+	  "DM%d USC tasks range limit 0 - %d, stride %d" },
+	{ ROGUE_FW_LOG_CREATESFID(216, ROGUE_FW_GROUP_MAIN, 1),
+	  "ECC fault GPU=0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(217, ROGUE_FW_GROUP_MAIN, 0),
+	  "GPU Hardware units reset to prevent transient faults." },
+	{ ROGUE_FW_LOG_CREATESFID(218, ROGUE_FW_GROUP_MAIN, 2),
+	  "Kick Abort cmd: FWCtx 0x%08.8x @ %d" },
+	{ ROGUE_FW_LOG_CREATESFID(219, ROGUE_FW_GROUP_MAIN, 7),
+	  "Kick Ray: FWCtx 0x%08.8x @ %d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(220, ROGUE_FW_GROUP_MAIN, 0),
+	  "Ray finished" },
+	{ ROGUE_FW_LOG_CREATESFID(221, ROGUE_FW_GROUP_MAIN, 2),
+	  "State of firmware's private data at boot time: %d (0 = uninitialised, 1 = initialised); Fw State Flags = 0x%08X" },
+	{ ROGUE_FW_LOG_CREATESFID(222, ROGUE_FW_GROUP_MAIN, 2),
+	  "CFI Timeout detected (%d increasing to %d)" },
+	{ ROGUE_FW_LOG_CREATESFID(223, ROGUE_FW_GROUP_MAIN, 2),
+	  "CFI Timeout detected for FBM (%d increasing to %d)" },
+	{ ROGUE_FW_LOG_CREATESFID(224, ROGUE_FW_GROUP_MAIN, 0),
+	  "Geom OOM event not allowed" },
+	{ ROGUE_FW_LOG_CREATESFID(225, ROGUE_FW_GROUP_MAIN, 4),
+	  "Changing OSid %d's priority from %u to %u; Isolation = %u (0 = off; 1 = on)" },
+	{ ROGUE_FW_LOG_CREATESFID(226, ROGUE_FW_GROUP_MAIN, 2),
+	  "Skipping already executed TA FWCtx 0x%08.8x @ %d" },
+	{ ROGUE_FW_LOG_CREATESFID(227, ROGUE_FW_GROUP_MAIN, 2),
+	  "Attempt to execute TA FWCtx 0x%08.8x @ %d ahead of time on other GEOM" },
+	{ ROGUE_FW_LOG_CREATESFID(228, ROGUE_FW_GROUP_MAIN, 8),
+	  "Kick TDM: Kick ID %u FWCtx 0x%08.8x @ %d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(229, ROGUE_FW_GROUP_MAIN, 12),
+	  "Kick TA: Kick ID %u FWCtx 0x%08.8x @ %d, RTD 0x%08x, First kick:%d, Last kick:%d, CSW resume:%d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(230, ROGUE_FW_GROUP_MAIN, 11),
+	  "Kick 3D: Kick ID %u FWCtx 0x%08.8x @ %d, RTD 0x%08x, Partial render:%d, CSW resume:%d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(231, ROGUE_FW_GROUP_MAIN, 7),
+	  "Kick Compute: Kick ID %u FWCtx 0x%08.8x @ %d. (PID:%d, prio:%d, ext:0x%08x, int:0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(232, ROGUE_FW_GROUP_MAIN, 1),
+	  "TDM finished: Kick ID %u " },
+	{ ROGUE_FW_LOG_CREATESFID(233, ROGUE_FW_GROUP_MAIN, 1),
+	  "TA finished: Kick ID %u " },
+	{ ROGUE_FW_LOG_CREATESFID(234, ROGUE_FW_GROUP_MAIN, 3),
+	  "3D finished: Kick ID %u , HWRTData0State=%x, HWRTData1State=%x" },
+	{ ROGUE_FW_LOG_CREATESFID(235, ROGUE_FW_GROUP_MAIN, 1),
+	  "Compute finished: Kick ID %u " },
+	{ ROGUE_FW_LOG_CREATESFID(236, ROGUE_FW_GROUP_MAIN, 10),
+	  "Kick TDM: Kick ID %u FWCtx 0x%08.8x @ %d, Base 0x%08x%08x. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(237, ROGUE_FW_GROUP_MAIN, 8),
+	  "Kick Ray: Kick ID %u FWCtx 0x%08.8x @ %d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(238, ROGUE_FW_GROUP_MAIN, 1),
+	  "Ray finished: Kick ID %u " },
+
+	{ ROGUE_FW_LOG_CREATESFID(1, ROGUE_FW_GROUP_MTS, 2),
+	  "Bg Task DM = %u, counted = %d" },
+	{ ROGUE_FW_LOG_CREATESFID(2, ROGUE_FW_GROUP_MTS, 1),
+	  "Bg Task complete DM = %u" },
+	{ ROGUE_FW_LOG_CREATESFID(3, ROGUE_FW_GROUP_MTS, 3),
+	  "Irq Task DM = %u, Breq = %d, SBIrq = 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(4, ROGUE_FW_GROUP_MTS, 1),
+	  "Irq Task complete DM = %u" },
+	{ ROGUE_FW_LOG_CREATESFID(5, ROGUE_FW_GROUP_MTS, 0),
+	  "Kick MTS Bg task DM=All" },
+	{ ROGUE_FW_LOG_CREATESFID(6, ROGUE_FW_GROUP_MTS, 1),
+	  "Kick MTS Irq task DM=%d" },
+	{ ROGUE_FW_LOG_CREATESFID(7, ROGUE_FW_GROUP_MTS, 2),
+	  "Ready queue debug DM = %u, celltype = %d" },
+	{ ROGUE_FW_LOG_CREATESFID(8, ROGUE_FW_GROUP_MTS, 2),
+	  "Ready-to-run debug DM = %u, item = 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(9, ROGUE_FW_GROUP_MTS, 3),
+	  "Client command header DM = %u, client CCB = 0x%x, cmd = 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(10, ROGUE_FW_GROUP_MTS, 3),
+	  "Ready-to-run debug OSid = %u, DM = %u, item = 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(11, ROGUE_FW_GROUP_MTS, 3),
+	  "Ready queue debug DM = %u, celltype = %d, OSid = %u" },
+	{ ROGUE_FW_LOG_CREATESFID(12, ROGUE_FW_GROUP_MTS, 3),
+	  "Bg Task DM = %u, counted = %d, OSid = %u" },
+	{ ROGUE_FW_LOG_CREATESFID(13, ROGUE_FW_GROUP_MTS, 1),
+	  "Bg Task complete DM Bitfield: %u" },
+	{ ROGUE_FW_LOG_CREATESFID(14, ROGUE_FW_GROUP_MTS, 0),
+	  "Irq Task complete." },
+	{ ROGUE_FW_LOG_CREATESFID(15, ROGUE_FW_GROUP_MTS, 7),
+	  "Discarded Command Type: %d OS ID = %d PID = %d context = 0x%08x cccb ROff = 0x%x, due to USC breakpoint hit by OS ID = %d PID = %d." },
+	{ ROGUE_FW_LOG_CREATESFID(16, ROGUE_FW_GROUP_MTS, 4),
+	  "KCCB Slot %u: DM=%u, Cmd=0x%08x, OSid=%u" },
+	{ ROGUE_FW_LOG_CREATESFID(17, ROGUE_FW_GROUP_MTS, 2),
+	  "KCCB Slot %u: Return value %u" },
+	{ ROGUE_FW_LOG_CREATESFID(18, ROGUE_FW_GROUP_MTS, 1),
+	  "Bg Task OSid = %u" },
+	{ ROGUE_FW_LOG_CREATESFID(19, ROGUE_FW_GROUP_MTS, 3),
+	  "KCCB Slot %u: Cmd=0x%08x, OSid=%u" },
+	{ ROGUE_FW_LOG_CREATESFID(20, ROGUE_FW_GROUP_MTS, 1),
+	  "Irq Task (EVENT_STATUS=0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(21, ROGUE_FW_GROUP_MTS, 2),
+	  "VZ sideband test, kicked with OSid=%u from MTS, OSid for test=%u" },
+
+	{ ROGUE_FW_LOG_CREATESFID(1, ROGUE_FW_GROUP_CLEANUP, 1),
+	  "FwCommonContext [0x%08x] cleaned" },
+	{ ROGUE_FW_LOG_CREATESFID(2, ROGUE_FW_GROUP_CLEANUP, 3),
+	  "FwCommonContext [0x%08x] is busy: ReadOffset = %d, WriteOffset = %d" },
+	{ ROGUE_FW_LOG_CREATESFID(3, ROGUE_FW_GROUP_CLEANUP, 2),
+	  "HWRTData [0x%08x] for DM=%d, received cleanup request" },
+	{ ROGUE_FW_LOG_CREATESFID(4, ROGUE_FW_GROUP_CLEANUP, 3),
+	  "HWRTData [0x%08x] HW Context cleaned for DM%u, executed commands = %d" },
+	{ ROGUE_FW_LOG_CREATESFID(5, ROGUE_FW_GROUP_CLEANUP, 2),
+	  "HWRTData [0x%08x] HW Context for DM%u is busy" },
+	{ ROGUE_FW_LOG_CREATESFID(6, ROGUE_FW_GROUP_CLEANUP, 2),
+	  "HWRTData [0x%08x] HW Context %u cleaned" },
+	{ ROGUE_FW_LOG_CREATESFID(7, ROGUE_FW_GROUP_CLEANUP, 1),
+	  "Freelist [0x%08x] cleaned" },
+	{ ROGUE_FW_LOG_CREATESFID(8, ROGUE_FW_GROUP_CLEANUP, 1),
+	  "ZSBuffer [0x%08x] cleaned" },
+	{ ROGUE_FW_LOG_CREATESFID(9, ROGUE_FW_GROUP_CLEANUP, 3),
+	  "ZSBuffer [0x%08x] is busy: submitted = %d, executed = %d" },
+	{ ROGUE_FW_LOG_CREATESFID(10, ROGUE_FW_GROUP_CLEANUP, 4),
+	  "HWRTData [0x%08x] HW Context for DM%u is busy: submitted = %d, executed = %d" },
+	{ ROGUE_FW_LOG_CREATESFID(11, ROGUE_FW_GROUP_CLEANUP, 2),
+	  "HW Ray Frame data [0x%08x] for DM=%d, received cleanup request" },
+	{ ROGUE_FW_LOG_CREATESFID(12, ROGUE_FW_GROUP_CLEANUP, 3),
+	  "HW Ray Frame Data [0x%08x] cleaned for DM%u, executed commands = %d" },
+	{ ROGUE_FW_LOG_CREATESFID(13, ROGUE_FW_GROUP_CLEANUP, 4),
+	  "HW Ray Frame Data [0x%08x] for DM%u is busy: submitted = %d, executed = %d" },
+	{ ROGUE_FW_LOG_CREATESFID(14, ROGUE_FW_GROUP_CLEANUP, 2),
+	  "HW Ray Frame Data [0x%08x] HW Context %u cleaned" },
+	{ ROGUE_FW_LOG_CREATESFID(15, ROGUE_FW_GROUP_CLEANUP, 1),
+	  "Discarding invalid cleanup request of type 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(16, ROGUE_FW_GROUP_CLEANUP, 1),
+	  "Received cleanup request for HWRTData [0x%08x]" },
+	{ ROGUE_FW_LOG_CREATESFID(17, ROGUE_FW_GROUP_CLEANUP, 3),
+	  "HWRTData [0x%08x] HW Context is busy: submitted = %d, executed = %d" },
+	{ ROGUE_FW_LOG_CREATESFID(18, ROGUE_FW_GROUP_CLEANUP, 3),
+	  "HWRTData [0x%08x] HW Context %u cleaned, executed commands = %d" },
+
+	{ ROGUE_FW_LOG_CREATESFID(1, ROGUE_FW_GROUP_CSW, 1),
+	  "CDM FWCtx 0x%08.8x needs resume" },
+	{ ROGUE_FW_LOG_CREATESFID(2, ROGUE_FW_GROUP_CSW, 3),
+	  "*** CDM FWCtx 0x%08.8x resume from snapshot buffer 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(3, ROGUE_FW_GROUP_CSW, 1),
+	  "CDM FWCtx shared alloc size load 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(4, ROGUE_FW_GROUP_CSW, 0),
+	  "*** CDM FWCtx store complete" },
+	{ ROGUE_FW_LOG_CREATESFID(5, ROGUE_FW_GROUP_CSW, 0),
+	  "*** CDM FWCtx store start" },
+	{ ROGUE_FW_LOG_CREATESFID(6, ROGUE_FW_GROUP_CSW, 0),
+	  "CDM Soft Reset" },
+	{ ROGUE_FW_LOG_CREATESFID(7, ROGUE_FW_GROUP_CSW, 1),
+	  "3D FWCtx 0x%08.8x needs resume" },
+	{ ROGUE_FW_LOG_CREATESFID(8, ROGUE_FW_GROUP_CSW, 1),
+	  "*** 3D FWCtx 0x%08.8x resume" },
+	{ ROGUE_FW_LOG_CREATESFID(9, ROGUE_FW_GROUP_CSW, 0),
+	  "*** 3D context store complete" },
+	{ ROGUE_FW_LOG_CREATESFID(10, ROGUE_FW_GROUP_CSW, 3),
+	  "3D context store pipe state: 0x%08.8x 0x%08.8x 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(11, ROGUE_FW_GROUP_CSW, 0),
+	  "*** 3D context store start" },
+	{ ROGUE_FW_LOG_CREATESFID(12, ROGUE_FW_GROUP_CSW, 1),
+	  "*** 3D TQ FWCtx 0x%08.8x resume" },
+	{ ROGUE_FW_LOG_CREATESFID(13, ROGUE_FW_GROUP_CSW, 1),
+	  "TA FWCtx 0x%08.8x needs resume" },
+	{ ROGUE_FW_LOG_CREATESFID(14, ROGUE_FW_GROUP_CSW, 3),
+	  "*** TA FWCtx 0x%08.8x resume from snapshot buffer 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(15, ROGUE_FW_GROUP_CSW, 2),
+	  "TA context shared alloc size store 0x%x, load 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(16, ROGUE_FW_GROUP_CSW, 0),
+	  "*** TA context store complete" },
+	{ ROGUE_FW_LOG_CREATESFID(17, ROGUE_FW_GROUP_CSW, 0),
+	  "*** TA context store start" },
+	{ ROGUE_FW_LOG_CREATESFID(18, ROGUE_FW_GROUP_CSW, 3),
+	  "Higher priority context scheduled for DM %u, old prio:%d, new prio:%d" },
+	{ ROGUE_FW_LOG_CREATESFID(19, ROGUE_FW_GROUP_CSW, 2),
+	  "Set FWCtx 0x%x priority to %u" },
+	{ ROGUE_FW_LOG_CREATESFID(20, ROGUE_FW_GROUP_CSW, 2),
+	  "3D context store pipe%d state: 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(21, ROGUE_FW_GROUP_CSW, 2),
+	  "3D context resume pipe%d state: 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(22, ROGUE_FW_GROUP_CSW, 1),
+	  "SHG FWCtx 0x%08.8x needs resume" },
+	{ ROGUE_FW_LOG_CREATESFID(23, ROGUE_FW_GROUP_CSW, 3),
+	  "*** SHG FWCtx 0x%08.8x resume from snapshot buffer 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(24, ROGUE_FW_GROUP_CSW, 2),
+	  "SHG context shared alloc size store 0x%x, load 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(25, ROGUE_FW_GROUP_CSW, 0),
+	  "*** SHG context store complete" },
+	{ ROGUE_FW_LOG_CREATESFID(26, ROGUE_FW_GROUP_CSW, 0),
+	  "*** SHG context store start" },
+	{ ROGUE_FW_LOG_CREATESFID(27, ROGUE_FW_GROUP_CSW, 1),
+	  "Performing TA indirection, last used pipe %d" },
+	{ ROGUE_FW_LOG_CREATESFID(28, ROGUE_FW_GROUP_CSW, 0),
+	  "CDM context store hit ctrl stream terminate. Skip resume." },
+	{ ROGUE_FW_LOG_CREATESFID(29, ROGUE_FW_GROUP_CSW, 4),
+	  "*** CDM FWCtx 0x%08.8x resume from snapshot buffer 0x%08x%08x, shader state %u" },
+	{ ROGUE_FW_LOG_CREATESFID(30, ROGUE_FW_GROUP_CSW, 2),
+	  "TA PDS/USC state buffer flip (%d->%d)" },
+	{ ROGUE_FW_LOG_CREATESFID(31, ROGUE_FW_GROUP_CSW, 0),
+	  "TA context store hit BRN 52563: vertex store tasks outstanding" },
+	{ ROGUE_FW_LOG_CREATESFID(32, ROGUE_FW_GROUP_CSW, 1),
+	  "TA USC poll failed (USC vertex task count: %d)" },
+	{ ROGUE_FW_LOG_CREATESFID(33, ROGUE_FW_GROUP_CSW, 0),
+	  "TA context store deferred due to BRN 54141." },
+	{ ROGUE_FW_LOG_CREATESFID(34, ROGUE_FW_GROUP_CSW, 7),
+	  "Higher priority context scheduled for DM %u. Prios (OSid, OSid Prio, Context Prio): Current: %u, %u, %u New: %u, %u, %u" },
+	{ ROGUE_FW_LOG_CREATESFID(35, ROGUE_FW_GROUP_CSW, 0),
+	  "*** TDM context store start" },
+	{ ROGUE_FW_LOG_CREATESFID(36, ROGUE_FW_GROUP_CSW, 0),
+	  "*** TDM context store complete" },
+	{ ROGUE_FW_LOG_CREATESFID(37, ROGUE_FW_GROUP_CSW, 2),
+	  "TDM context needs resume, header [0x%08.8x, 0x%08.8x]" },
+	{ ROGUE_FW_LOG_CREATESFID(38, ROGUE_FW_GROUP_CSW, 8),
+	  "Higher priority context scheduled for DM %u. Prios (OSid, OSid Prio, Context Prio): Current: %u, %u, %u New: %u, %u, %u. Hard Context Switching: %u" },
+	{ ROGUE_FW_LOG_CREATESFID(39, ROGUE_FW_GROUP_CSW, 3),
+	  "3D context store pipe %2d (%2d) state: 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(40, ROGUE_FW_GROUP_CSW, 3),
+	  "3D context resume pipe %2d (%2d) state: 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(41, ROGUE_FW_GROUP_CSW, 1),
+	  "*** 3D context store start version %d (1=IPP_TILE, 2=ISP_TILE)" },
+	{ ROGUE_FW_LOG_CREATESFID(42, ROGUE_FW_GROUP_CSW, 3),
+	  "3D context store pipe%d state: 0x%08.8x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(43, ROGUE_FW_GROUP_CSW, 3),
+	  "3D context resume pipe%d state: 0x%08.8x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(44, ROGUE_FW_GROUP_CSW, 2),
+	  "3D context resume IPP state: 0x%08.8x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(45, ROGUE_FW_GROUP_CSW, 1),
+	  "All 3D pipes empty after ISP tile mode store! IPP_status: 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(46, ROGUE_FW_GROUP_CSW, 3),
+	  "TDM context resume pipe%d state: 0x%08.8x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(47, ROGUE_FW_GROUP_CSW, 0),
+	  "*** 3D context store start version 4" },
+	{ ROGUE_FW_LOG_CREATESFID(48, ROGUE_FW_GROUP_CSW, 2),
+	  "Multicore context resume on DM%d active core mask 0x%04.4x" },
+	{ ROGUE_FW_LOG_CREATESFID(49, ROGUE_FW_GROUP_CSW, 2),
+	  "Multicore context store on DM%d active core mask 0x%04.4x" },
+	{ ROGUE_FW_LOG_CREATESFID(50, ROGUE_FW_GROUP_CSW, 5),
+	  "TDM context resume Core %d, pipe%d state: 0x%08.8x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(51, ROGUE_FW_GROUP_CSW, 0),
+	  "*** RDM FWCtx store complete" },
+	{ ROGUE_FW_LOG_CREATESFID(52, ROGUE_FW_GROUP_CSW, 0),
+	  "*** RDM FWCtx store start" },
+	{ ROGUE_FW_LOG_CREATESFID(53, ROGUE_FW_GROUP_CSW, 1),
+	  "RDM FWCtx 0x%08.8x needs resume" },
+	{ ROGUE_FW_LOG_CREATESFID(54, ROGUE_FW_GROUP_CSW, 1),
+	  "RDM FWCtx 0x%08.8x resume" },
+
+	{ ROGUE_FW_LOG_CREATESFID(1, ROGUE_FW_GROUP_BIF, 3),
+	  "Activate MemCtx=0x%08x BIFreq=%d secure=%d" },
+	{ ROGUE_FW_LOG_CREATESFID(2, ROGUE_FW_GROUP_BIF, 1),
+	  "Deactivate MemCtx=0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(3, ROGUE_FW_GROUP_BIF, 1),
+	  "Alloc PC reg %d" },
+	{ ROGUE_FW_LOG_CREATESFID(4, ROGUE_FW_GROUP_BIF, 2),
+	  "Grab reg set %d refcount now %d" },
+	{ ROGUE_FW_LOG_CREATESFID(5, ROGUE_FW_GROUP_BIF, 2),
+	  "Ungrab reg set %d refcount now %d" },
+	{ ROGUE_FW_LOG_CREATESFID(6, ROGUE_FW_GROUP_BIF, 6),
+	  "Setup reg=%d BIFreq=%d, expect=0x%08x%08x, actual=0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(7, ROGUE_FW_GROUP_BIF, 2),
+	  "Trust enabled:%d, for BIFreq=%d" },
+	{ ROGUE_FW_LOG_CREATESFID(8, ROGUE_FW_GROUP_BIF, 9),
+	  "BIF Tiling Cfg %d base 0x%08x%08x len 0x%08x%08x enable %d stride %d --> 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(9, ROGUE_FW_GROUP_BIF, 4),
+	  "Wrote the Value %d to OSID0, Cat Base %d, Register's contents are now 0x%08x 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(10, ROGUE_FW_GROUP_BIF, 3),
+	  "Wrote the Value %d to OSID1, Context  %d, Register's contents are now 0x%04x" },
+	{ ROGUE_FW_LOG_CREATESFID(11, ROGUE_FW_GROUP_BIF, 7),
+	  "ui32OSid = %u, Catbase = %u, Reg Address = 0x%x, Reg index = %u, Bitshift index = %u, Val = 0x%08x%08x" }, \
+	{ ROGUE_FW_LOG_CREATESFID(12, ROGUE_FW_GROUP_BIF, 5),
+	  "Map GPU memory DevVAddr 0x%x%08x, Size %u, Context ID %u, BIFREQ %u" },
+	{ ROGUE_FW_LOG_CREATESFID(13, ROGUE_FW_GROUP_BIF, 1),
+	  "Unmap GPU memory (event status 0x%x)" },
+	{ ROGUE_FW_LOG_CREATESFID(14, ROGUE_FW_GROUP_BIF, 3),
+	  "Activate MemCtx=0x%08x DM=%d secure=%d" },
+	{ ROGUE_FW_LOG_CREATESFID(15, ROGUE_FW_GROUP_BIF, 6),
+	  "Setup reg=%d DM=%d, expect=0x%08x%08x, actual=0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(16, ROGUE_FW_GROUP_BIF, 4),
+	  "Map GPU memory DevVAddr 0x%x%08x, Size %u, Context ID %u" },
+	{ ROGUE_FW_LOG_CREATESFID(17, ROGUE_FW_GROUP_BIF, 2),
+	  "Trust enabled:%d, for DM=%d" },
+	{ ROGUE_FW_LOG_CREATESFID(18, ROGUE_FW_GROUP_BIF, 5),
+	  "Map GPU memory DevVAddr 0x%x%08x, Size %u, Context ID %u, DM %u" },
+	{ ROGUE_FW_LOG_CREATESFID(19, ROGUE_FW_GROUP_BIF, 6),
+	  "Setup register set=%d DM=%d, PC address=0x%08x%08x, OSid=%u, NewPCRegRequired=%d" },
+	{ ROGUE_FW_LOG_CREATESFID(20, ROGUE_FW_GROUP_BIF, 3),
+	  "Alloc PC set %d as register range [%u - %u]" },
+
+	{ ROGUE_FW_LOG_CREATESFID(1, ROGUE_FW_GROUP_MISC, 1),
+	  "GPIO write 0x%02x" },
+	{ ROGUE_FW_LOG_CREATESFID(2, ROGUE_FW_GROUP_MISC, 1),
+	  "GPIO read 0x%02x" },
+	{ ROGUE_FW_LOG_CREATESFID(3, ROGUE_FW_GROUP_MISC, 0),
+	  "GPIO enabled" },
+	{ ROGUE_FW_LOG_CREATESFID(4, ROGUE_FW_GROUP_MISC, 0),
+	  "GPIO disabled" },
+	{ ROGUE_FW_LOG_CREATESFID(5, ROGUE_FW_GROUP_MISC, 1),
+	  "GPIO status=%d (0=OK, 1=Disabled)" },
+	{ ROGUE_FW_LOG_CREATESFID(6, ROGUE_FW_GROUP_MISC, 2),
+	  "GPIO_AP: Read address=0x%02x (%d byte(s))" },
+	{ ROGUE_FW_LOG_CREATESFID(7, ROGUE_FW_GROUP_MISC, 2),
+	  "GPIO_AP: Write address=0x%02x (%d byte(s))" },
+	{ ROGUE_FW_LOG_CREATESFID(8, ROGUE_FW_GROUP_MISC, 0),
+	  "GPIO_AP timeout!" },
+	{ ROGUE_FW_LOG_CREATESFID(9, ROGUE_FW_GROUP_MISC, 1),
+	  "GPIO_AP error. GPIO status=%d (0=OK, 1=Disabled)" },
+	{ ROGUE_FW_LOG_CREATESFID(10, ROGUE_FW_GROUP_MISC, 1),
+	  "GPIO already read 0x%02x" },
+	{ ROGUE_FW_LOG_CREATESFID(11, ROGUE_FW_GROUP_MISC, 2),
+	  "SR: Check buffer %d available returned %d" },
+	{ ROGUE_FW_LOG_CREATESFID(12, ROGUE_FW_GROUP_MISC, 1),
+	  "SR: Waiting for buffer %d" },
+	{ ROGUE_FW_LOG_CREATESFID(13, ROGUE_FW_GROUP_MISC, 2),
+	  "SR: Timeout waiting for buffer %d (after %d ticks)" },
+	{ ROGUE_FW_LOG_CREATESFID(14, ROGUE_FW_GROUP_MISC, 2),
+	  "SR: Skip frame check for strip %d returned %d (0=No skip, 1=Skip frame)" },
+	{ ROGUE_FW_LOG_CREATESFID(15, ROGUE_FW_GROUP_MISC, 1),
+	  "SR: Skip remaining strip %d in frame" },
+	{ ROGUE_FW_LOG_CREATESFID(16, ROGUE_FW_GROUP_MISC, 1),
+	  "SR: Inform HW that strip %d is a new frame" },
+	{ ROGUE_FW_LOG_CREATESFID(17, ROGUE_FW_GROUP_MISC, 1),
+	  "SR: Timeout waiting for INTERRUPT_FRAME_SKIP (after %d ticks)" },
+	{ ROGUE_FW_LOG_CREATESFID(18, ROGUE_FW_GROUP_MISC, 1),
+	  "SR: Strip mode is %d" },
+	{ ROGUE_FW_LOG_CREATESFID(19, ROGUE_FW_GROUP_MISC, 1),
+	  "SR: Strip Render start (strip %d)" },
+	{ ROGUE_FW_LOG_CREATESFID(20, ROGUE_FW_GROUP_MISC, 1),
+	  "SR: Strip Render complete (buffer %d)" },
+	{ ROGUE_FW_LOG_CREATESFID(21, ROGUE_FW_GROUP_MISC, 1),
+	  "SR: Strip Render fault (buffer %d)" },
+	{ ROGUE_FW_LOG_CREATESFID(22, ROGUE_FW_GROUP_MISC, 1),
+	  "TRP state: %d" },
+	{ ROGUE_FW_LOG_CREATESFID(23, ROGUE_FW_GROUP_MISC, 1),
+	  "TRP failure: %d" },
+	{ ROGUE_FW_LOG_CREATESFID(24, ROGUE_FW_GROUP_MISC, 1),
+	  "SW TRP State: %d" },
+	{ ROGUE_FW_LOG_CREATESFID(25, ROGUE_FW_GROUP_MISC, 1),
+	  "SW TRP failure: %d" },
+	{ ROGUE_FW_LOG_CREATESFID(26, ROGUE_FW_GROUP_MISC, 1),
+	  "HW kick event (%u)" },
+	{ ROGUE_FW_LOG_CREATESFID(27, ROGUE_FW_GROUP_MISC, 4),
+	  "GPU core (%u/%u): checksum 0x%08x vs. 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(28, ROGUE_FW_GROUP_MISC, 6),
+	  "GPU core (%u/%u), unit (%u,%u): checksum 0x%08x vs. 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(29, ROGUE_FW_GROUP_MISC, 6),
+	  "HWR: Core%u, Register=0x%08x, OldValue=0x%08x%08x, CurrValue=0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(30, ROGUE_FW_GROUP_MISC, 4),
+	  "HWR: USC Core%u, ui32TotalSlotsUsedByDM=0x%08x, psDMHWCtl->ui32USCSlotsUsedByDM=0x%08x, bHWRNeeded=%u" },
+	{ ROGUE_FW_LOG_CREATESFID(31, ROGUE_FW_GROUP_MISC, 6),
+	  "HWR: USC Core%u, Register=0x%08x, OldValue=0x%08x%08x, CurrValue=0x%08x%08x" },
+
+	{ ROGUE_FW_LOG_CREATESFID(1, ROGUE_FW_GROUP_PM, 10),
+	  "ALIST%d SP = %u, MLIST%d SP = %u (VCE 0x%08x%08x, TE 0x%08x%08x, ALIST 0x%08x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(2, ROGUE_FW_GROUP_PM, 8),
+	  "Is TA: %d, finished: %d on HW %u (HWRTData = 0x%08x, MemCtx = 0x%08x). FL different between TA/3D: global:%d, local:%d, mmu:%d" },
+	{ ROGUE_FW_LOG_CREATESFID(3, ROGUE_FW_GROUP_PM, 14),
+	  "UFL-3D-Base: 0x%08x%08x (SP = %u, 4PB = %u, 4PT = %u), FL-3D-Base: 0x%08x%08x (SP = %u, 4PB = %u, 4PT = %u), MFL-3D-Base: 0x%08x%08x (SP = %u, 4PT = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(4, ROGUE_FW_GROUP_PM, 14),
+	  "UFL-TA-Base: 0x%08x%08x (SP = %u, 4PB = %u, 4PT = %u), FL-TA-Base: 0x%08x%08x (SP = %u, 4PB = %u, 4PT = %u), MFL-TA-Base: 0x%08x%08x (SP = %u, 4PT = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(5, ROGUE_FW_GROUP_PM, 5),
+	  "Freelist grow completed [0x%08x]: added pages 0x%08x, total pages 0x%08x, new DevVirtAddr 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(6, ROGUE_FW_GROUP_PM, 1),
+	  "Grow for freelist ID=0x%08x denied by host" },
+	{ ROGUE_FW_LOG_CREATESFID(7, ROGUE_FW_GROUP_PM, 5),
+	  "Freelist update completed [0x%08x]: old total pages 0x%08x, new total pages 0x%08x, new DevVirtAddr 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(8, ROGUE_FW_GROUP_PM, 1),
+	  "Reconstruction of freelist ID=0x%08x failed" },
+	{ ROGUE_FW_LOG_CREATESFID(9, ROGUE_FW_GROUP_PM, 2),
+	  "Ignored attempt to pause or unpause the DM while there is no relevant operation in progress (0-TA,1-3D): %d, operation(0-unpause, 1-pause): %d" },
+	{ ROGUE_FW_LOG_CREATESFID(10, ROGUE_FW_GROUP_PM, 2),
+	  "Force free 3D Context memory, FWCtx: 0x%08x, status(1:success, 0:fail): %d" },
+	{ ROGUE_FW_LOG_CREATESFID(11, ROGUE_FW_GROUP_PM, 1),
+	  "PM pause TA ALLOC: PM_PAGE_MANAGEOP set to 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(12, ROGUE_FW_GROUP_PM, 1),
+	  "PM unpause TA ALLOC: PM_PAGE_MANAGEOP set to 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(13, ROGUE_FW_GROUP_PM, 1),
+	  "PM pause 3D DALLOC: PM_PAGE_MANAGEOP set to 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(14, ROGUE_FW_GROUP_PM, 1),
+	  "PM unpause 3D DALLOC: PM_PAGE_MANAGEOP set to 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(15, ROGUE_FW_GROUP_PM, 1),
+	  "PM ALLOC/DALLOC change was not actioned: PM_PAGE_MANAGEOP_STATUS=0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(16, ROGUE_FW_GROUP_PM, 7),
+	  "Is TA: %d, finished: %d on HW %u (HWRTData = 0x%08x, MemCtx = 0x%08x). FL different between TA/3D: global:%d, local:%d" },
+	{ ROGUE_FW_LOG_CREATESFID(17, ROGUE_FW_GROUP_PM, 10),
+	  "UFL-3D-Base: 0x%08x%08x (SP = %u, 4PB = %u, 4PT = %u), FL-3D-Base: 0x%08x%08x (SP = %u, 4PB = %u, 4PT = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(18, ROGUE_FW_GROUP_PM, 10),
+	  "UFL-TA-Base: 0x%08x%08x (SP = %u, 4PB = %u, 4PT = %u), FL-TA-Base: 0x%08x%08x (SP = %u, 4PB = %u, 4PT = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(19, ROGUE_FW_GROUP_PM, 7),
+	  "Freelist update completed [0x%08x / FL State 0x%08x%08x]: old total pages 0x%08x, new total pages 0x%08x, new DevVirtAddr 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(20, ROGUE_FW_GROUP_PM, 7),
+	  "Freelist update failed [0x%08x / FL State 0x%08x%08x]: old total pages 0x%08x, new total pages 0x%08x, new DevVirtAddr 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(21, ROGUE_FW_GROUP_PM, 10),
+	  "UFL-3D-State-Base: 0x%08x%08x (SP = %u, 4PB = %u, 4PT = %u), FL-3D-State-Base: 0x%08x%08x (SP = %u, 4PB = %u, 4PT = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(22, ROGUE_FW_GROUP_PM, 10),
+	  "UFL-TA-State-Base: 0x%08x%08x (SP = %u, 4PB = %u, 4PT = %u), FL-TA-State-Base: 0x%08x%08x (SP = %u, 4PB = %u, 4PT = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(23, ROGUE_FW_GROUP_PM, 5),
+	  "Freelist 0x%08x base address from HW: 0x%02x%08x (expected value: 0x%02x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(24, ROGUE_FW_GROUP_PM, 5),
+	  "Analysis of FL grow: Pause=(%u,%u) Paused+Valid(%u,%u) PMStateBuffer=0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(25, ROGUE_FW_GROUP_PM, 5),
+	  "Attempt FL grow for FL: 0x%08x, new dev address: 0x%02x%08x, new page count: %u, new ready count: %u" },
+	{ ROGUE_FW_LOG_CREATESFID(26, ROGUE_FW_GROUP_PM, 5),
+	  "Deferring FL grow for non-loaded FL: 0x%08x, new dev address: 0x%02x%08x, new page count: %u, new ready count: %u" },
+	{ ROGUE_FW_LOG_CREATESFID(27, ROGUE_FW_GROUP_PM, 4),
+	  "Is GEOM: %d, finished: %d (HWRTData = 0x%08x, MemCtx = 0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(28, ROGUE_FW_GROUP_PM, 1),
+	  "3D Timeout Now for FWCtx 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(29, ROGUE_FW_GROUP_PM, 1),
+	  "GEOM PM Recycle for FWCtx 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(30, ROGUE_FW_GROUP_PM, 1),
+	  "PM running primary config (Core %d)" },
+	{ ROGUE_FW_LOG_CREATESFID(31, ROGUE_FW_GROUP_PM, 1),
+	  "PM running secondary config (Core %d)" },
+	{ ROGUE_FW_LOG_CREATESFID(32, ROGUE_FW_GROUP_PM, 1),
+	  "PM running tertiary config (Core %d)" },
+	{ ROGUE_FW_LOG_CREATESFID(33, ROGUE_FW_GROUP_PM, 1),
+	  "PM running quaternary config (Core %d)" },
+
+	{ ROGUE_FW_LOG_CREATESFID(1, ROGUE_FW_GROUP_RPM, 3),
+	  "Global link list dynamic page count: vertex 0x%x, varying 0x%x, node 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(2, ROGUE_FW_GROUP_RPM, 3),
+	  "Global link list static page count: vertex 0x%x, varying 0x%x, node 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(3, ROGUE_FW_GROUP_RPM, 0),
+	  "RPM request failed. Waiting for freelist grow." },
+	{ ROGUE_FW_LOG_CREATESFID(4, ROGUE_FW_GROUP_RPM, 0),
+	  "RPM request failed. Aborting the current frame." },
+	{ ROGUE_FW_LOG_CREATESFID(5, ROGUE_FW_GROUP_RPM, 1),
+	  "RPM waiting for pending grow on freelist 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(6, ROGUE_FW_GROUP_RPM, 3),
+	  "Request freelist grow [0x%08x] current pages %d, grow size %d" },
+	{ ROGUE_FW_LOG_CREATESFID(7, ROGUE_FW_GROUP_RPM, 2),
+	  "Freelist load: SHF = 0x%08x, SHG = 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(8, ROGUE_FW_GROUP_RPM, 2),
+	  "SHF FPL register: 0x%08x.0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(9, ROGUE_FW_GROUP_RPM, 2),
+	  "SHG FPL register: 0x%08x.0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(10, ROGUE_FW_GROUP_RPM, 5),
+	  "Kernel requested RPM grow on freelist (type %d) at 0x%08x from current size %d to new size %d, RPM restart: %d (1=Yes)" },
+	{ ROGUE_FW_LOG_CREATESFID(11, ROGUE_FW_GROUP_RPM, 0),
+	  "Restarting SHG" },
+	{ ROGUE_FW_LOG_CREATESFID(12, ROGUE_FW_GROUP_RPM, 0),
+	  "Grow failed, aborting the current frame." },
+	{ ROGUE_FW_LOG_CREATESFID(13, ROGUE_FW_GROUP_RPM, 1),
+	  "RPM abort complete on HWFrameData [0x%08x]." },
+	{ ROGUE_FW_LOG_CREATESFID(14, ROGUE_FW_GROUP_RPM, 1),
+	  "RPM freelist cleanup [0x%08x] requires abort to proceed." },
+	{ ROGUE_FW_LOG_CREATESFID(15, ROGUE_FW_GROUP_RPM, 2),
+	  "RPM page table base register: 0x%08x.0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(16, ROGUE_FW_GROUP_RPM, 0),
+	  "Issuing RPM abort." },
+	{ ROGUE_FW_LOG_CREATESFID(17, ROGUE_FW_GROUP_RPM, 0),
+	  "RPM OOM received but toggle bits indicate free pages available" },
+	{ ROGUE_FW_LOG_CREATESFID(18, ROGUE_FW_GROUP_RPM, 0),
+	  "RPM hardware timeout. Unable to process OOM event." },
+	{ ROGUE_FW_LOG_CREATESFID(19, ROGUE_FW_GROUP_RPM, 5),
+	  "SHF FL (0x%08x) load, FPL: 0x%08x.0x%08x, roff: 0x%08x, woff: 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(20, ROGUE_FW_GROUP_RPM, 5),
+	  "SHG FL (0x%08x) load, FPL: 0x%08x.0x%08x, roff: 0x%08x, woff: 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(21, ROGUE_FW_GROUP_RPM, 3),
+	  "SHF FL (0x%08x) store, roff: 0x%08x, woff: 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(22, ROGUE_FW_GROUP_RPM, 3),
+	  "SHG FL (0x%08x) store, roff: 0x%08x, woff: 0x%08x" },
+
+	{ ROGUE_FW_LOG_CREATESFID(1, ROGUE_FW_GROUP_RTD, 2),
+	  "3D RTData 0x%08x finished on HW context %u" },
+	{ ROGUE_FW_LOG_CREATESFID(2, ROGUE_FW_GROUP_RTD, 2),
+	  "3D RTData 0x%08x ready on HW context %u" },
+	{ ROGUE_FW_LOG_CREATESFID(3, ROGUE_FW_GROUP_RTD, 4),
+	  "CONTEXT_PB_BASE set to 0x%x, FL different between TA/3D: local: %d, global: %d, mmu: %d" },
+	{ ROGUE_FW_LOG_CREATESFID(4, ROGUE_FW_GROUP_RTD, 2),
+	  "Loading VFP table 0x%08x%08x for 3D" },
+	{ ROGUE_FW_LOG_CREATESFID(5, ROGUE_FW_GROUP_RTD, 2),
+	  "Loading VFP table 0x%08x%08x for TA" },
+	{ ROGUE_FW_LOG_CREATESFID(6, ROGUE_FW_GROUP_RTD, 10),
+	  "Load Freelist 0x%x type: %d (0:local,1:global,2:mmu) for DM%d: TotalPMPages = %d, FL-addr = 0x%08x%08x, stacktop = 0x%08x%08x, Alloc Page Count = %u, Alloc MMU Page Count = %u" },
+	{ ROGUE_FW_LOG_CREATESFID(7, ROGUE_FW_GROUP_RTD, 0),
+	  "Perform VHEAP table store" },
+	{ ROGUE_FW_LOG_CREATESFID(8, ROGUE_FW_GROUP_RTD, 2),
+	  "RTData 0x%08x: found match in Context=%d: Load=No, Store=No" },
+	{ ROGUE_FW_LOG_CREATESFID(9, ROGUE_FW_GROUP_RTD, 2),
+	  "RTData 0x%08x: found NULL in Context=%d: Load=Yes, Store=No" },
+	{ ROGUE_FW_LOG_CREATESFID(10, ROGUE_FW_GROUP_RTD, 3),
+	  "RTData 0x%08x: found state 3D finished (0x%08x) in Context=%d: Load=Yes, Store=Yes" },
+	{ ROGUE_FW_LOG_CREATESFID(11, ROGUE_FW_GROUP_RTD, 3),
+	  "RTData 0x%08x: found state TA finished (0x%08x) in Context=%d: Load=Yes, Store=Yes" },
+	{ ROGUE_FW_LOG_CREATESFID(12, ROGUE_FW_GROUP_RTD, 5),
+	  "Loading stack-pointers for %d (0:MidTA,1:3D) on context %d, MLIST = 0x%08x, ALIST = 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(13, ROGUE_FW_GROUP_RTD, 10),
+	  "Store Freelist 0x%x type: %d (0:local,1:global,2:mmu) for DM%d: TotalPMPages = %d, FL-addr = 0x%08x%08x, stacktop = 0x%08x%08x, Alloc Page Count = %u, Alloc MMU Page Count = %u" },
+	{ ROGUE_FW_LOG_CREATESFID(14, ROGUE_FW_GROUP_RTD, 2),
+	  "TA RTData 0x%08x finished on HW context %u" },
+	{ ROGUE_FW_LOG_CREATESFID(15, ROGUE_FW_GROUP_RTD, 2),
+	  "TA RTData 0x%08x loaded on HW context %u" },
+	{ ROGUE_FW_LOG_CREATESFID(16, ROGUE_FW_GROUP_RTD, 12),
+	  "Store Freelist 0x%x type: %d (0:local,1:global,2:mmu) for DM%d: FL Total Pages %u (max=%u,grow size=%u), FL-addr = 0x%08x%08x, stacktop = 0x%08x%08x, Alloc Page Count = %u, Alloc MMU Page Count = %u" },
+	{ ROGUE_FW_LOG_CREATESFID(17, ROGUE_FW_GROUP_RTD, 12),
+	  "Load  Freelist 0x%x type: %d (0:local,1:global,2:mmu) for DM%d: FL Total Pages %u (max=%u,grow size=%u), FL-addr = 0x%08x%08x, stacktop = 0x%08x%08x, Alloc Page Count = %u, Alloc MMU Page Count = %u" },
+	{ ROGUE_FW_LOG_CREATESFID(18, ROGUE_FW_GROUP_RTD, 1),
+	  "Freelist 0x%x RESET!!!!!!!!" },
+	{ ROGUE_FW_LOG_CREATESFID(19, ROGUE_FW_GROUP_RTD, 5),
+	  "Freelist 0x%x stacktop = 0x%08x%08x, Alloc Page Count = %u, Alloc MMU Page Count = %u" },
+	{ ROGUE_FW_LOG_CREATESFID(20, ROGUE_FW_GROUP_RTD, 3),
+	  "Request reconstruction of Freelist 0x%x type: %d (0:local,1:global,2:mmu) on HW context %u" },
+	{ ROGUE_FW_LOG_CREATESFID(21, ROGUE_FW_GROUP_RTD, 1),
+	  "Freelist reconstruction ACK from host (HWR state :%u)" },
+	{ ROGUE_FW_LOG_CREATESFID(22, ROGUE_FW_GROUP_RTD, 0),
+	  "Freelist reconstruction completed" },
+	{ ROGUE_FW_LOG_CREATESFID(23, ROGUE_FW_GROUP_RTD, 3),
+	  "TA RTData 0x%08x loaded on HW context %u HWRTDataNeedsLoading=%d" },
+	{ ROGUE_FW_LOG_CREATESFID(24, ROGUE_FW_GROUP_RTD, 3),
+	  "TE Region headers base 0x%08x%08x (RGNHDR Init: %d)" },
+	{ ROGUE_FW_LOG_CREATESFID(25, ROGUE_FW_GROUP_RTD, 8),
+	  "TA Buffers: FWCtx 0x%08x, RT 0x%08x, RTData 0x%08x, VHeap 0x%08x%08x, TPC 0x%08x%08x (MemCtx 0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(26, ROGUE_FW_GROUP_RTD, 2),
+	  "3D RTData 0x%08x loaded on HW context %u" },
+	{ ROGUE_FW_LOG_CREATESFID(27, ROGUE_FW_GROUP_RTD, 4),
+	  "3D Buffers: FWCtx 0x%08x, RT 0x%08x, RTData 0x%08x (MemCtx 0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(28, ROGUE_FW_GROUP_RTD, 2),
+	  "Restarting TA after partial render, HWRTData0State=0x%x, HWRTData1State=0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(29, ROGUE_FW_GROUP_RTD, 3),
+	  "CONTEXT_PB_BASE set to 0x%x, FL different between TA/3D: local: %d, global: %d" },
+	{ ROGUE_FW_LOG_CREATESFID(30, ROGUE_FW_GROUP_RTD, 12),
+	  "Store Freelist 0x%x type: %d (0:local,1:global) for PMDM%d: FL Total Pages %u (max=%u,grow size=%u), FL-addr = 0x%08x%08x, stacktop = 0x%08x%08x, Alloc Page Count = %u, Alloc MMU Page Count = %u" },
+	{ ROGUE_FW_LOG_CREATESFID(31, ROGUE_FW_GROUP_RTD, 12),
+	  "Load  Freelist 0x%x type: %d (0:local,1:global) for PMDM%d: FL Total Pages %u (max=%u,grow size=%u), FL-addr = 0x%08x%08x, stacktop = 0x%08x%08x, Alloc Page Count = %u, Alloc MMU Page Count = %u" },
+	{ ROGUE_FW_LOG_CREATESFID(32, ROGUE_FW_GROUP_RTD, 5),
+	  "3D Buffers: FWCtx 0x%08x, parent RT 0x%08x, RTData 0x%08x on ctx %d, (MemCtx 0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(33, ROGUE_FW_GROUP_RTD, 7),
+	  "TA Buffers: FWCtx 0x%08x, RTData 0x%08x, VHeap 0x%08x%08x, TPC 0x%08x%08x (MemCtx 0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(34, ROGUE_FW_GROUP_RTD, 4),
+	  "3D Buffers: FWCtx 0x%08x, RTData 0x%08x on ctx %d, (MemCtx 0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(35, ROGUE_FW_GROUP_RTD, 6),
+	  "Load  Freelist 0x%x type: %d (0:local,1:global) for PMDM%d: FL Total Pages %u (max=%u,grow size=%u)" },
+	{ ROGUE_FW_LOG_CREATESFID(36, ROGUE_FW_GROUP_RTD, 1),
+	  "TA RTData 0x%08x marked as killed." },
+	{ ROGUE_FW_LOG_CREATESFID(37, ROGUE_FW_GROUP_RTD, 1),
+	  "3D RTData 0x%08x marked as killed." },
+	{ ROGUE_FW_LOG_CREATESFID(38, ROGUE_FW_GROUP_RTD, 1),
+	  "RTData 0x%08x will be killed after TA restart." },
+	{ ROGUE_FW_LOG_CREATESFID(39, ROGUE_FW_GROUP_RTD, 3),
+	  "RTData 0x%08x Render State Buffer 0x%02x%08x will be reset." },
+	{ ROGUE_FW_LOG_CREATESFID(40, ROGUE_FW_GROUP_RTD, 3),
+	  "GEOM RTData 0x%08x using Render State Buffer 0x%02x%08x." },
+	{ ROGUE_FW_LOG_CREATESFID(41, ROGUE_FW_GROUP_RTD, 3),
+	  "FRAG RTData 0x%08x using Render State Buffer 0x%02x%08x." },
+
+	{ ROGUE_FW_LOG_CREATESFID(1, ROGUE_FW_GROUP_SPM, 0),
+	  "Force Z-Load for partial render" },
+	{ ROGUE_FW_LOG_CREATESFID(2, ROGUE_FW_GROUP_SPM, 0),
+	  "Force Z-Store for partial render" },
+	{ ROGUE_FW_LOG_CREATESFID(3, ROGUE_FW_GROUP_SPM, 1),
+	  "3D MemFree: Local FL 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(4, ROGUE_FW_GROUP_SPM, 1),
+	  "3D MemFree: MMU FL 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(5, ROGUE_FW_GROUP_SPM, 1),
+	  "3D MemFree: Global FL 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(6, ROGUE_FW_GROUP_SPM, 6),
+	  "OOM TA/3D PR Check: [0x%08.8x] is 0x%08.8x requires 0x%08.8x, HardwareSync Fence [0x%08.8x] is 0x%08.8x requires 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(7, ROGUE_FW_GROUP_SPM, 3),
+	  "OOM TA_cmd=0x%08x, U-FL 0x%08x, N-FL 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(8, ROGUE_FW_GROUP_SPM, 5),
+	  "OOM TA_cmd=0x%08x, OOM MMU:%d, U-FL 0x%08x, N-FL 0x%08x, MMU-FL 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(9, ROGUE_FW_GROUP_SPM, 0),
+	  "Partial render avoided" },
+	{ ROGUE_FW_LOG_CREATESFID(10, ROGUE_FW_GROUP_SPM, 0),
+	  "Partial render discarded" },
+	{ ROGUE_FW_LOG_CREATESFID(11, ROGUE_FW_GROUP_SPM, 0),
+	  "Partial Render finished" },
+	{ ROGUE_FW_LOG_CREATESFID(12, ROGUE_FW_GROUP_SPM, 0),
+	  "SPM Owner = 3D-BG" },
+	{ ROGUE_FW_LOG_CREATESFID(13, ROGUE_FW_GROUP_SPM, 0),
+	  "SPM Owner = 3D-IRQ" },
+	{ ROGUE_FW_LOG_CREATESFID(14, ROGUE_FW_GROUP_SPM, 0),
+	  "SPM Owner = NONE" },
+	{ ROGUE_FW_LOG_CREATESFID(15, ROGUE_FW_GROUP_SPM, 0),
+	  "SPM Owner = TA-BG" },
+	{ ROGUE_FW_LOG_CREATESFID(16, ROGUE_FW_GROUP_SPM, 0),
+	  "SPM Owner = TA-IRQ" },
+	{ ROGUE_FW_LOG_CREATESFID(17, ROGUE_FW_GROUP_SPM, 2),
+	  "ZStore address 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(18, ROGUE_FW_GROUP_SPM, 2),
+	  "SStore address 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(19, ROGUE_FW_GROUP_SPM, 2),
+	  "ZLoad address 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(20, ROGUE_FW_GROUP_SPM, 2),
+	  "SLoad address 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(21, ROGUE_FW_GROUP_SPM, 0),
+	  "No deferred ZS Buffer provided" },
+	{ ROGUE_FW_LOG_CREATESFID(22, ROGUE_FW_GROUP_SPM, 1),
+	  "ZS Buffer successfully populated (ID=0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(23, ROGUE_FW_GROUP_SPM, 1),
+	  "No need to populate ZS Buffer (ID=0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(24, ROGUE_FW_GROUP_SPM, 1),
+	  "ZS Buffer successfully unpopulated (ID=0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(25, ROGUE_FW_GROUP_SPM, 1),
+	  "No need to unpopulate ZS Buffer (ID=0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(26, ROGUE_FW_GROUP_SPM, 1),
+	  "Send ZS-Buffer backing request to host (ID=0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(27, ROGUE_FW_GROUP_SPM, 1),
+	  "Send ZS-Buffer unbacking request to host (ID=0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(28, ROGUE_FW_GROUP_SPM, 1),
+	  "Don't send ZS-Buffer backing request. Previous request still pending (ID=0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(29, ROGUE_FW_GROUP_SPM, 1),
+	  "Don't send ZS-Buffer unbacking request. Previous request still pending (ID=0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(30, ROGUE_FW_GROUP_SPM, 1),
+	  "Partial Render waiting for ZBuffer to be backed (ID=0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(31, ROGUE_FW_GROUP_SPM, 1),
+	  "Partial Render waiting for SBuffer to be backed (ID=0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(32, ROGUE_FW_GROUP_SPM, 0),
+	  "SPM State = none" },
+	{ ROGUE_FW_LOG_CREATESFID(33, ROGUE_FW_GROUP_SPM, 0),
+	  "SPM State = PR blocked" },
+	{ ROGUE_FW_LOG_CREATESFID(34, ROGUE_FW_GROUP_SPM, 0),
+	  "SPM State = wait for grow" },
+	{ ROGUE_FW_LOG_CREATESFID(35, ROGUE_FW_GROUP_SPM, 0),
+	  "SPM State = wait for HW" },
+	{ ROGUE_FW_LOG_CREATESFID(36, ROGUE_FW_GROUP_SPM, 0),
+	  "SPM State = PR running" },
+	{ ROGUE_FW_LOG_CREATESFID(37, ROGUE_FW_GROUP_SPM, 0),
+	  "SPM State = PR avoided" },
+	{ ROGUE_FW_LOG_CREATESFID(38, ROGUE_FW_GROUP_SPM, 0),
+	  "SPM State = PR executed" },
+	{ ROGUE_FW_LOG_CREATESFID(39, ROGUE_FW_GROUP_SPM, 2),
+	  "3DMemFree matches freelist 0x%08x (FL type = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(40, ROGUE_FW_GROUP_SPM, 0),
+	  "Raise the 3DMemFreeDedected flag" },
+	{ ROGUE_FW_LOG_CREATESFID(41, ROGUE_FW_GROUP_SPM, 1),
+	  "Wait for pending grow on Freelist 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(42, ROGUE_FW_GROUP_SPM, 1),
+	  "ZS Buffer failed to be populated (ID=0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(43, ROGUE_FW_GROUP_SPM, 5),
+	  "Grow update inconsistency: FL addr: 0x%02x%08x, curr pages: %u, ready: %u, new: %u" },
+	{ ROGUE_FW_LOG_CREATESFID(44, ROGUE_FW_GROUP_SPM, 4),
+	  "OOM: Resumed TA with ready pages, FL addr: 0x%02x%08x, current pages: %u, SP : %u" },
+	{ ROGUE_FW_LOG_CREATESFID(45, ROGUE_FW_GROUP_SPM, 5),
+	  "Received grow update, FL addr: 0x%02x%08x, current pages: %u, ready pages: %u, threshold: %u" },
+	{ ROGUE_FW_LOG_CREATESFID(46, ROGUE_FW_GROUP_SPM, 1),
+	  "No deferred partial render FW (Type=%d) Buffer provided" },
+	{ ROGUE_FW_LOG_CREATESFID(47, ROGUE_FW_GROUP_SPM, 1),
+	  "No need to populate PR Buffer (ID=0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(48, ROGUE_FW_GROUP_SPM, 1),
+	  "No need to unpopulate PR Buffer (ID=0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(49, ROGUE_FW_GROUP_SPM, 1),
+	  "Send PR Buffer backing request to host (ID=0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(50, ROGUE_FW_GROUP_SPM, 1),
+	  "Send PR Buffer unbacking request to host (ID=0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(51, ROGUE_FW_GROUP_SPM, 1),
+	  "Don't send PR Buffer backing request. Previous request still pending (ID=0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(52, ROGUE_FW_GROUP_SPM, 1),
+	  "Don't send PR Buffer unbacking request. Previous request still pending (ID=0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(53, ROGUE_FW_GROUP_SPM, 2),
+	  "Partial Render waiting for Buffer %d type to be backed (ID=0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(54, ROGUE_FW_GROUP_SPM, 4),
+	  "Received grow update, FL addr: 0x%02x%08x, new pages: %u, ready pages: %u" },
+	{ ROGUE_FW_LOG_CREATESFID(66, ROGUE_FW_GROUP_SPM, 3),
+	  "OOM TA/3D PR Check: [0x%08.8x] is 0x%08.8x requires 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(67, ROGUE_FW_GROUP_SPM, 3),
+	  "OOM: Resumed TA with ready pages, FL addr: 0x%02x%08x, current pages: %u" },
+	{ ROGUE_FW_LOG_CREATESFID(68, ROGUE_FW_GROUP_SPM, 3),
+	  "OOM TA/3D PR deadlock unblocked reordering DM%d runlist head from Context 0x%08x to 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(69, ROGUE_FW_GROUP_SPM, 0),
+	  "SPM State = PR force free" },
+
+	{ ROGUE_FW_LOG_CREATESFID(1, ROGUE_FW_GROUP_POW, 4),
+	  "Check Pow state DM%d int: 0x%x, ext: 0x%x, pow flags: 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(2, ROGUE_FW_GROUP_POW, 3),
+	  "GPU idle (might be powered down). Pow state int: 0x%x, ext: 0x%x, flags: 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(3, ROGUE_FW_GROUP_POW, 3),
+	  "OS requested pow off (forced = %d), DM%d, pow flags: 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(4, ROGUE_FW_GROUP_POW, 4),
+	  "Initiate powoff query. Inactive DMs: %d %d %d %d" },
+	{ ROGUE_FW_LOG_CREATESFID(5, ROGUE_FW_GROUP_POW, 2),
+	  "Any RD-DM pending? %d, Any RD-DM Active? %d" },
+	{ ROGUE_FW_LOG_CREATESFID(6, ROGUE_FW_GROUP_POW, 3),
+	  "GPU ready to be powered down. Pow state int: 0x%x, ext: 0x%x, flags: 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(7, ROGUE_FW_GROUP_POW, 2),
+	  "HW Request On(1)/Off(0): %d, Units: 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(8, ROGUE_FW_GROUP_POW, 2),
+	  "Request to change num of dusts to %d (Power flags=%d)" },
+	{ ROGUE_FW_LOG_CREATESFID(9, ROGUE_FW_GROUP_POW, 2),
+	  "Changing number of dusts from %d to %d" },
+	{ ROGUE_FW_LOG_CREATESFID(11, ROGUE_FW_GROUP_POW, 0),
+	  "Sidekick init" },
+	{ ROGUE_FW_LOG_CREATESFID(12, ROGUE_FW_GROUP_POW, 1),
+	  "Rascal+Dusts init (# dusts mask: 0x%x)" },
+	{ ROGUE_FW_LOG_CREATESFID(13, ROGUE_FW_GROUP_POW, 0),
+	  "Initiate powoff query for RD-DMs." },
+	{ ROGUE_FW_LOG_CREATESFID(14, ROGUE_FW_GROUP_POW, 0),
+	  "Initiate powoff query for TLA-DM." },
+	{ ROGUE_FW_LOG_CREATESFID(15, ROGUE_FW_GROUP_POW, 2),
+	  "Any RD-DM pending? %d, Any RD-DM Active? %d" },
+	{ ROGUE_FW_LOG_CREATESFID(16, ROGUE_FW_GROUP_POW, 2),
+	  "TLA-DM pending? %d, TLA-DM Active? %d" },
+	{ ROGUE_FW_LOG_CREATESFID(17, ROGUE_FW_GROUP_POW, 1),
+	  "Request power up due to BRN37270. Pow stat int: 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(18, ROGUE_FW_GROUP_POW, 3),
+	  "Cancel power off request int: 0x%x, ext: 0x%x, pow flags: 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(19, ROGUE_FW_GROUP_POW, 1),
+	  "OS requested forced IDLE, pow flags: 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(20, ROGUE_FW_GROUP_POW, 1),
+	  "OS cancelled forced IDLE, pow flags: 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(21, ROGUE_FW_GROUP_POW, 3),
+	  "Idle timer start. Pow state int: 0x%x, ext: 0x%x, flags: 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(22, ROGUE_FW_GROUP_POW, 3),
+	  "Cancel idle timer. Pow state int: 0x%x, ext: 0x%x, flags: 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(23, ROGUE_FW_GROUP_POW, 2),
+	  "Active PM latency set to %dms. Core clock: %d Hz" },
+	{ ROGUE_FW_LOG_CREATESFID(24, ROGUE_FW_GROUP_POW, 2),
+	  "Compute cluster mask change to 0x%x, %d dusts powered." },
+	{ ROGUE_FW_LOG_CREATESFID(25, ROGUE_FW_GROUP_POW, 0),
+	  "Null command executed, repeating initiate powoff query for RD-DMs." },
+	{ ROGUE_FW_LOG_CREATESFID(26, ROGUE_FW_GROUP_POW, 1),
+	  "Power monitor: Estimate of dynamic energy %u" },
+	{ ROGUE_FW_LOG_CREATESFID(27, ROGUE_FW_GROUP_POW, 3),
+	  "Check Pow state: Int: 0x%x, Ext: 0x%x, Pow flags: 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(28, ROGUE_FW_GROUP_POW, 2),
+	  "Proactive DVFS: New deadline, time = 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(29, ROGUE_FW_GROUP_POW, 2),
+	  "Proactive DVFS: New workload, cycles = 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(30, ROGUE_FW_GROUP_POW, 1),
+	  "Proactive DVFS: Proactive frequency calculated = %u" },
+	{ ROGUE_FW_LOG_CREATESFID(31, ROGUE_FW_GROUP_POW, 1),
+	  "Proactive DVFS: Reactive utilisation = %u percent" },
+	{ ROGUE_FW_LOG_CREATESFID(32, ROGUE_FW_GROUP_POW, 2),
+	  "Proactive DVFS: Reactive frequency calculated = %u.%u" },
+	{ ROGUE_FW_LOG_CREATESFID(33, ROGUE_FW_GROUP_POW, 1),
+	  "Proactive DVFS: OPP Point Sent = 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(34, ROGUE_FW_GROUP_POW, 2),
+	  "Proactive DVFS: Deadline removed = 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(35, ROGUE_FW_GROUP_POW, 2),
+	  "Proactive DVFS: Workload removed = 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(36, ROGUE_FW_GROUP_POW, 1),
+	  "Proactive DVFS: Throttle to a maximum = 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(37, ROGUE_FW_GROUP_POW, 0),
+	  "Proactive DVFS: Failed to pass OPP point via GPIO." },
+	{ ROGUE_FW_LOG_CREATESFID(38, ROGUE_FW_GROUP_POW, 0),
+	  "Proactive DVFS: Invalid node passed to function." },
+	{ ROGUE_FW_LOG_CREATESFID(39, ROGUE_FW_GROUP_POW, 1),
+	  "Proactive DVFS: Guest OS attempted to do a privileged action. OSid = %u" },
+	{ ROGUE_FW_LOG_CREATESFID(40, ROGUE_FW_GROUP_POW, 1),
+	  "Proactive DVFS: Unprofiled work started. Total unprofiled work present: %u" },
+	{ ROGUE_FW_LOG_CREATESFID(41, ROGUE_FW_GROUP_POW, 1),
+	  "Proactive DVFS: Unprofiled work finished. Total unprofiled work present: %u" },
+	{ ROGUE_FW_LOG_CREATESFID(42, ROGUE_FW_GROUP_POW, 0),
+	  "Proactive DVFS: Disabled: Not enabled by host." },
+	{ ROGUE_FW_LOG_CREATESFID(43, ROGUE_FW_GROUP_POW, 2),
+	  "HW Request Completed(1)/Aborted(0): %d, Ticks: %d" },
+	{ ROGUE_FW_LOG_CREATESFID(44, ROGUE_FW_GROUP_POW, 1),
+	  "Allowed number of dusts is %d due to BRN59042." },
+	{ ROGUE_FW_LOG_CREATESFID(45, ROGUE_FW_GROUP_POW, 3),
+	  "Host timed out while waiting for a forced idle state. Pow state int: 0x%x, ext: 0x%x, flags: 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(46, ROGUE_FW_GROUP_POW, 5),
+	  "Check Pow state: Int: 0x%x, Ext: 0x%x, Pow flags: 0x%x, Fence Counters: Check: %u - Update: %u" },
+	{ ROGUE_FW_LOG_CREATESFID(47, ROGUE_FW_GROUP_POW, 2),
+	  "Proactive DVFS: OPP Point Sent = 0x%x, Success = 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(48, ROGUE_FW_GROUP_POW, 0),
+	  "Proactive DVFS: GPU transitioned to idle" },
+	{ ROGUE_FW_LOG_CREATESFID(49, ROGUE_FW_GROUP_POW, 0),
+	  "Proactive DVFS: GPU transitioned to active" },
+	{ ROGUE_FW_LOG_CREATESFID(50, ROGUE_FW_GROUP_POW, 1),
+	  "Power counter dumping: Data truncated writing register %u. Buffer too small." },
+	{ ROGUE_FW_LOG_CREATESFID(51, ROGUE_FW_GROUP_POW, 0),
+	  "Power controller returned ABORT for last request so retrying." },
+	{ ROGUE_FW_LOG_CREATESFID(52, ROGUE_FW_GROUP_POW, 2),
+	  "Discarding invalid power request: type 0x%x, DM %u" },
+	{ ROGUE_FW_LOG_CREATESFID(53, ROGUE_FW_GROUP_POW, 2),
+	  "Detected attempt to cancel forced idle while not forced idle (pow state 0x%x, pow flags 0x%x)" },
+	{ ROGUE_FW_LOG_CREATESFID(54, ROGUE_FW_GROUP_POW, 2),
+	  "Detected attempt to force power off while not forced idle (pow state 0x%x, pow flags 0x%x)" },
+	{ ROGUE_FW_LOG_CREATESFID(55, ROGUE_FW_GROUP_POW, 1),
+	  "Detected attempt to change dust count while not forced idle (pow state 0x%x)" },
+	{ ROGUE_FW_LOG_CREATESFID(56, ROGUE_FW_GROUP_POW, 3),
+	  "Power monitor: Type = %d (0 = power, 1 = energy), Estimate result = 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(57, ROGUE_FW_GROUP_POW, 2),
+	  "Conflicting clock frequency range: OPP min = %u, max = %u" },
+	{ ROGUE_FW_LOG_CREATESFID(58, ROGUE_FW_GROUP_POW, 1),
+	  "Proactive DVFS: Set floor to a minimum = 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(59, ROGUE_FW_GROUP_POW, 2),
+	  "OS requested pow off (forced = %d), pow flags: 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(60, ROGUE_FW_GROUP_POW, 1),
+	  "Discarding invalid power request: type 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(61, ROGUE_FW_GROUP_POW, 3),
+	  "Request to change SPU power state mask from 0x%x to 0x%x. Pow flags: 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(62, ROGUE_FW_GROUP_POW, 2),
+	  "Changing SPU power state mask from 0x%x to 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(63, ROGUE_FW_GROUP_POW, 1),
+	  "Detected attempt to change SPU power state mask while not forced idle (pow state 0x%x)" },
+	{ ROGUE_FW_LOG_CREATESFID(64, ROGUE_FW_GROUP_POW, 1),
+	  "Invalid SPU power mask 0x%x! Changing to 1" },
+	{ ROGUE_FW_LOG_CREATESFID(65, ROGUE_FW_GROUP_POW, 2),
+	  "Proactive DVFS: Send OPP %u with clock divider value %u" },
+	{ ROGUE_FW_LOG_CREATESFID(66, ROGUE_FW_GROUP_POW, 0),
+	  "PPA block started in perf validation mode." },
+	{ ROGUE_FW_LOG_CREATESFID(67, ROGUE_FW_GROUP_POW, 1),
+	  "Reset PPA block state %u (1=reset, 0=recalculate)." },
+	{ ROGUE_FW_LOG_CREATESFID(68, ROGUE_FW_GROUP_POW, 1),
+	  "Power controller returned ABORT for Core-%d last request so retrying." },
+	{ ROGUE_FW_LOG_CREATESFID(69, ROGUE_FW_GROUP_POW, 3),
+	  "HW Request On(1)/Off(0): %d, Units: 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(70, ROGUE_FW_GROUP_POW, 5),
+	  "Request to change SPU power state mask from 0x%x to 0x%x and RAC from 0x%x to 0x%x. Pow flags: 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(71, ROGUE_FW_GROUP_POW, 4),
+	  "Changing SPU power state mask from 0x%x to 0x%x and RAC from 0x%x to 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(72, ROGUE_FW_GROUP_POW, 2),
+	  "RAC pending? %d, RAC Active? %d" },
+	{ ROGUE_FW_LOG_CREATESFID(73, ROGUE_FW_GROUP_POW, 0),
+	  "Initiate powoff query for RAC." },
+
+	{ ROGUE_FW_LOG_CREATESFID(1, ROGUE_FW_GROUP_HWR, 2),
+	  "Lockup detected on DM%d, FWCtx: 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(2, ROGUE_FW_GROUP_HWR, 3),
+	  "Reset fw state for DM%d, FWCtx: 0x%08.8x, MemCtx: 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(3, ROGUE_FW_GROUP_HWR, 0),
+	  "Reset HW" },
+	{ ROGUE_FW_LOG_CREATESFID(4, ROGUE_FW_GROUP_HWR, 0),
+	  "Lockup recovered." },
+	{ ROGUE_FW_LOG_CREATESFID(5, ROGUE_FW_GROUP_HWR, 2),
+	  "Lock-up DM%d FWCtx: 0x%08.8x" },
+	{ ROGUE_FW_LOG_CREATESFID(6, ROGUE_FW_GROUP_HWR, 4),
+	  "Lockup detected: GLB(%d->%d), PER-DM(0x%08x->0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(7, ROGUE_FW_GROUP_HWR, 3),
+	  "Early fault detection: GLB(%d->%d), PER-DM(0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(8, ROGUE_FW_GROUP_HWR, 3),
+	  "Hold scheduling due lockup: GLB(%d), PER-DM(0x%08x->0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(9, ROGUE_FW_GROUP_HWR, 4),
+	  "False lockup detected: GLB(%d->%d), PER-DM(0x%08x->0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(10, ROGUE_FW_GROUP_HWR, 4),
+	  "BRN37729: GLB(%d->%d), PER-DM(0x%08x->0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(11, ROGUE_FW_GROUP_HWR, 3),
+	  "Freelists reconstructed: GLB(%d->%d), PER-DM(0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(12, ROGUE_FW_GROUP_HWR, 4),
+	  "Reconstructing freelists: %u (0-No, 1-Yes): GLB(%d->%d), PER-DM(0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(13, ROGUE_FW_GROUP_HWR, 3),
+	  "HW poll %u (0-Unset 1-Set) failed (reg:0x%08x val:0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(14, ROGUE_FW_GROUP_HWR, 2),
+	  "Discarded cmd on DM%u FWCtx=0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(15, ROGUE_FW_GROUP_HWR, 6),
+	  "Discarded cmd on DM%u (reason=%u) HWRTData=0x%08x (st: %d), FWCtx 0x%08x @ %d" },
+	{ ROGUE_FW_LOG_CREATESFID(16, ROGUE_FW_GROUP_HWR, 2),
+	  "PM fence WA could not be applied, Valid TA Setup: %d, RD powered off: %d" },
+	{ ROGUE_FW_LOG_CREATESFID(17, ROGUE_FW_GROUP_HWR, 5),
+	  "FL snapshot RTD 0x%08.8x - local (0x%08.8x): %d, global (0x%08.8x): %d" },
+	{ ROGUE_FW_LOG_CREATESFID(18, ROGUE_FW_GROUP_HWR, 8),
+	  "FL check RTD 0x%08.8x, discard: %d - local (0x%08.8x): s%d?=c%d, global (0x%08.8x): s%d?=c%d" },
+	{ ROGUE_FW_LOG_CREATESFID(19, ROGUE_FW_GROUP_HWR, 2),
+	  "FL reconstruction 0x%08.8x c%d" },
+	{ ROGUE_FW_LOG_CREATESFID(20, ROGUE_FW_GROUP_HWR, 3),
+	  "3D check: missing TA FWCtx 0x%08.8x @ %d, RTD 0x%08x." },
+	{ ROGUE_FW_LOG_CREATESFID(21, ROGUE_FW_GROUP_HWR, 2),
+	  "Reset HW (mmu:%d, extmem: %d)" },
+	{ ROGUE_FW_LOG_CREATESFID(22, ROGUE_FW_GROUP_HWR, 4),
+	  "Zero TA caches for FWCtx: 0x%08.8x (TPC addr: 0x%08x%08x, size: %d bytes)" },
+	{ ROGUE_FW_LOG_CREATESFID(23, ROGUE_FW_GROUP_HWR, 2),
+	  "Recovery DM%u: Freelists reconstructed. New R-Flags=0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(24, ROGUE_FW_GROUP_HWR, 5),
+	  "Recovery DM%u: FWCtx 0x%08x skipped to command @ %u. PR=%u. New R-Flags=0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(25, ROGUE_FW_GROUP_HWR, 1),
+	  "Recovery DM%u: DM fully recovered" },
+	{ ROGUE_FW_LOG_CREATESFID(26, ROGUE_FW_GROUP_HWR, 2),
+	  "DM%u: Hold scheduling due to R-Flag = 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(27, ROGUE_FW_GROUP_HWR, 0),
+	  "Analysis: Need freelist reconstruction" },
+	{ ROGUE_FW_LOG_CREATESFID(28, ROGUE_FW_GROUP_HWR, 2),
+	  "Analysis DM%u: Lockup FWCtx: 0x%08.8x. Need to skip to next command" },
+	{ ROGUE_FW_LOG_CREATESFID(29, ROGUE_FW_GROUP_HWR, 2),
+	  "Analysis DM%u: Lockup while TA is OOM FWCtx: 0x%08.8x. Need to skip to next command" },
+	{ ROGUE_FW_LOG_CREATESFID(30, ROGUE_FW_GROUP_HWR, 2),
+	  "Analysis DM%u: Lockup while partial render FWCtx: 0x%08.8x. Need PR cleanup" },
+	{ ROGUE_FW_LOG_CREATESFID(31, ROGUE_FW_GROUP_HWR, 0),
+	  "GPU has locked up" },
+	{ ROGUE_FW_LOG_CREATESFID(32, ROGUE_FW_GROUP_HWR, 1),
+	  "DM%u ready for HWR" },
+	{ ROGUE_FW_LOG_CREATESFID(33, ROGUE_FW_GROUP_HWR, 2),
+	  "Recovery DM%u: Updated Recovery counter. New R-Flags=0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(34, ROGUE_FW_GROUP_HWR, 1),
+	  "Analysis: BRN37729 detected, reset TA and re-kicked 0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(35, ROGUE_FW_GROUP_HWR, 1),
+	  "DM%u timed out" },
+	{ ROGUE_FW_LOG_CREATESFID(36, ROGUE_FW_GROUP_HWR, 1),
+	  "RGX_CR_EVENT_STATUS=0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(37, ROGUE_FW_GROUP_HWR, 2),
+	  "DM%u lockup falsely detected, R-Flags=0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(38, ROGUE_FW_GROUP_HWR, 0),
+	  "GPU has overrun its deadline" },
+	{ ROGUE_FW_LOG_CREATESFID(39, ROGUE_FW_GROUP_HWR, 0),
+	  "GPU has failed a poll" },
+	{ ROGUE_FW_LOG_CREATESFID(40, ROGUE_FW_GROUP_HWR, 2),
+	  "RGX DM%u phase count=0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(41, ROGUE_FW_GROUP_HWR, 2),
+	  "Reset HW (loop:%d, poll failures: 0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(42, ROGUE_FW_GROUP_HWR, 1),
+	  "MMU fault event: 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(43, ROGUE_FW_GROUP_HWR, 1),
+	  "BIF1 page fault detected (Bank1 MMU Status: 0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(44, ROGUE_FW_GROUP_HWR, 1),
+	  "Fast CRC Failed. Proceeding to full register checking (DM: %u)." },
+	{ ROGUE_FW_LOG_CREATESFID(45, ROGUE_FW_GROUP_HWR, 2),
+	  "Meta MMU page fault detected (Meta MMU Status: 0x%08x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(46, ROGUE_FW_GROUP_HWR, 2),
+	  "Fast CRC Check result for DM%u is HWRNeeded=%u" },
+	{ ROGUE_FW_LOG_CREATESFID(47, ROGUE_FW_GROUP_HWR, 2),
+	  "Full Signature Check result for DM%u is HWRNeeded=%u" },
+	{ ROGUE_FW_LOG_CREATESFID(48, ROGUE_FW_GROUP_HWR, 3),
+	  "Final result for DM%u is HWRNeeded=%u with HWRChecksToGo=%u" },
+	{ ROGUE_FW_LOG_CREATESFID(49, ROGUE_FW_GROUP_HWR, 3),
+	  "USC Slots result for DM%u is HWRNeeded=%u USCSlotsUsedByDM=%d" },
+	{ ROGUE_FW_LOG_CREATESFID(50, ROGUE_FW_GROUP_HWR, 2),
+	  "Deadline counter for DM%u is HWRDeadline=%u" },
+	{ ROGUE_FW_LOG_CREATESFID(51, ROGUE_FW_GROUP_HWR, 1),
+	  "Holding Scheduling on OSid %u due to pending freelist reconstruction" },
+	{ ROGUE_FW_LOG_CREATESFID(52, ROGUE_FW_GROUP_HWR, 2),
+	  "Requesting reconstruction for freelist 0x%x (ID=%d)" },
+	{ ROGUE_FW_LOG_CREATESFID(53, ROGUE_FW_GROUP_HWR, 1),
+	  "Reconstruction of freelist ID=%d complete" },
+	{ ROGUE_FW_LOG_CREATESFID(54, ROGUE_FW_GROUP_HWR, 4),
+	  "Reconstruction needed for freelist 0x%x (ID=%d) type: %d (0:local,1:global,2:mmu) on HW context %u" },
+	{ ROGUE_FW_LOG_CREATESFID(55, ROGUE_FW_GROUP_HWR, 1),
+	  "Reconstruction of freelist ID=%d failed" },
+	{ ROGUE_FW_LOG_CREATESFID(56, ROGUE_FW_GROUP_HWR, 4),
+	  "Restricting PDS Tasks to help other stalling DMs (RunningMask=0x%02x, StallingMask=0x%02x, PDS_CTRL=0x%08x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(57, ROGUE_FW_GROUP_HWR, 4),
+	  "Unrestricting PDS Tasks again (RunningMask=0x%02x, StallingMask=0x%02x, PDS_CTRL=0x%08x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(58, ROGUE_FW_GROUP_HWR, 2),
+	  "USC slots: %u used by DM%u" },
+	{ ROGUE_FW_LOG_CREATESFID(59, ROGUE_FW_GROUP_HWR, 1),
+	  "USC slots: %u empty" },
+	{ ROGUE_FW_LOG_CREATESFID(60, ROGUE_FW_GROUP_HWR, 5),
+	  "HCS DM%d's Context Switch failed to meet deadline. Current time: 0x%08x%08x, deadline: 0x%08x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(61, ROGUE_FW_GROUP_HWR, 1),
+	  "Begin hardware reset (HWR Counter=%d)" },
+	{ ROGUE_FW_LOG_CREATESFID(62, ROGUE_FW_GROUP_HWR, 1),
+	  "Finished hardware reset (HWR Counter=%d)" },
+	{ ROGUE_FW_LOG_CREATESFID(63, ROGUE_FW_GROUP_HWR, 2),
+	  "Holding Scheduling on DM %u for OSid %u due to pending freelist reconstruction" },
+	{ ROGUE_FW_LOG_CREATESFID(64, ROGUE_FW_GROUP_HWR, 5),
+	  "User Mode Queue ROff reset: FWCtx 0x%08.8x, queue: 0x%08x%08x (Roff = %u becomes StreamStartOffset = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(65, ROGUE_FW_GROUP_HWR, 4),
+	  "Reconstruction needed for freelist 0x%x (ID=%d) type: %d (0:local,1:global) on HW context %u" },
+	{ ROGUE_FW_LOG_CREATESFID(66, ROGUE_FW_GROUP_HWR, 3),
+	  "Mips page fault detected (BadVAddr: 0x%08x, EntryLo0: 0x%08x, EntryLo1: 0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(67, ROGUE_FW_GROUP_HWR, 1),
+	  "At least one other DM is running okay so DM%u will get another chance" },
+	{ ROGUE_FW_LOG_CREATESFID(68, ROGUE_FW_GROUP_HWR, 2),
+	  "Reconstructing in FW, FL: 0x%x (ID=%d)" },
+	{ ROGUE_FW_LOG_CREATESFID(69, ROGUE_FW_GROUP_HWR, 4),
+	  "Zero RTC for FWCtx: 0x%08.8x (RTC addr: 0x%08x%08x, size: %d bytes)" },
+	{ ROGUE_FW_LOG_CREATESFID(70, ROGUE_FW_GROUP_HWR, 5),
+	  "Reconstruction needed for freelist 0x%x (ID=%d) type: %d (0:local,1:global) phase: %d (0:TA, 1:3D) on HW context %u" },
+	{ ROGUE_FW_LOG_CREATESFID(71, ROGUE_FW_GROUP_HWR, 3),
+	  "Start long HW poll %u (0-Unset 1-Set) for (reg:0x%08x val:0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(72, ROGUE_FW_GROUP_HWR, 1),
+	  "End long HW poll (result=%d)" },
+	{ ROGUE_FW_LOG_CREATESFID(73, ROGUE_FW_GROUP_HWR, 3),
+	  "DM%u has taken %d ticks and deadline is %d ticks" },
+	{ ROGUE_FW_LOG_CREATESFID(74, ROGUE_FW_GROUP_HWR, 5),
+	  "USC Watchdog result for DM%u is HWRNeeded=%u Status=%u USCs={0x%x} with HWRChecksToGo=%u" },
+	{ ROGUE_FW_LOG_CREATESFID(75, ROGUE_FW_GROUP_HWR, 6),
+	  "Reconstruction needed for freelist 0x%x (ID=%d) OSid: %d type: %d (0:local,1:global) phase: %d (0:TA, 1:3D) on HW context %u" },
+	{ ROGUE_FW_LOG_CREATESFID(76, ROGUE_FW_GROUP_HWR, 1),
+	  "GPU-%u has locked up" },
+	{ ROGUE_FW_LOG_CREATESFID(77, ROGUE_FW_GROUP_HWR, 1),
+	  "DM%u has locked up" },
+	{ ROGUE_FW_LOG_CREATESFID(78, ROGUE_FW_GROUP_HWR, 2),
+	  "Core %d RGX_CR_EVENT_STATUS=0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(79, ROGUE_FW_GROUP_HWR, 2),
+	  "RGX_CR_MULTICORE_EVENT_STATUS%u=0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(80, ROGUE_FW_GROUP_HWR, 5),
+	  "BIF0 page fault detected (Core %d MMU Status: 0x%08x%08x Req Status: 0x%08x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(81, ROGUE_FW_GROUP_HWR, 3),
+	  "MMU page fault detected (Core %d MMU Status: 0x%08x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(82, ROGUE_FW_GROUP_HWR, 4),
+	  "MMU page fault detected (Core %d MMU Status: 0x%08x%08x 0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(83, ROGUE_FW_GROUP_HWR, 4),
+	  "Reset HW (core:%d of %d, loop:%d, poll failures: 0x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(84, ROGUE_FW_GROUP_HWR, 3),
+	  "Fast CRC Check result for Core%u, DM%u is HWRNeeded=%u" },
+	{ ROGUE_FW_LOG_CREATESFID(85, ROGUE_FW_GROUP_HWR, 3),
+	  "Full Signature Check result for Core%u, DM%u is HWRNeeded=%u" },
+	{ ROGUE_FW_LOG_CREATESFID(86, ROGUE_FW_GROUP_HWR, 4),
+	  "USC Slots result for Core%u, DM%u is HWRNeeded=%u USCSlotsUsedByDM=%d" },
+	{ ROGUE_FW_LOG_CREATESFID(87, ROGUE_FW_GROUP_HWR, 6),
+	  "USC Watchdog result for Core%u DM%u is HWRNeeded=%u Status=%u USCs={0x%x} with HWRChecksToGo=%u" },
+	{ ROGUE_FW_LOG_CREATESFID(88, ROGUE_FW_GROUP_HWR, 3),
+	  "RISC-V MMU page fault detected (FWCORE MMU Status 0x%08x Req Status 0x%08x%08x)" },
+	{ ROGUE_FW_LOG_CREATESFID(89, ROGUE_FW_GROUP_HWR, 2),
+	  "TEXAS1_PFS poll failed on core %d with value 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(90, ROGUE_FW_GROUP_HWR, 2),
+	  "BIF_PFS poll failed on core %d with value 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(91, ROGUE_FW_GROUP_HWR, 2),
+	  "MMU_ABORT_PM_STATUS set poll failed on core %d with value 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(92, ROGUE_FW_GROUP_HWR, 2),
+	  "MMU_ABORT_PM_STATUS unset poll failed on core %d with value 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(93, ROGUE_FW_GROUP_HWR, 2),
+	  "MMU_CTRL_INVAL poll (all but fw) failed on core %d with value 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(94, ROGUE_FW_GROUP_HWR, 2),
+	  "MMU_CTRL_INVAL poll (all) failed on core %d with value 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(95, ROGUE_FW_GROUP_HWR, 3),
+	  "TEXAS%d_PFS poll failed on core %d with value 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(96, ROGUE_FW_GROUP_HWR, 3),
+	  "Extra Registers Check result for Core%u, DM%u is HWRNeeded=%u" },
+	{ ROGUE_FW_LOG_CREATESFID(97, ROGUE_FW_GROUP_HWR, 1),
+	  "FW attempted to write to read-only GPU address 0x%08x" },
+
+	{ ROGUE_FW_LOG_CREATESFID(1, ROGUE_FW_GROUP_HWP, 2),
+	  "Block 0x%x mapped to Config Idx %u" },
+	{ ROGUE_FW_LOG_CREATESFID(2, ROGUE_FW_GROUP_HWP, 1),
+	  "Block 0x%x omitted from event - not enabled in HW" },
+	{ ROGUE_FW_LOG_CREATESFID(3, ROGUE_FW_GROUP_HWP, 1),
+	  "Block 0x%x included in event - enabled in HW" },
+	{ ROGUE_FW_LOG_CREATESFID(4, ROGUE_FW_GROUP_HWP, 2),
+	  "Select register state hi_0x%x lo_0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(5, ROGUE_FW_GROUP_HWP, 1),
+	  "Counter stream block header word 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(6, ROGUE_FW_GROUP_HWP, 1),
+	  "Counter register offset 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(7, ROGUE_FW_GROUP_HWP, 1),
+	  "Block 0x%x config unset, skipping" },
+	{ ROGUE_FW_LOG_CREATESFID(8, ROGUE_FW_GROUP_HWP, 1),
+	  "Accessing Indirect block 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(9, ROGUE_FW_GROUP_HWP, 1),
+	  "Accessing Direct block 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(10, ROGUE_FW_GROUP_HWP, 1),
+	  "Programmed counter select register at offset 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(11, ROGUE_FW_GROUP_HWP, 2),
+	  "Block register offset 0x%x and value 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(12, ROGUE_FW_GROUP_HWP, 1),
+	  "Reading config block from driver 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(13, ROGUE_FW_GROUP_HWP, 2),
+	  "Reading block range 0x%x to 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(14, ROGUE_FW_GROUP_HWP, 1),
+	  "Recording block 0x%x config from driver" },
+	{ ROGUE_FW_LOG_CREATESFID(15, ROGUE_FW_GROUP_HWP, 0),
+	  "Finished reading config block from driver" },
+	{ ROGUE_FW_LOG_CREATESFID(16, ROGUE_FW_GROUP_HWP, 2),
+	  "Custom Counter offset: 0x%x  value: 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(17, ROGUE_FW_GROUP_HWP, 2),
+	  "Select counter n:%u  ID:0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(18, ROGUE_FW_GROUP_HWP, 3),
+	  "The counter ID 0x%x is not allowed. The package [b:%u, n:%u] will be discarded" },
+	{ ROGUE_FW_LOG_CREATESFID(19, ROGUE_FW_GROUP_HWP, 1),
+	  "Custom Counters filter status %d" },
+	{ ROGUE_FW_LOG_CREATESFID(20, ROGUE_FW_GROUP_HWP, 2),
+	  "The Custom block %d is not allowed. Use only blocks lower than %d. The package will be discarded" },
+	{ ROGUE_FW_LOG_CREATESFID(21, ROGUE_FW_GROUP_HWP, 2),
+	  "The package will be discarded because it contains %d counters IDs while the upper limit is %d" },
+	{ ROGUE_FW_LOG_CREATESFID(22, ROGUE_FW_GROUP_HWP, 2),
+	  "Check Filter 0x%x is 0x%x ?" },
+	{ ROGUE_FW_LOG_CREATESFID(23, ROGUE_FW_GROUP_HWP, 1),
+	  "The custom block %u is reset" },
+	{ ROGUE_FW_LOG_CREATESFID(24, ROGUE_FW_GROUP_HWP, 1),
+	  "Encountered an invalid command (%d)" },
+	{ ROGUE_FW_LOG_CREATESFID(25, ROGUE_FW_GROUP_HWP, 2),
+	  "HWPerf Queue is full, we will have to wait for space! (Roff = %u, Woff = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(26, ROGUE_FW_GROUP_HWP, 3),
+	  "HWPerf Queue is fencing, we are waiting for Roff = %d (Roff = %u, Woff = %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(27, ROGUE_FW_GROUP_HWP, 1),
+	  "Custom Counter block: %d" },
+	{ ROGUE_FW_LOG_CREATESFID(28, ROGUE_FW_GROUP_HWP, 1),
+	  "Block 0x%x ENABLED" },
+	{ ROGUE_FW_LOG_CREATESFID(29, ROGUE_FW_GROUP_HWP, 1),
+	  "Block 0x%x DISABLED" },
+	{ ROGUE_FW_LOG_CREATESFID(30, ROGUE_FW_GROUP_HWP, 2),
+	  "Accessing Indirect block 0x%x, instance %u" },
+	{ ROGUE_FW_LOG_CREATESFID(31, ROGUE_FW_GROUP_HWP, 2),
+	  "Counter register 0x%x, Value 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(32, ROGUE_FW_GROUP_HWP, 1),
+	  "Counters filter status %d" },
+	{ ROGUE_FW_LOG_CREATESFID(33, ROGUE_FW_GROUP_HWP, 2),
+	  "Block 0x%x mapped to Ctl Idx %u" },
+	{ ROGUE_FW_LOG_CREATESFID(34, ROGUE_FW_GROUP_HWP, 0),
+	  "Block(s) in use for workload estimation." },
+	{ ROGUE_FW_LOG_CREATESFID(35, ROGUE_FW_GROUP_HWP, 3),
+	  "GPU %u Cycle counter 0x%x, Value 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(36, ROGUE_FW_GROUP_HWP, 3),
+	  "GPU Mask 0x%x Cycle counter 0x%x, Value 0x%x" },
+	{ ROGUE_FW_LOG_CREATESFID(37, ROGUE_FW_GROUP_HWP, 1),
+	  "Blocks IGNORED for GPU %u" },
+
+	{ ROGUE_FW_LOG_CREATESFID(1, ROGUE_FW_GROUP_DMA, 5),
+	  "Transfer 0x%02x request: 0x%02x%08x -> 0x%08x, size %u" },
+	{ ROGUE_FW_LOG_CREATESFID(2, ROGUE_FW_GROUP_DMA, 4),
+	  "Transfer of type 0x%02x expected on channel %u, 0x%02x found, status %u" },
+	{ ROGUE_FW_LOG_CREATESFID(3, ROGUE_FW_GROUP_DMA, 1),
+	  "DMA Interrupt register 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(4, ROGUE_FW_GROUP_DMA, 1),
+	  "Waiting for transfer of type 0x%02x completion..." },
+	{ ROGUE_FW_LOG_CREATESFID(5, ROGUE_FW_GROUP_DMA, 3),
+	  "Loading of cCCB data from FW common context 0x%08x (offset: %u, size: %u) failed" },
+	{ ROGUE_FW_LOG_CREATESFID(6, ROGUE_FW_GROUP_DMA, 3),
+	  "Invalid load of cCCB data from FW common context 0x%08x (offset: %u, size: %u)" },
+	{ ROGUE_FW_LOG_CREATESFID(7, ROGUE_FW_GROUP_DMA, 1),
+	  "Transfer 0x%02x request poll failure" },
+	{ ROGUE_FW_LOG_CREATESFID(8, ROGUE_FW_GROUP_DMA, 2),
+	  "Boot transfer(s) failed (code? %u, data? %u), used slower memcpy instead" },
+	{ ROGUE_FW_LOG_CREATESFID(9, ROGUE_FW_GROUP_DMA, 7),
+	  "Transfer 0x%02x request on ch. %u: system 0x%02x%08x, coremem 0x%08x, flags 0x%x, size %u" },
+
+	{ ROGUE_FW_LOG_CREATESFID(1, ROGUE_FW_GROUP_DBG, 2),
+	  "0x%08x 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(2, ROGUE_FW_GROUP_DBG, 1),
+	  "0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(3, ROGUE_FW_GROUP_DBG, 2),
+	  "0x%08x 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(4, ROGUE_FW_GROUP_DBG, 3),
+	  "0x%08x 0x%08x 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(5, ROGUE_FW_GROUP_DBG, 4),
+	  "0x%08x 0x%08x 0x%08x 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(6, ROGUE_FW_GROUP_DBG, 5),
+	  "0x%08x 0x%08x 0x%08x 0x%08x 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(7, ROGUE_FW_GROUP_DBG, 6),
+	  "0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(8, ROGUE_FW_GROUP_DBG, 7),
+	  "0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(9, ROGUE_FW_GROUP_DBG, 8),
+	  "0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x" },
+	{ ROGUE_FW_LOG_CREATESFID(10, ROGUE_FW_GROUP_DBG, 1),
+	  "%d" },
+	{ ROGUE_FW_LOG_CREATESFID(11, ROGUE_FW_GROUP_DBG, 2),
+	  "%d %d" },
+	{ ROGUE_FW_LOG_CREATESFID(12, ROGUE_FW_GROUP_DBG, 3),
+	  "%d %d %d" },
+	{ ROGUE_FW_LOG_CREATESFID(13, ROGUE_FW_GROUP_DBG, 4),
+	  "%d %d %d %d" },
+	{ ROGUE_FW_LOG_CREATESFID(14, ROGUE_FW_GROUP_DBG, 5),
+	  "%d %d %d %d %d" },
+	{ ROGUE_FW_LOG_CREATESFID(15, ROGUE_FW_GROUP_DBG, 6),
+	  "%d %d %d %d %d %d" },
+	{ ROGUE_FW_LOG_CREATESFID(16, ROGUE_FW_GROUP_DBG, 7),
+	  "%d %d %d %d %d %d %d" },
+	{ ROGUE_FW_LOG_CREATESFID(17, ROGUE_FW_GROUP_DBG, 8),
+	  "%d %d %d %d %d %d %d %d" },
+	{ ROGUE_FW_LOG_CREATESFID(18, ROGUE_FW_GROUP_DBG, 1),
+	  "%u" },
+	{ ROGUE_FW_LOG_CREATESFID(19, ROGUE_FW_GROUP_DBG, 2),
+	  "%u %u" },
+	{ ROGUE_FW_LOG_CREATESFID(20, ROGUE_FW_GROUP_DBG, 3),
+	  "%u %u %u" },
+	{ ROGUE_FW_LOG_CREATESFID(21, ROGUE_FW_GROUP_DBG, 4),
+	  "%u %u %u %u" },
+	{ ROGUE_FW_LOG_CREATESFID(22, ROGUE_FW_GROUP_DBG, 5),
+	  "%u %u %u %u %u" },
+	{ ROGUE_FW_LOG_CREATESFID(23, ROGUE_FW_GROUP_DBG, 6),
+	  "%u %u %u %u %u %u" },
+	{ ROGUE_FW_LOG_CREATESFID(24, ROGUE_FW_GROUP_DBG, 7),
+	  "%u %u %u %u %u %u %u" },
+	{ ROGUE_FW_LOG_CREATESFID(25, ROGUE_FW_GROUP_DBG, 8),
+	  "%u %u %u %u %u %u %u %u" },
+
+	{ ROGUE_FW_LOG_CREATESFID(65535, ROGUE_FW_GROUP_NULL, 15),
+	  "You should not use this string" },
+};
+
+#define ROGUE_FW_SF_FIRST ROGUE_FW_LOG_CREATESFID(0, ROGUE_FW_GROUP_NULL, 0)
+#define ROGUE_FW_SF_MAIN_ASSERT_FAILED ROGUE_FW_LOG_CREATESFID(24, ROGUE_FW_GROUP_MAIN, 1)
+#define ROGUE_FW_SF_LAST ROGUE_FW_LOG_CREATESFID(65535, ROGUE_FW_GROUP_NULL, 15)
 
 #endif /* PVR_ROGUE_FWIF_SF_H */

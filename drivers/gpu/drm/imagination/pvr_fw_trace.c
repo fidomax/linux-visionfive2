@@ -14,17 +14,6 @@
 #include <linux/sysfs.h>
 #include <linux/types.h>
 
-/*
- * The tuple pairs that will be generated using XMacros will be stored here.
- * This macro definition must match the definition of rogue_fw_log_sfids in
- * pvr_rogue_fwif_sf.h.
- */
-static const struct rogue_km_stid_fmt stid_fmts[] = {
-#define X(a, b, c, d, e) { ROGUE_FW_LOG_CREATESFID(a, b, e), d },
-	ROGUE_FW_LOG_SFIDLIST
-#undef X
-};
-
 int pvr_fw_trace_init(struct pvr_device *pvr_dev)
 {
 	struct pvr_fw_trace *fw_trace = &pvr_dev->fw_dev.fw_trace;
@@ -487,8 +476,7 @@ pvr_fw_trace_debugfs_init(struct pvr_device *pvr_dev, struct dentry *dir)
 	u32 thread_nr;
 
 	static_assert(ARRAY_SIZE(fw_trace->buffers) <= 10,
-		      "The filename buffer is only large enough for a "
-		      "single-digit thread count");
+		      "The filename buffer is only large enough for a single-digit thread count");
 
 	for (thread_nr = 0; thread_nr < ARRAY_SIZE(fw_trace->buffers); ++thread_nr) {
 		char filename[8];
