@@ -372,6 +372,7 @@ pvr_context_release(struct kref *ref_count)
 	pvr_context_destroy_queues(ctx);
 	pvr_fw_object_destroy(ctx->fw_obj);
 	pvr_vm_context_put(ctx->vm_ctx);
+	kfree(ctx);
 }
 
 /**
