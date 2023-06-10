@@ -685,12 +685,6 @@ pvr_queue_signal_done_fences(struct pvr_queue *queue)
 	spin_lock(&queue->scheduler.job_list_lock);
 	cur_seqno = *queue->timeline_ufo.value;
 	list_for_each_entry_safe(job, tmp_job, &queue->scheduler.pending_list, base.list) {
-		/* We don't want to test jobs twice, so reset last_submitted_job
-		 * if the job is already part of the pending_list.
-		 */
-		if (job == queue->last_submitted_job)
-			queue->last_submitted_job = NULL;
-
 		if ((int)(cur_seqno - lower_32_bits(job->done_fence->seqno)) < 0)
 			break;
 
@@ -701,11 +695,26 @@ pvr_queue_signal_done_fences(struct pvr_queue *queue)
 		}
 	}
 
+	/* We don't want to test jobs twice, so reset last_submitted_job
+	 * if the job is already part of the pending_list.
+	 */
+	job = list_last_entry(&queue->scheduler.pending_list, struct pvr_job, base.list);
+	if (job == queue->last_submitted_job)
+		queue->last_submitted_job = NULL;
+
 	if (queue->last_submitted_job &&
 	    (int)(cur_seqno - lower_32_bits(queue->last_submitted_job->done_fence->seqno)) >= 0) {
 		dma_fence_signal(queue->last_submitted_job->done_fence);
 		pvr_job_release_pm_ref(queue->last_submitted_job);
 		atomic_dec(&queue->in_flight_job_count);
+
+		/* We signaled the job, so no need to check it again next time. Most importantly,
+		 * it's addressing a race where we signal the job before and drm_sched cleans it
+		 * up before pvr_queue_signal_done_fences() is called again, meaning the job
+		 * will never show up in the pending_list, and we might be pointing to an already
+		 * freed job next time pvr_queue_signal_done_fences() is called.
+		 */
+		queue->last_submitted_job = NULL;
 	}
 	spin_unlock(&queue->scheduler.job_list_lock);
 }
