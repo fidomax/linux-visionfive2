@@ -839,5 +839,6 @@ out_submit_unlock:
 
 out_free_jobs_args:
 	pvr_sync_signal_array_cleanup(&signal_array);
+	kvfree(jobs_args);
 	return err;
 }
