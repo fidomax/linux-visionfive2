@@ -479,6 +479,13 @@ static void pvr_queue_update_active_state_locked(struct pvr_queue *queue)
 
 	lockdep_assert_held(&pvr_dev->queues.lock);
 
+	/* The queue is temporary out of any list when it's being reset,
+	 * we don't want a call to pvr_queue_update_active_state_locked()
+	 * to re-insert it behind our back.
+	 */
+	if (list_empty(&queue->node))
+		return;
+
 	if (!atomic_read(&queue->in_flight_job_count))
 		list_move_tail(&queue->node, &pvr_dev->queues.idle);
 	else
@@ -608,14 +615,53 @@ static enum drm_gpu_sched_stat
 pvr_queue_timedout_job(struct drm_sched_job *s_job)
 {
 	struct drm_gpu_scheduler *sched = s_job->sched;
+	struct pvr_queue *queue = container_of(sched, struct pvr_queue, scheduler);
+	struct pvr_device *pvr_dev = queue->ctx->pvr_dev;
 	struct pvr_job *job;
+	u32 job_count = 0;
 
-	dev_err(sched->dev, "Job timeout");
+	dev_err(sched->dev, "Job timeout\n");
+
+	/* Before we stop the scheduler, make sure the queue is out of any list, so
+	 * any call to pvr_queue_update_active_state_locked() that might happen
+	 * until the scheduler is really stopped doesn't end up re-inserting the
+	 * queue in the active list. This would cause
+	 * pvr_queue_signal_done_fences() and drm_sched_stop() to race with each
+	 * other when accessing the pending_list, since drm_sched_stop() doesn't
+	 * grab the job_list_lock when modifying the list (it's assuming the
+	 * only other accessor is the scheduler, and it's safe to not grab the
+	 * lock since it's stopped).
+	 */
+	mutex_lock(&pvr_dev->queues.lock);
+	list_del_init(&queue->node);
+	mutex_unlock(&pvr_dev->queues.lock);
 
 	drm_sched_stop(sched, s_job);
 
-	list_for_each_entry(job, &sched->pending_list, base.list)
+	/* Reset the last_submitted_job field now, just in case. No need to grab
+	 * the job_list_lock here, all the path accessing this field are guaranteed
+	 * to be turned off at that point.
+	 */
+	queue->last_submitted_job = NULL;
+
+	/* Re-assign job parent fences. */
+	list_for_each_entry(job, &sched->pending_list, base.list) {
 		job->base.s_fence->parent = dma_fence_get(job->done_fence);
+		job_count++;
+	}
+	WARN_ON(atomic_read(&queue->in_flight_job_count) != job_count);
+
+	/* Re-insert the queue in the proper list, and kick a queue processing
+	 * operation if there were jobs pending.
+	 */
+	mutex_lock(&pvr_dev->queues.lock);
+	if (!atomic_read(&queue->in_flight_job_count)) {
+		list_move_tail(&queue->node, &pvr_dev->queues.idle);
+	} else {
+		list_move_tail(&queue->node, &pvr_dev->queues.active);
+		queue_work(pvr_dev->irq_wq, &pvr_dev->queues.work);
+	}
+	mutex_unlock(&pvr_dev->queues.lock);
 
 	drm_sched_start(sched, true);
 
