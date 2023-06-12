@@ -439,7 +439,7 @@ static struct dma_fence *
 pvr_queue_get_job_kccb_fence(struct pvr_queue *queue, struct pvr_job *job)
 {
 	struct pvr_device *pvr_dev = queue->ctx->pvr_dev;
-	struct dma_fence *kccb_fence;
+	struct dma_fence *kccb_fence = NULL;
 
 	/* If the fence is NULL, that means we already checked that we had
 	 * enough space in the KCCB for our job.
