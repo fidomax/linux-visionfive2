@@ -133,8 +133,6 @@ pvr_job_get_pm_ref(struct pvr_job *job)
 	return err;
 }
 
-unsigned long pvr_job_evict_signaled_native_deps(struct pvr_job *job);
-
 int pvr_job_wait_first_non_signaled_native_dep(struct pvr_job *job);
 
 bool pvr_job_non_native_deps_done(struct pvr_job *job);

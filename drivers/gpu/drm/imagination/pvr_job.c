@@ -42,30 +42,6 @@ static void pvr_job_release(struct kref *kref)
 }
 
 /**
- * pvr_job_evict_signaled_native_deps() - Evict signaled native deps
- * @job: Job to operate on.
- *
- * Returns: Number of unsignalled native deps remaining.
- */
-unsigned long pvr_job_evict_signaled_native_deps(struct pvr_job *job)
-{
-	unsigned long remaining_count = 0;
-	struct dma_fence *fence = NULL;
-	unsigned long index;
-
-	xa_for_each(&job->base.dependencies, index, fence) {
-		if (dma_fence_is_signaled(fence)) {
-			xa_erase(&job->base.dependencies, index);
-			dma_fence_put(fence);
-		} else {
-			remaining_count++;
-		}
-	}
-
-	return remaining_count;
-}
-
-/**
  * pvr_job_put() - Release reference on job
  * @job: Target job.
  */
@@ -304,6 +280,48 @@ pvr_sync_signal_array_push_fences(struct xarray *array)
 }
 
 static int
+pvr_job_add_dep(struct pvr_job *job, struct dma_fence *f)
+{
+	struct dma_fence_unwrap iter;
+	u32 native_fence_count = 0;
+	struct dma_fence *uf;
+	int err = 0;
+
+	dma_fence_unwrap_for_each(uf, &iter, f) {
+		if (pvr_queue_fence_is_ufo_backed(uf))
+			native_fence_count++;
+	}
+
+	/* No need to unwrap the fence if it's fully non-native. */
+	if (!native_fence_count)
+		return drm_sched_job_add_dependency(&job->base, f);
+
+	dma_fence_unwrap_for_each(uf, &iter, f) {
+		/* There's no dma_fence_unwrap_stop() helper cleaning up the refs
+		 * owned by dma_fence_unwrap(), so let's just iterate over all
+		 * entries without doing anything when something failed.
+		 */
+		if (err)
+			continue;
+
+		if (pvr_queue_fence_is_ufo_backed(uf)) {
+			struct drm_sched_fence *s_fence = to_drm_sched_fence(uf);
+
+			/* If this is a native dependency, we wait for the scheduled fence,
+			 * and we will let pvr_queue_run_job() issue FW waits.
+			 */
+			err = drm_sched_job_add_dependency(&job->base,
+							   dma_fence_get(&s_fence->scheduled));
+		} else {
+			err = drm_sched_job_add_dependency(&job->base, dma_fence_get(uf));
+		}
+	}
+
+	dma_fence_put(f);
+	return err;
+}
+
+static int
 pvr_job_add_deps(struct pvr_file *pvr_file, struct pvr_job *job,
 		 u32 sync_op_count, const struct drm_pvr_sync_op *sync_ops,
 		 struct xarray *signal_array)
@@ -314,10 +332,8 @@ pvr_job_add_deps(struct pvr_file *pvr_file, struct pvr_job *job,
 		return 0;
 
 	for (u32 i = 0; i < sync_op_count; i++) {
-		struct dma_fence *unwrapped_fence, *fence;
 		struct pvr_sync_signal *sig_sync;
-		struct dma_fence_unwrap iter;
-		u32 native_fence_count = 0;
+		struct dma_fence *fence;
 
 		if (sync_ops[i].flags & DRM_PVR_SYNC_OP_FLAG_SIGNAL)
 			continue;
@@ -340,34 +356,9 @@ pvr_job_add_deps(struct pvr_file *pvr_file, struct pvr_job *job,
 				return err;
 		}
 
-		dma_fence_unwrap_for_each(unwrapped_fence, &iter, fence) {
-			if (pvr_queue_fence_is_ufo_backed(unwrapped_fence))
-				native_fence_count++;
-		}
-
-		if (!native_fence_count) {
-			/* No need to unwrap the fence if it's fully non-native. */
-			err = drm_sched_job_add_dependency(&job->base, fence);
-			if (err)
-				return err;
-		} else {
-			dma_fence_unwrap_for_each(unwrapped_fence, &iter, fence) {
-				/* There's no dma_fence_unwrap_stop() helper cleaning up the refs
-				 * owned by dma_fence_unwrap(), so let's just iterate over all
-				 * entries without doing anything when something failed.
-				 */
-				if (err)
-					continue;
-
-				dma_fence_get(unwrapped_fence);
-				err = drm_sched_job_add_dependency(&job->base, unwrapped_fence);
-			}
-
-			dma_fence_put(fence);
-
-			if (err)
-				return err;
-		}
+		err = pvr_job_add_dep(job, fence);
+		if (err)
+			return err;
 	}
 
 	return 0;

@@ -182,7 +182,7 @@ to_pvr_queue_job_fence(struct dma_fence *f)
 {
 	struct drm_sched_fence *sched_fence = to_drm_sched_fence(f);
 
-	if (sched_fence && f == &sched_fence->finished)
+	if (sched_fence)
 		f = sched_fence->parent;
 
 	if (f && f->ops == &pvr_queue_job_fence_ops)
@@ -346,6 +346,32 @@ static u32 job_cmds_size(struct pvr_job *job, u32 ufo_wait_count)
 }
 
 /**
+ * job_count_remaining_native_deps() - Count the number of non-signaled native dependencies.
+ * @job: Job to operate on.
+ *
+ * Returns: Number of non-signaled native deps remaining.
+ */
+static unsigned long job_count_remaining_native_deps(struct pvr_job *job)
+{
+	unsigned long remaining_count = 0;
+	struct dma_fence *fence = NULL;
+	unsigned long index;
+
+	xa_for_each(&job->base.dependencies, index, fence) {
+		struct pvr_queue_fence *jfence;
+
+		jfence = to_pvr_queue_job_fence(fence);
+		if (!jfence)
+			continue;
+
+		if (!dma_fence_is_signaled(&jfence->base))
+			remaining_count++;
+	}
+
+	return remaining_count;
+}
+
+/**
  * pvr_queue_get_job_cccb_fence() - Get the CCCB fence attached to a job.
  * @queue: The queue this job will be submitted to.
  * @job: The job to get the CCCB fence on.
@@ -371,8 +397,8 @@ pvr_queue_get_job_cccb_fence(struct pvr_queue *queue, struct pvr_job *job)
 
 	mutex_lock(&queue->cccb_fence_ctx.job_lock);
 
-	/* Evict signaled dependencies and check if the job fits in the CCCB. */
-	native_deps_remaining = pvr_job_evict_signaled_native_deps(job);
+	/* Count remaining native dependencies and check if the job fits in the CCCB. */
+	native_deps_remaining = job_count_remaining_native_deps(job);
 	if (pvr_cccb_cmdseq_fits(&queue->cccb, job_cmds_size(job, native_deps_remaining))) {
 		pvr_queue_fence_put(job->cccb_fence);
 		job->cccb_fence = NULL;
@@ -553,7 +579,10 @@ static struct dma_fence *pvr_queue_run_job(struct drm_sched_job *sched_job)
 
 	xa_for_each(&job->base.dependencies, index, fence) {
 		jfence = to_pvr_queue_job_fence(fence);
-		if (WARN_ON(!jfence))
+		if (!jfence)
+			continue;
+
+		if (dma_fence_is_signaled(&jfence->base))
 			continue;
 
 		pvr_fw_object_get_fw_addr(jfence->queue->timeline_ufo.fw_obj,
@@ -684,7 +713,6 @@ static const struct drm_sched_backend_ops pvr_queue_sched_ops = {
 	.run_job = pvr_queue_run_job,
 	.timedout_job = pvr_queue_timedout_job,
 	.free_job = pvr_queue_free_job,
-	.dependency_is_native = pvr_queue_fence_is_ufo_backed,
 };
 
 /**
@@ -701,12 +729,8 @@ bool pvr_queue_fence_is_ufo_backed(struct dma_fence *f)
 {
 	struct drm_sched_fence *sched_fence = f ? to_drm_sched_fence(f) : NULL;
 
-	/* Only a finished fence can be native, the scheduled fence is purely a
-	 * software event.
-	 */
 	if (sched_fence &&
-	    sched_fence->sched->ops == &pvr_queue_sched_ops &&
-	    f == &sched_fence->finished)
+	    sched_fence->sched->ops == &pvr_queue_sched_ops)
 		return true;
 
 	if (f && f->ops == &pvr_queue_job_fence_ops)
@@ -772,9 +796,7 @@ pvr_queue_signal_done_fences(struct pvr_queue *queue)
  * @queue: Queue to check
  *
  * If we have a job waiting for CCCB, and this job now fits in the CCCB, we signal
- * its CCCB fence, which should kick drm_sched. Note that we evict all signaled
- * native deps first, to reduce the amount of fence-wait commands to queue to the
- * CCCB.
+ * its CCCB fence, which should kick drm_sched.
  */
 static void
 pvr_queue_check_job_waiting_for_cccb_space(struct pvr_queue *queue)
@@ -807,7 +829,7 @@ pvr_queue_check_job_waiting_for_cccb_space(struct pvr_queue *queue)
 	 * If the job fits, signal the CCCB fence, this should unblock
 	 * the drm_sched_entity.
 	 */
-	native_deps_remaining = pvr_job_evict_signaled_native_deps(job);
+	native_deps_remaining = job_count_remaining_native_deps(job);
 	if (!pvr_cccb_cmdseq_fits(&queue->cccb, job_cmds_size(job, native_deps_remaining))) {
 		job = NULL;
 		goto out_unlock;
