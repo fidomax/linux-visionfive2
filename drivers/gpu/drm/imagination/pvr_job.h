@@ -40,6 +40,20 @@ struct pvr_job {
 	/** @id: Job ID number. */
 	u32 id;
 
+	/**
+	 * @paired_job: Job paired to this job.
+	 *
+	 * This field is only meaningful for geometry and fragment jobs.
+	 *
+	 * Paired jobs are executed on the same context, and need to be submitted
+	 * atomically to the FW, to make sure the partial render logic has a
+	 * fragment job to execute when the Parameter Manager runs out of memory.
+	 *
+	 * The geometry job should point to the fragment job it's paired with,
+	 * and the fragment job should point to the geometry job it's paired with.
+	 */
+	struct pvr_job *paired_job;
+
 	/** @cccb_fence: Fence used to wait for CCCB space. */
 	struct dma_fence *cccb_fence;
 

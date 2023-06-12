@@ -27,6 +27,8 @@ static void pvr_job_release(struct kref *kref)
 	pvr_hwrt_data_put(job->hwrt);
 	pvr_context_put(job->ctx);
 
+	WARN_ON(job->paired_job);
+
 	pvr_queue_job_cleanup(job);
 	pvr_job_release_pm_ref(job);
 
@@ -384,6 +386,89 @@ err_put_job:
 	return ERR_PTR(err);
 }
 
+static bool can_combine_jobs(struct pvr_job *a, struct pvr_job *b)
+{
+	struct pvr_job *geom_job = a, *frag_job = b;
+	struct dma_fence *fence;
+	unsigned long index;
+
+	/* Geometry and fragment jobs can be combined if they are queued to the
+	 * same context and targeting the same HWRT.
+	 */
+	if (a->type != DRM_PVR_JOB_TYPE_GEOMETRY ||
+	    b->type != DRM_PVR_JOB_TYPE_FRAGMENT ||
+	    a->ctx != b->ctx ||
+	    a->hwrt != b->hwrt)
+		return false;
+
+	xa_for_each(&frag_job->base.dependencies, index, fence) {
+		/* We combine when we see an explicit geom -> frag dep. */
+		if (&geom_job->base.s_fence->scheduled == fence)
+			return true;
+	}
+
+	return false;
+}
+
+static struct dma_fence *
+get_last_queued_job_scheduled_fence(struct pvr_queue *queue,
+				    struct pvr_job **jobs,
+				    u32 cur_job_pos)
+{
+	/* We iterate over the current job array in reverse order to grab the
+	 * last to-be-queued job targetting the same queue.
+	 */
+	for (u32 i = cur_job_pos; i > 0; i--) {
+		struct pvr_job *job = jobs[i - 1];
+
+		if (job->ctx == queue->ctx && job->type == queue->type)
+			return dma_fence_get(&job->base.s_fence->scheduled);
+	}
+
+	/* If we didn't find any, we just return the last queued job scheduled
+	 * fence attached to the queue.
+	 */
+	return dma_fence_get(queue->last_queued_job_scheduled_fence);
+}
+
+static int pvr_jobs_link_geom_frag(struct pvr_job **jobs, u32 job_count)
+{
+	for (u32 i = 0; i < job_count - 1; i++) {
+		struct pvr_job *geom_job = jobs[i], *frag_job = jobs[i + 1];
+		struct pvr_queue *frag_queue;
+		struct dma_fence *f;
+		int err;
+
+		if (!can_combine_jobs(jobs[i], jobs[i + 1]))
+			continue;
+
+		/* The fragment job will be submitted by the geometry queue. We need to
+		 * make sure it comes after all the other fragment jobs queued before it.
+		 */
+		frag_queue = pvr_context_get_queue_for_job(frag_job->ctx, frag_job->type);
+		f = get_last_queued_job_scheduled_fence(frag_queue, jobs, i);
+		if (f) {
+			err = drm_sched_job_add_dependency(&geom_job->base, f);
+			if (err)
+				return err;
+		}
+
+		/* The KCCB slot will be reserved by the geometry job, so we can drop the
+		 * KCCB fence on the fragment job.
+		 */
+		pvr_kccb_fence_put(frag_job->kccb_fence);
+		frag_job->kccb_fence = NULL;
+
+		geom_job->paired_job = frag_job;
+		frag_job->paired_job = geom_job;
+
+		/* Skip the fragment job we just paired to the geometry job. */
+		i++;
+	}
+
+	return 0;
+}
+
 /**
  * pvr_submit_jobs() - Submit jobs to the GPU
  * @pvr_dev: Target PowerVR device.
@@ -496,6 +581,10 @@ pvr_submit_jobs(struct pvr_device *pvr_dev,
 			goto out_submit_unlock;
 		}
 	}
+
+	err = pvr_jobs_link_geom_frag(jobs, args->jobs.count);
+	if (err)
+		goto out_submit_unlock;
 
 	for (u32 i = 0; i < args->jobs.count; i++)
 		pvr_queue_job_push(jobs[i]);

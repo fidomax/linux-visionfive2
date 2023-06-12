@@ -123,6 +123,16 @@ struct pvr_queue {
 	 */
 	struct pvr_job *last_submitted_job;
 
+	/**
+	 * last_queued_job_scheduled_fence: The scheduled fence of the last
+	 * job queued to this queue.
+	 *
+	 * We use it to insert frag -> geom dependencies when issuing combined
+	 * geom+frag jobs, to guarantee that the fragment job that's part of
+	 * the combined operation comes after all fragment jobs that were queued
+	 * before it.
+	 */
+	struct dma_fence *last_queued_job_scheduled_fence;
 
 	/** @cccb: Client Circular Command Buffer. */
 	struct pvr_cccb cccb;
