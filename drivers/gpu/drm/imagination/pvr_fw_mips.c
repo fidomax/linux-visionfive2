@@ -267,7 +267,7 @@ pvr_mips_has_fixed_data_addr(void)
 	return true;
 }
 
-const struct pvr_fw_funcs pvr_fw_funcs_mips = {
+const struct pvr_fw_defs pvr_fw_defs_mips = {
 	.init = pvr_mips_init,
 	.fini = pvr_mips_fini,
 	.fw_process = pvr_mips_fw_process,

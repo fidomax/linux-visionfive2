@@ -48,9 +48,9 @@ struct pvr_fw_object {
 };
 
 /**
- * struct pvr_fw_funcs - FW processor function table
+ * struct pvr_fw_defs - FW processor function table and static definitions
  */
-struct pvr_fw_funcs {
+struct pvr_fw_defs {
 	/**
 	 * @init:
 	 *
@@ -263,7 +263,7 @@ struct pvr_fw_device {
 	u16 processor_type;
 
 	/** @funcs: Function table for the FW processor used by this device. */
-	const struct pvr_fw_funcs *funcs;
+	const struct pvr_fw_defs *defs;
 
 	/** @processor_data: Pointer to data specific to FW processor. */
 	union {
@@ -332,8 +332,8 @@ struct pvr_fw_device {
 	struct pvr_fw_trace fw_trace;
 };
 
-extern const struct pvr_fw_funcs pvr_fw_funcs_meta;
-extern const struct pvr_fw_funcs pvr_fw_funcs_mips;
+extern const struct pvr_fw_defs pvr_fw_defs_meta;
+extern const struct pvr_fw_defs pvr_fw_defs_mips;
 
 int pvr_fw_init(struct pvr_device *pvr_dev);
 void pvr_fw_fini(struct pvr_device *pvr_dev);

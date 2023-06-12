@@ -126,7 +126,7 @@ pvr_fw_start(struct pvr_device *pvr_dev)
 		goto err_reset;
 
 	/* Initialise Firmware wrapper. */
-	pvr_dev->fw_dev.funcs->wrapper_init(pvr_dev);
+	pvr_dev->fw_dev.defs->wrapper_init(pvr_dev);
 
 	/* We must init the AXI-ACE interface before first BIF transaction. */
 	rogue_axi_ace_list_init(pvr_dev);

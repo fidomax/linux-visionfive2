@@ -659,7 +659,7 @@ pvr_fw_process(struct pvr_device *pvr_dev)
 		goto err_out;
 	}
 
-	if (pvr_dev->fw_dev.funcs->has_fixed_data_addr()) {
+	if (pvr_dev->fw_dev.defs->has_fixed_data_addr()) {
 		u32 base_addr = private_data->base_addr & pvr_dev->fw_dev.fw_heap_info.offset_mask;
 
 		fw_data_ptr =
@@ -713,10 +713,10 @@ pvr_fw_process(struct pvr_device *pvr_dev)
 		fw_core_data_ptr = NULL;
 	}
 
-	err = pvr_dev->fw_dev.funcs->fw_process(pvr_dev, fw, layout_entries,
-						header->layout_entry_num,
-						fw_code_ptr, fw_data_ptr, fw_core_code_ptr,
-						fw_core_data_ptr, core_code_alloc_size);
+	err = pvr_dev->fw_dev.defs->fw_process(pvr_dev, fw, layout_entries,
+					       header->layout_entry_num,
+					       fw_code_ptr, fw_data_ptr, fw_core_code_ptr,
+					       fw_core_data_ptr, core_code_alloc_size);
 
 	if (err)
 		goto err_free_fw_core_data_obj;
@@ -840,15 +840,15 @@ pvr_fw_init(struct pvr_device *pvr_dev)
 	int err;
 
 	if (fw_dev->processor_type == PVR_FW_PROCESSOR_TYPE_META) {
-		fw_dev->funcs = &pvr_fw_funcs_meta;
+		fw_dev->defs = &pvr_fw_defs_meta;
 	} else if (fw_dev->processor_type == PVR_FW_PROCESSOR_TYPE_MIPS) {
-		fw_dev->funcs = &pvr_fw_funcs_mips;
+		fw_dev->defs = &pvr_fw_defs_mips;
 	} else {
 		err = -EINVAL;
 		goto err_out;
 	}
 
-	err = fw_dev->funcs->init(pvr_dev);
+	err = fw_dev->defs->init(pvr_dev);
 	if (err)
 		goto err_out;
 
@@ -925,8 +925,8 @@ err_fw_cleanup:
 err_mm_takedown:
 	drm_mm_takedown(&fw_dev->fw_mm);
 
-	if (fw_dev->funcs->fini)
-		fw_dev->funcs->fini(pvr_dev);
+	if (fw_dev->defs->fini)
+		fw_dev->defs->fini(pvr_dev);
 
 err_out:
 	return err;
@@ -957,8 +957,8 @@ pvr_fw_fini(struct pvr_device *pvr_dev)
 
 	drm_mm_takedown(&fw_dev->fw_mm);
 
-	if (fw_dev->funcs->fini)
-		fw_dev->funcs->fini(pvr_dev);
+	if (fw_dev->defs->fini)
+		fw_dev->defs->fini(pvr_dev);
 }
 
 /**
@@ -1142,7 +1142,7 @@ pvr_fw_object_fw_map(struct pvr_device *pvr_dev, struct pvr_fw_object *fw_obj, u
 	spin_unlock(&fw_dev->fw_mm_lock);
 
 	/* Map object on GPU. */
-	err = fw_dev->funcs->vm_map(pvr_dev, fw_obj);
+	err = fw_dev->defs->vm_map(pvr_dev, fw_obj);
 	if (err)
 		goto err_remove_node;
 
@@ -1180,7 +1180,7 @@ pvr_fw_object_fw_unmap(struct pvr_fw_object *fw_obj)
 	struct pvr_fw_device *fw_dev = &pvr_dev->fw_dev;
 	int err;
 
-	fw_dev->funcs->vm_unmap(pvr_dev, fw_obj);
+	fw_dev->defs->vm_unmap(pvr_dev, fw_obj);
 
 	spin_lock(&fw_dev->fw_mm_lock);
 
@@ -1383,5 +1383,5 @@ void pvr_fw_object_get_fw_addr_offset(struct pvr_fw_object *fw_obj, u32 offset, 
 	struct pvr_gem_object *pvr_obj = fw_obj->gem;
 	struct pvr_device *pvr_dev = to_pvr_device(gem_from_pvr_gem(pvr_obj)->dev);
 
-	*fw_addr_out = pvr_dev->fw_dev.funcs->get_fw_addr_with_offset(fw_obj, offset);
+	*fw_addr_out = pvr_dev->fw_dev.defs->get_fw_addr_with_offset(fw_obj, offset);
 }

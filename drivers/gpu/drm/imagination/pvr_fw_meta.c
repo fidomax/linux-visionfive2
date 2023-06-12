@@ -597,7 +597,7 @@ pvr_meta_has_fixed_data_addr(void)
 	return false;
 }
 
-const struct pvr_fw_funcs pvr_fw_funcs_meta = {
+const struct pvr_fw_defs pvr_fw_defs_meta = {
 	.init = pvr_meta_init,
 	.fw_process = pvr_meta_fw_process,
 	.vm_map = pvr_meta_vm_map,
