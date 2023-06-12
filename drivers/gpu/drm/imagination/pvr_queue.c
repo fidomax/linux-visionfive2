@@ -632,7 +632,7 @@ static struct dma_fence *pvr_queue_run_job(struct drm_sched_job *sched_job)
 
 /**
  * pvr_queue_timedout_job() - Handle a job timeout event.
- * @sched_job: The job this timeout occurred on.
+ * @s_job: The job this timeout occurred on.
  *
  * FIXME: We don't do anything here to unblock the situation, we just stop+start
  * the scheduler, and re-assign parent fences in the middle.
@@ -699,6 +699,7 @@ pvr_queue_timedout_job(struct drm_sched_job *s_job)
 
 /**
  * pvr_queue_free_job() - Release the reference the scheduler had on a job object.
+ * @sched_job: The job to free.
  */
 static void pvr_queue_free_job(struct drm_sched_job *sched_job)
 {
@@ -948,6 +949,7 @@ static void init_fw_context(struct pvr_queue *queue, void *fw_ctx_map)
 
 /**
  * pvr_queue_cleanup_fw_context() - Wait for the FW context to be idle and clean it up.
+ * @queue: Queue on the context to clean up.
  *
  * Return:
  *  * 0 on success,
@@ -1039,6 +1041,7 @@ void pvr_queue_job_cleanup(struct pvr_job *job)
 
 /**
  * pvr_queue_job_push() - Push a job to its queue.
+ * @job: The job to push.
  *
  * Must be called after pvr_queue_job_init() and after all dependencies
  * have been added to the job. This will effectively queue the job to
