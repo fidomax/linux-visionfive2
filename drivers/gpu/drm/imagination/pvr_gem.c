@@ -180,8 +180,6 @@ pvr_gem_object_from_handle(struct pvr_file *pvr_file, u32 handle)
  * pvr_gem_object_vmap() - Map a PowerVR GEM object into CPU virtual address
  * space.
  * @pvr_obj: Target PowerVR GEM object.
- * @sync_to_cpu: Specifies whether the buffer should be synced to the CPU
- * immediately after mapping.
  *
  * Once the caller is finished with the CPU mapping, they must call
  * pvr_gem_object_vunmap() on @pvr_obj.
