@@ -22,6 +22,7 @@
 #include <linux/gfp.h>
 #include <linux/highmem.h>
 #include <linux/kernel.h>
+#include <linux/kmemleak.h>
 #include <linux/kref.h>
 #include <linux/mutex.h>
 #include <linux/scatterlist.h>
@@ -213,6 +214,7 @@ pvr_vm_backing_page_init(struct pvr_vm_backing_page *page,
 	page->host_ptr = host_ptr;
 	page->pvr_dev = pvr_dev;
 	page->raw_page = raw_page;
+	kmemleak_alloc(page->host_ptr, PAGE_SIZE, 1, GFP_KERNEL);
 
 	return 0;
 
@@ -253,6 +255,7 @@ pvr_vm_backing_page_fini(struct pvr_vm_backing_page *page)
 	dma_unmap_page(dev, page->dma_addr, PVR_VM_BACKING_PAGE_SIZE,
 		       DMA_TO_DEVICE);
 
+	kmemleak_free(page->host_ptr);
 	vunmap(page->host_ptr);
 
 	__free_page(page->raw_page);
