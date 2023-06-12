@@ -55,7 +55,7 @@ free_list_create_kernel_structure(struct pvr_file *pvr_file,
 	u64 free_list_size;
 	int err;
 
-	if (args->grow_threshold < 0 || args->grow_threshold > 100 ||
+	if (args->grow_threshold > 100 ||
 	    args->initial_num_pages > args->max_num_pages ||
 	    args->grow_num_pages > args->max_num_pages ||
 	    args->max_num_pages == 0 ||
