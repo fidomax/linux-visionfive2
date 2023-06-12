@@ -53,7 +53,7 @@ pvr_fw_find_layout_entry(const struct pvr_fw_layout_entry *layout_entries, u32 n
 	return NULL;
 }
 
-const struct pvr_fw_layout_entry *
+static const struct pvr_fw_layout_entry *
 pvr_fw_find_private_data(const struct pvr_fw_layout_entry *layout_entries, u32 num_layout_entries)
 {
 	u32 entry;

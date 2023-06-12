@@ -458,7 +458,7 @@ err_free:
 	return ERR_PTR(err);
 }
 
-void
+static void
 pvr_free_list_release(struct kref *ref_count)
 {
 	struct pvr_free_list *free_list =
