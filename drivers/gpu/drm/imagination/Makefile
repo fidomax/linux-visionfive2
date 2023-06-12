@@ -19,6 +19,7 @@ powervr-y := \
 	pvr_fw_trace.o \
 	pvr_gem.o \
 	pvr_hwrt.o \
+	pvr_mmu.o \
 	pvr_job.o \
 	pvr_params.o \
 	pvr_power.o \

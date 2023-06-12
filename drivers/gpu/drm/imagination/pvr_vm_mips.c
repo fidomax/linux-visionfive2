@@ -4,6 +4,7 @@
 #include "pvr_device.h"
 #include "pvr_fw_mips.h"
 #include "pvr_gem.h"
+#include "pvr_mmu.h"
 #include "pvr_rogue_mips.h"
 #include "pvr_vm_mips.h"
 
@@ -181,7 +182,7 @@ pvr_vm_mips_map(struct pvr_device *pvr_dev, struct pvr_fw_object *fw_obj)
 		WRITE_ONCE(mips_data->pt[pfn], pte);
 	}
 
-	pvr_vm_mmu_flush(pvr_dev);
+	pvr_mmu_flush(pvr_dev);
 
 	return 0;
 
@@ -189,7 +190,7 @@ err_unmap_pages:
 	for (; pfn >= start_pfn; pfn--)
 		WRITE_ONCE(mips_data->pt[pfn], 0);
 
-	pvr_vm_mmu_flush(pvr_dev);
+	pvr_mmu_flush(pvr_dev);
 
 err_out:
 	return err;
@@ -217,5 +218,5 @@ pvr_vm_mips_unmap(struct pvr_device *pvr_dev, struct pvr_fw_object *fw_obj)
 	for (pfn = start_pfn; pfn < end_pfn; pfn++)
 		WRITE_ONCE(mips_data->pt[pfn], 0);
 
-	pvr_vm_mmu_flush(pvr_dev);
+	pvr_mmu_flush(pvr_dev);
 }
