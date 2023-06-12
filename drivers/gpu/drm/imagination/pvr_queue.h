@@ -4,6 +4,8 @@
 #ifndef PVR_QUEUE_H
 #define PVR_QUEUE_H
 
+#include <drm/gpu_scheduler.h>
+
 #include "pvr_cccb.h"
 #include "pvr_device.h"
 
