@@ -993,7 +993,7 @@ int pvr_fw_mem_context_create(struct pvr_device *pvr_dev, struct pvr_vm_context 
 			      struct pvr_fw_object **fw_mem_ctx_obj_out)
 {
 	struct rogue_fwif_fwmemcontext *fw_mem_ctx;
-	struct pvr_fw_object *fw_mem_ctx_obj;
+	struct pvr_fw_object *fw_mem_ctx_obj = NULL;
 	int err;
 
 	fw_mem_ctx = pvr_fw_object_create_and_map(pvr_dev, sizeof(*fw_mem_ctx),
