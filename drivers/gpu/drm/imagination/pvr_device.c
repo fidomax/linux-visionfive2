@@ -290,7 +290,7 @@ pvr_device_irq_init(struct pvr_device *pvr_dev)
 		goto err_destroy_wq;
 	}
 
-	err = request_irq(pvr_dev->irq, pvr_device_irq_handler, IRQF_SHARED, NULL, pvr_dev);
+	err = request_irq(pvr_dev->irq, pvr_device_irq_handler, IRQF_SHARED, "gpu", pvr_dev);
 	if (err)
 		goto err_destroy_wq;
 
