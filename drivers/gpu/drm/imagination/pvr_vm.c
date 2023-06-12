@@ -197,12 +197,16 @@ pvr_vm_backing_page_init(struct pvr_vm_backing_page *page,
 	}
 
 	host_ptr = vmap(&raw_page, 1, VM_MAP, pgprot_writecombine(PAGE_KERNEL));
+	if (!host_ptr) {
+		err = -ENOMEM;
+		goto err_free_page;
+	}
 
 	dma_addr = dma_map_page(dev, raw_page, 0, PVR_VM_BACKING_PAGE_SIZE,
 				DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, dma_addr)) {
 		err = -ENOMEM;
-		goto err_unmap_free_page;
+		goto err_unmap_page;
 	}
 
 	page->dma_addr = dma_addr;
@@ -212,8 +216,10 @@ pvr_vm_backing_page_init(struct pvr_vm_backing_page *page,
 
 	return 0;
 
-err_unmap_free_page:
+err_unmap_page:
 	vunmap(host_ptr);
+
+err_free_page:
 	__free_page(raw_page);
 
 err_out:
