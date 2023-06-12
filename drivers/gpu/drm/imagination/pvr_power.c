@@ -21,8 +21,6 @@
 
 #define POWER_SYNC_TIMEOUT_US (1000000) /* 1s */
 
-#define POWER_IDLE_DELAY_JIFFIES (1)
-
 #define WATCHDOG_TIME_MS (500)
 
 static void
