@@ -8,7 +8,7 @@
 
 #include <linux/types.h>
 
-const struct pvr_device_features pvr_device_4_V_2_51 = {
+static const struct pvr_device_features pvr_device_4_V_2_51 = {
 	.has_cdm_control_stream_format = true,
 	.has_cluster_grouping = true,
 	.has_common_store_size_in_dwords = true,
@@ -52,7 +52,7 @@ const struct pvr_device_features pvr_device_4_V_2_51 = {
 	.virtual_address_space_bits = 40,
 };
 
-const struct pvr_device_quirks pvr_device_quirks_4_40_2_51 = {
+static const struct pvr_device_quirks pvr_device_quirks_4_40_2_51 = {
 	.has_brn44079 = true,
 	.has_brn48492 = true,
 	.has_brn48545 = true,
@@ -64,14 +64,14 @@ const struct pvr_device_quirks pvr_device_quirks_4_40_2_51 = {
 	.has_brn66011 = true,
 };
 
-struct pvr_device_enhancements pvr_device_enhancements_4_40_2_51 = {
+static const struct pvr_device_enhancements pvr_device_enhancements_4_40_2_51 = {
 	.has_ern35421 = true,
 	.has_ern38020 = true,
 	.has_ern38748 = true,
 	.has_ern42064 = true,
 };
 
-const struct pvr_device_features pvr_device_33_V_11_3 = {
+static const struct pvr_device_features pvr_device_33_V_11_3 = {
 	.has_cdm_control_stream_format = true,
 	.has_common_store_size_in_dwords = true,
 	.has_compute = true,
@@ -111,16 +111,16 @@ const struct pvr_device_features pvr_device_33_V_11_3 = {
 	.virtual_address_space_bits = 40,
 };
 
-const struct pvr_device_quirks pvr_device_quirks_33_15_11_3 = {
+static const struct pvr_device_quirks pvr_device_quirks_33_15_11_3 = {
 	.has_brn63553 = true,
 };
 
-struct pvr_device_enhancements pvr_device_enhancements_33_15_11_3 = {
+static const struct pvr_device_enhancements pvr_device_enhancements_33_15_11_3 = {
 	.has_ern35421 = true,
 	.has_ern38748 = true,
 };
 
-const struct pvr_device_features pvr_device_36_V_104_796 = {
+static const struct pvr_device_features pvr_device_36_V_104_796 = {
 	.has_cdm_control_stream_format = true,
 	.has_common_store_size_in_dwords = true,
 	.has_compute = true,
@@ -167,11 +167,11 @@ const struct pvr_device_features pvr_device_36_V_104_796 = {
 	.xpu_max_slaves = 3,
 };
 
-const struct pvr_device_quirks pvr_device_quirks_36_53_104_796 = {
+static const struct pvr_device_quirks pvr_device_quirks_36_53_104_796 = {
 	.has_brn44079 = true,
 };
 
-struct pvr_device_enhancements pvr_device_enhancements_36_53_104_796 = {
+static const struct pvr_device_enhancements pvr_device_enhancements_36_53_104_796 = {
 	.has_ern35421 = true,
 	.has_ern38748 = true,
 };
