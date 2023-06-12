@@ -686,7 +686,7 @@ pvr_queue_timedout_job(struct drm_sched_job *s_job)
 		list_move_tail(&queue->node, &pvr_dev->queues.idle);
 	} else {
 		list_move_tail(&queue->node, &pvr_dev->queues.active);
-		queue_work(pvr_dev->irq_wq, &pvr_dev->queues.work);
+		pvr_queue_process(queue);
 	}
 	mutex_unlock(&pvr_dev->queues.lock);
 
@@ -846,40 +846,18 @@ out_unlock:
 }
 
 /**
- * pvr_queue_process_worker() - Process all queue related events
- * @work: Work object attached to this function.
+ * pvr_queue_process() - Process events that happened on a queue.
+ * @queue: Queue to check
  *
- * This worker is called any time we receive a FW event. It iterates over all
- * active queues (those with in flight jobs) and signal done_fences on completed
- * jobs.
- *
- * If we have a job that was waiting for ring buffer space, we check if it can
- * now fit.
- *
- * If the queue has no jobs left after we've collected done jobs, we remove the
- * queue from the active list.
+ * Signal job fences and check if jobs waiting for CCCB space can be unblocked.
  */
-static void pvr_queue_process_worker(struct work_struct *work)
+void pvr_queue_process(struct pvr_queue *queue)
 {
-	struct pvr_device *pvr_dev = container_of(work, struct pvr_device, queues.work);
-	struct pvr_queue *queue, *tmp_queue;
-	LIST_HEAD(active_queues);
+	lockdep_assert_held(&queue->ctx->pvr_dev->queues.lock);
 
-	mutex_lock(&pvr_dev->queues.lock);
-
-	/* Move all active queues to a temporary list. Queues that remain
-	 * active after we're done processing them are re-inserted to
-	 * the queues.active list by pvr_queue_update_active_state_locked().
-	 */
-	list_splice_init(&pvr_dev->queues.active, &active_queues);
-
-	list_for_each_entry_safe(queue, tmp_queue, &active_queues, node) {
-		pvr_queue_check_job_waiting_for_cccb_space(queue);
-		pvr_queue_signal_done_fences(queue);
-
-		pvr_queue_update_active_state_locked(queue);
-	}
-	mutex_unlock(&pvr_dev->queues.lock);
+	pvr_queue_check_job_waiting_for_cccb_space(queue);
+	pvr_queue_signal_done_fences(queue);
+	pvr_queue_update_active_state_locked(queue);
 }
 
 static u32 get_dm_type(struct pvr_queue *queue)
@@ -1273,7 +1251,6 @@ int pvr_queue_device_init(struct pvr_device *pvr_dev)
 {
 	int err;
 
-	INIT_WORK(&pvr_dev->queues.work, pvr_queue_process_worker);
 	INIT_LIST_HEAD(&pvr_dev->queues.active);
 	INIT_LIST_HEAD(&pvr_dev->queues.idle);
 	err = drmm_mutex_init(from_pvr_device(pvr_dev), &pvr_dev->queues.lock);

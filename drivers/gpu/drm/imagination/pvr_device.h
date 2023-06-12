@@ -145,17 +145,11 @@ struct pvr_device {
 	/** @irq: IRQ number. */
 	int irq;
 
-	/** @irq_wq: Workqueue for actions triggered off the IRQ handler. */
-	struct workqueue_struct *irq_wq;
-
 	/** @vendor: Vendor specific device data. */
 	struct pvr_vendor vendor;
 
 	/** @fwccb: Firmware CCB. */
 	struct pvr_ccb fwccb;
-
-	/** @fwccb_work: Work item for FWCCB processing. */
-	struct work_struct fwccb_work;
 
 	/**
 	 * @kernel_vm_ctx: Virtual memory context used for kernel mappings.
@@ -216,9 +210,6 @@ struct pvr_device {
 
 		/** @lock: Lock protecting access to the active/idle lists. */
 		struct mutex lock;
-
-		/** @work: Work item for active queue processing. */
-		struct work_struct work;
 	} queues;
 
 	struct {
@@ -253,9 +244,6 @@ struct pvr_device {
 
 		/** @reserved_count: Number of KCCB slots reserved for future use. */
 		u32 reserved_count;
-
-		/** @work: Work item for KCCB processing. */
-		struct work_struct work;
 
 		/**
 		 * @waiters: List of KCCB slot waiters.

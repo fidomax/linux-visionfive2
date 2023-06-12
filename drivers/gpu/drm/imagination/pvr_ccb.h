@@ -42,6 +42,8 @@ void pvr_kccb_fini(struct pvr_device *pvr_dev);
 int pvr_fwccb_init(struct pvr_device *pvr_dev);
 void pvr_ccb_fini(struct pvr_ccb *ccb);
 
+void pvr_fwccb_process(struct pvr_device *pvr_dev);
+
 struct dma_fence *pvr_kccb_fence_alloc(void);
 void pvr_kccb_fence_put(struct dma_fence *fence);
 struct dma_fence *
@@ -58,5 +60,6 @@ void pvr_kccb_send_cmd_reserved_powered(struct pvr_device *pvr_dev,
 int pvr_kccb_wait_for_completion(struct pvr_device *pvr_dev, u32 slot_nr, u32 timeout,
 				 u32 *rtn_out);
 bool pvr_kccb_is_idle(struct pvr_device *pvr_dev);
+void pvr_kccb_wake_up_waiters(struct pvr_device *pvr_dev);
 
 #endif /* PVR_CCB_H */

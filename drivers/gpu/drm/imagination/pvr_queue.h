@@ -153,6 +153,8 @@ void pvr_queue_kill(struct pvr_queue *queue);
 
 void pvr_queue_destroy(struct pvr_queue *queue);
 
+void pvr_queue_process(struct pvr_queue *queue);
+
 int pvr_queue_device_init(struct pvr_device *pvr_dev);
 
 void pvr_queue_device_fini(struct pvr_device *pvr_dev);
