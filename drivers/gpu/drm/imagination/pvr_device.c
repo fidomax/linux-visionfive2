@@ -599,7 +599,7 @@ pvr_device_init(struct pvr_device *pvr_dev)
 		goto err_device_clk_fini;
 
 	/* Explicitly power the GPU so we can access control registers before the FW is booted. */
-	err = pm_runtime_get_sync(dev);
+	err = pm_runtime_resume_and_get(dev);
 	if (err)
 		goto err_device_clk_fini;
 
