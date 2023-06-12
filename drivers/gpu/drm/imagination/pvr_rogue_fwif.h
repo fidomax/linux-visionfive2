@@ -242,11 +242,11 @@ enum rogue_fwif_connection_os_state {
 };
 
 struct rogue_fwif_os_runtime_flags {
-	int os_state : 3;
-	int fl_ok : 1;
-	int fl_grow_pending : 1;
-	int isolated_os : 1;
-	int reserved : 26;
+	unsigned int os_state : 3;
+	unsigned int fl_ok : 1;
+	unsigned int fl_grow_pending : 1;
+	unsigned int isolated_os : 1;
+	unsigned int reserved : 26;
 };
 
 #define PVR_SLR_LOG_ENTRIES 10
