@@ -474,64 +474,20 @@ static bool drm_sched_entity_add_dependency_cb(struct drm_sched_entity *entity)
 	return false;
 }
 
-/**
- * dep_is_native - indicates that native dependencies are supported and that the
- * dependency at @index is marked.
- * @job: Scheduler job.
- * @index: Index into the @job->dependencies xarray.
- *
- * Must only be used after calling drm_sched_job_arm().
- *
- * Returns true if both these conditions are met.
- */
-static bool dep_is_native(struct drm_sched_job *job, unsigned long index)
-{
-	return job->sched->ops->dependency_is_native &&
-	       xa_get_mark(&job->dependencies, job->last_dependency, XA_MARK_0);
-}
-
 static struct dma_fence *
-drm_sched_job_dependency(struct drm_sched_job *job, struct drm_sched_entity *entity)
+drm_sched_job_dependency(struct drm_sched_job *job,
+			 struct drm_sched_entity *entity)
 {
-	unsigned long dep_index;
 	struct dma_fence *f;
 
-	if (!dep_is_native(job, job->last_dependency)) {
-		/* We keep the fence around, so we can iterate over all dependencies
-		 * in drm_sched_entity_kill_jobs_cb() to ensure all deps are signaled
-		 * before killing the job.
-		 */
-		f = xa_load(&job->dependencies, job->last_dependency);
-		if (f) {
-			job->last_dependency++;
-			return dma_fence_get(f);
-		}
-	}
-
-	xa_for_each_start(&job->dependencies, dep_index, f,
-			  job->last_dependency) {
-		/*
-		 * Encountered first native dependency. Since these were
-		 * previously sorted to the end of the array in
-		 * drm_sched_sort_native_deps(), all remaining entries
-		 * will be native too, so we can just iterate through
-		 * them.
-		 *
-		 * Native entries cannot be erased, as they need to be
-		 * accessed by the driver's native scheduler.
-		 *
-		 * If the native fence is a drm_sched_fence object, we
-		 * ensure the job has been submitted so drm_sched_fence
-		 * ::parent points to a valid dma_fence object.
-		 */
-		struct drm_sched_fence *s_fence = to_drm_sched_fence(f);
-		struct dma_fence *scheduled_fence =
-			s_fence ? dma_fence_get_rcu(&s_fence->scheduled) : NULL;
-
-		job->last_dependency = dep_index + 1;
-
-		if (scheduled_fence)
-			return scheduled_fence;
+	/* We keep the fence around, so we can iterate over all dependencies
+	 * in drm_sched_entity_kill_jobs_cb() to ensure all deps are signaled
+	 * before killing the job.
+	 */
+	f = xa_load(&job->dependencies, job->last_dependency);
+	if (f) {
+		job->last_dependency++;
+		return dma_fence_get(f);
 	}
 
 	if (job->sched->ops->prepare_job)
