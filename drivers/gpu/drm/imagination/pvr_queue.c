@@ -631,6 +631,17 @@ static void pvr_queue_submit_job_to_cccb(struct pvr_job *job)
 						   sizeof(ufos[0]) * ufo_count, ufos, 0, 0);
 	}
 
+	if (job->type == DRM_PVR_JOB_TYPE_GEOMETRY && job->paired_job) {
+		struct rogue_fwif_cmd_geom *cmd = job->cmd;
+
+		/* Reference value for the partial render test is the current queue fence
+		 * seqno minus one.
+		 */
+		pvr_fw_object_get_fw_addr(queue->timeline_ufo.fw_obj,
+					  &cmd->partial_render_geom_frag_fence.addr);
+		cmd->partial_render_geom_frag_fence.value = job->done_fence->seqno - 1;
+	}
+
 	/* Submit job to FW */
 	pvr_cccb_write_command_with_header(cccb, job->fw_ccb_cmd_type, job->cmd_len, job->cmd,
 					   job->id, job->id);
