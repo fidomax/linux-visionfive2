@@ -863,9 +863,17 @@ static void pvr_queue_process_worker(struct work_struct *work)
 {
 	struct pvr_device *pvr_dev = container_of(work, struct pvr_device, queues.work);
 	struct pvr_queue *queue, *tmp_queue;
+	LIST_HEAD(active_queues);
 
 	mutex_lock(&pvr_dev->queues.lock);
-	list_for_each_entry_safe(queue, tmp_queue, &pvr_dev->queues.active, node) {
+
+	/* Move all active queues to a temporary list. Queues that remain
+	 * active after we're done processing them are re-inserted to
+	 * the queues.active list by pvr_queue_update_active_state_locked().
+	 */
+	list_splice_init(&pvr_dev->queues.active, &active_queues);
+
+	list_for_each_entry_safe(queue, tmp_queue, &active_queues, node) {
 		pvr_queue_check_job_waiting_for_cccb_space(queue);
 		pvr_queue_signal_done_fences(queue);
 
