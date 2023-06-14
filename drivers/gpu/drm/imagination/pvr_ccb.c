@@ -139,6 +139,10 @@ process_fwccb_command(struct pvr_device *pvr_dev, struct rogue_fwif_fwccb_cmd *c
 					       &cmd->cmd_data.cmd_context_reset_notification);
 		break;
 
+	case ROGUE_FWIF_FWCCB_CMD_FREELIST_GROW:
+		pvr_free_list_process_grow_req(pvr_dev, &cmd->cmd_data.cmd_free_list_gs);
+		break;
+
 	default:
 		drm_info(from_pvr_device(pvr_dev), "Received unknown FWCCB command %x\n",
 			 cmd->cmd_type);

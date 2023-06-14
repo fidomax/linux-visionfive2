@@ -381,6 +381,40 @@ err_unlock:
 	return err;
 }
 
+void pvr_free_list_process_grow_req(struct pvr_device *pvr_dev,
+				    struct rogue_fwif_fwccb_cmd_freelist_gs_data *req)
+{
+	struct pvr_free_list *free_list = pvr_free_list_lookup_id(pvr_dev, req->freelist_id);
+	struct rogue_fwif_kccb_cmd resp_cmd = {
+		.cmd_type = ROGUE_FWIF_KCCB_CMD_FREELIST_GROW_UPDATE,
+	};
+	struct rogue_fwif_freelist_gs_data *resp = &resp_cmd.cmd_data.free_list_gs_data;
+	u32 grow_pages = 0;
+
+	/* If we don't have a freelist registered for this ID, we can't do much. */
+	if (WARN_ON(!free_list))
+		return;
+
+	/* Since the FW made the request, it has already consumed the ready pages,
+	 * update the host struct.
+	 */
+	free_list->current_pages += free_list->ready_pages;
+	free_list->ready_pages = 0;
+
+	/* If the grow succeeds, update the grow_pages argument. */
+	if (!pvr_free_list_grow(free_list, free_list->grow_pages))
+		grow_pages = free_list->grow_pages;
+
+	/* Now prepare the response and send it back to the FW. */
+	pvr_fw_object_get_fw_addr(free_list->fw_obj, &resp->freelist_fw_addr);
+	resp->delta_pages = grow_pages;
+	resp->new_pages = free_list->current_pages + free_list->ready_pages;
+	resp->ready_pages = free_list->ready_pages;
+	pvr_free_list_put(free_list);
+
+	WARN_ON(pvr_kccb_send_cmd(pvr_dev, &resp_cmd, NULL));
+}
+
 static void
 pvr_free_list_free_node(struct pvr_free_list_node *free_list_node)
 {

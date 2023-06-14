@@ -179,6 +179,9 @@ pvr_free_list_add_hwrt(struct pvr_free_list *free_list, struct pvr_hwrt_data *hw
 void
 pvr_free_list_remove_hwrt(struct pvr_free_list *free_list, struct pvr_hwrt_data *hwrt_data);
 
+void pvr_free_list_process_grow_req(struct pvr_device *pvr_dev,
+				    struct rogue_fwif_fwccb_cmd_freelist_gs_data *req);
+
 void
 pvr_free_list_process_reconstruct_req(struct pvr_device *pvr_dev,
 				struct rogue_fwif_fwccb_cmd_freelists_reconstruction_data *req);
