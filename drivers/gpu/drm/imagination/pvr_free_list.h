@@ -180,6 +180,7 @@ void
 pvr_free_list_remove_hwrt(struct pvr_free_list *free_list, struct pvr_hwrt_data *hwrt_data);
 
 void
-pvr_free_list_reconstruct(struct pvr_device *pvr_dev, u32 freelist_id);
+pvr_free_list_process_reconstruct_req(struct pvr_device *pvr_dev,
+				struct rogue_fwif_fwccb_cmd_freelists_reconstruction_data *req);
 
 #endif /* PVR_FREE_LIST_H */

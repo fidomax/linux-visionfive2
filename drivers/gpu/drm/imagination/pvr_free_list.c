@@ -535,7 +535,7 @@ void pvr_free_list_remove_hwrt(struct pvr_free_list *free_list, struct pvr_hwrt_
 	mutex_unlock(&free_list->lock);
 }
 
-void
+static void
 pvr_free_list_reconstruct(struct pvr_device *pvr_dev, u32 freelist_id)
 {
 	struct pvr_free_list *free_list = pvr_free_list_lookup_id(pvr_dev, freelist_id);
@@ -574,4 +574,24 @@ pvr_free_list_reconstruct(struct pvr_device *pvr_dev, u32 freelist_id)
 	mutex_unlock(&free_list->lock);
 
 	pvr_free_list_put(free_list);
+}
+
+void
+pvr_free_list_process_reconstruct_req(struct pvr_device *pvr_dev,
+				struct rogue_fwif_fwccb_cmd_freelists_reconstruction_data *req)
+{
+	struct rogue_fwif_kccb_cmd resp_cmd = {
+		.cmd_type = ROGUE_FWIF_KCCB_CMD_FREELISTS_RECONSTRUCTION_UPDATE,
+	};
+	struct rogue_fwif_freelists_reconstruction_data *resp =
+		&resp_cmd.cmd_data.free_lists_reconstruction_data;
+
+	for (u32 i = 0; i < req->freelist_count; i++)
+		pvr_free_list_reconstruct(pvr_dev, req->freelist_ids[i]);
+
+	resp->freelist_count = req->freelist_count;
+	memcpy(resp->freelist_ids, req->freelist_ids,
+	       req->freelist_count * sizeof(resp->freelist_ids[0]));
+
+	WARN_ON(pvr_kccb_send_cmd(pvr_dev, &resp_cmd, NULL));
 }
