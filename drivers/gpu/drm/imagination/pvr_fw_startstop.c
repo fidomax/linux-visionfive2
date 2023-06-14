@@ -29,7 +29,7 @@ rogue_axi_ace_list_init(struct pvr_device *pvr_dev)
 		(2U << ROGUE_CR_AXI_ACE_LITE_CONFIGURATION_ARCACHE_COHERENT_SHIFT) |
 		(2U << ROGUE_CR_AXI_ACE_LITE_CONFIGURATION_ARCACHE_CACHE_MAINTENANCE_SHIFT);
 
-	PVR_CR_WRITE64(pvr_dev, AXI_ACE_LITE_CONFIGURATION, reg_val);
+	pvr_cr_write64(pvr_dev, ROGUE_CR_AXI_ACE_LITE_CONFIGURATION, reg_val);
 }
 
 static void
@@ -64,7 +64,7 @@ rogue_slc_init(struct pvr_device *pvr_dev)
 	 *       leaving the top 32bits (ROGUE_CR_SLC_CTRL_MISC_SCRAMBLE_BITS)
 	 *       unchanged from the HW default.
 	 */
-	reg_val = (PVR_CR_READ32(pvr_dev, SLC_CTRL_MISC) &
+	reg_val = (pvr_cr_read32(pvr_dev, ROGUE_CR_SLC_CTRL_MISC) &
 		      ROGUE_CR_SLC_CTRL_MISC_ENABLE_PSG_HAZARD_CHECK_EN) |
 		     ROGUE_CR_SLC_CTRL_MISC_ADDR_DECODE_MODE_PVR_HASH1;
 
@@ -76,7 +76,7 @@ rogue_slc_init(struct pvr_device *pvr_dev)
 	if (slc_cache_line_size_in_bits < 1024)
 		reg_val |= ROGUE_CR_SLC_CTRL_MISC_BYPASS_BURST_COMBINER_EN;
 
-	PVR_CR_WRITE32(pvr_dev, SLC_CTRL_MISC, reg_val);
+	pvr_cr_write32(pvr_dev, ROGUE_CR_SLC_CTRL_MISC, reg_val);
 
 	return 0;
 }
@@ -99,27 +99,27 @@ pvr_fw_start(struct pvr_device *pvr_dev)
 		 * Disable the default sys_bus_secure protection to perform
 		 * minimal setup.
 		 */
-		PVR_CR_WRITE32(pvr_dev, SYS_BUS_SECURE, 0);
-		(void)PVR_CR_READ32(pvr_dev, SYS_BUS_SECURE); /* Fence write */
+		pvr_cr_write32(pvr_dev, ROGUE_CR_SYS_BUS_SECURE, 0);
+		(void)pvr_cr_read32(pvr_dev, ROGUE_CR_SYS_BUS_SECURE); /* Fence write */
 	}
 
 	/* Set Rogue in soft-reset. */
-	PVR_CR_WRITE64(pvr_dev, SOFT_RESET, ROGUE_CR_SOFT_RESET_MASKFULL);
+	pvr_cr_write64(pvr_dev, ROGUE_CR_SOFT_RESET, ROGUE_CR_SOFT_RESET_MASKFULL);
 
 	/* Read soft-reset to fence previous write in order to clear the SOCIF pipeline. */
-	(void)PVR_CR_READ64(pvr_dev, SOFT_RESET);
+	(void)pvr_cr_read64(pvr_dev, ROGUE_CR_SOFT_RESET);
 
 	/* Take Rascal and Dust out of reset. */
-	PVR_CR_WRITE64(pvr_dev, SOFT_RESET,
+	pvr_cr_write64(pvr_dev, ROGUE_CR_SOFT_RESET,
 		       ROGUE_CR_SOFT_RESET_MASKFULL ^
 			       ROGUE_CR_SOFT_RESET_RASCALDUSTS_EN);
 
-	(void)PVR_CR_READ64(pvr_dev, SOFT_RESET);
+	(void)pvr_cr_read64(pvr_dev, ROGUE_CR_SOFT_RESET);
 
 	/* Take everything out of reset but the FW processor. */
-	PVR_CR_WRITE64(pvr_dev, SOFT_RESET, ROGUE_CR_SOFT_RESET_GARTEN_EN);
+	pvr_cr_write64(pvr_dev, ROGUE_CR_SOFT_RESET, ROGUE_CR_SOFT_RESET_GARTEN_EN);
 
-	(void)PVR_CR_READ64(pvr_dev, SOFT_RESET);
+	(void)pvr_cr_read64(pvr_dev, ROGUE_CR_SOFT_RESET);
 
 	err = rogue_slc_init(pvr_dev);
 	if (err)
@@ -137,8 +137,8 @@ pvr_fw_start(struct pvr_device *pvr_dev)
 	/* Need to wait for at least 16 cycles before taking the FW processor out of reset ... */
 	udelay(3);
 
-	PVR_CR_WRITE64(pvr_dev, SOFT_RESET, 0x0);
-	(void)PVR_CR_READ64(pvr_dev, SOFT_RESET);
+	pvr_cr_write64(pvr_dev, ROGUE_CR_SOFT_RESET, 0x0);
+	(void)pvr_cr_read64(pvr_dev, ROGUE_CR_SOFT_RESET);
 
 	/* ... and afterwards. */
 	udelay(3);
@@ -147,7 +147,7 @@ pvr_fw_start(struct pvr_device *pvr_dev)
 
 err_reset:
 	/* Put everything back into soft-reset. */
-	PVR_CR_WRITE64(pvr_dev, SOFT_RESET, ROGUE_CR_SOFT_RESET_MASKFULL);
+	pvr_cr_write64(pvr_dev, ROGUE_CR_SOFT_RESET, ROGUE_CR_SOFT_RESET_MASKFULL);
 
 	return err;
 }
@@ -182,16 +182,16 @@ pvr_fw_stop(struct pvr_device *pvr_dev)
 		goto err_out;
 
 	/* Unset MTS DM association with threads. */
-	PVR_CR_WRITE32(pvr_dev, MTS_INTCTX_THREAD0_DM_ASSOC,
+	pvr_cr_write32(pvr_dev, ROGUE_CR_MTS_INTCTX_THREAD0_DM_ASSOC,
 		       ROGUE_CR_MTS_INTCTX_THREAD0_DM_ASSOC_MASKFULL &
 		       ROGUE_CR_MTS_INTCTX_THREAD0_DM_ASSOC_DM_ASSOC_CLRMSK);
-	PVR_CR_WRITE32(pvr_dev, MTS_BGCTX_THREAD0_DM_ASSOC,
+	pvr_cr_write32(pvr_dev, ROGUE_CR_MTS_BGCTX_THREAD0_DM_ASSOC,
 		       ROGUE_CR_MTS_BGCTX_THREAD0_DM_ASSOC_MASKFULL &
 		       ROGUE_CR_MTS_BGCTX_THREAD0_DM_ASSOC_DM_ASSOC_CLRMSK);
-	PVR_CR_WRITE32(pvr_dev, MTS_INTCTX_THREAD1_DM_ASSOC,
+	pvr_cr_write32(pvr_dev, ROGUE_CR_MTS_INTCTX_THREAD1_DM_ASSOC,
 		       ROGUE_CR_MTS_INTCTX_THREAD1_DM_ASSOC_MASKFULL &
 		       ROGUE_CR_MTS_INTCTX_THREAD1_DM_ASSOC_DM_ASSOC_CLRMSK);
-	PVR_CR_WRITE32(pvr_dev, MTS_BGCTX_THREAD1_DM_ASSOC,
+	pvr_cr_write32(pvr_dev, ROGUE_CR_MTS_BGCTX_THREAD1_DM_ASSOC,
 		       ROGUE_CR_MTS_BGCTX_THREAD1_DM_ASSOC_MASKFULL &
 		       ROGUE_CR_MTS_BGCTX_THREAD1_DM_ASSOC_DM_ASSOC_CLRMSK);
 

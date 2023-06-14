@@ -184,16 +184,16 @@ pvr_mips_wrapper_init(struct pvr_device *pvr_dev)
 	if (WARN_ON(phys_bus_width <= 32))
 		return -EINVAL;
 
-	PVR_CR_WRITE32(pvr_dev, MIPS_WRAPPER_CONFIG,
+	pvr_cr_write32(pvr_dev, ROGUE_CR_MIPS_WRAPPER_CONFIG,
 		       (ROGUE_MIPSFW_REGISTERS_VIRTUAL_BASE >>
 			ROGUE_MIPSFW_WRAPPER_CONFIG_REGBANK_ADDR_ALIGN) |
 		       ROGUE_CR_MIPS_WRAPPER_CONFIG_BOOT_ISA_MODE_MICROMIPS);
 
 	/* Configure remap for boot code, boot data and exceptions code areas. */
-	PVR_CR_WRITE64(pvr_dev, MIPS_ADDR_REMAP1_CONFIG1,
+	pvr_cr_write64(pvr_dev, ROGUE_CR_MIPS_ADDR_REMAP1_CONFIG1,
 		       ROGUE_MIPSFW_BOOT_REMAP_PHYS_ADDR_IN |
 		       ROGUE_CR_MIPS_ADDR_REMAP1_CONFIG1_MODE_ENABLE_EN);
-	PVR_CR_WRITE64(pvr_dev, MIPS_ADDR_REMAP1_CONFIG2,
+	pvr_cr_write64(pvr_dev, ROGUE_CR_MIPS_ADDR_REMAP1_CONFIG2,
 		       (mips_data->boot_code_dma_addr &
 			~ROGUE_CR_MIPS_ADDR_REMAP1_CONFIG2_ADDR_OUT_CLRMSK) | remap_settings);
 
@@ -204,34 +204,34 @@ pvr_mips_wrapper_init(struct pvr_device *pvr_dev)
 		 */
 		WARN_ON(phys_bus_width != 36);
 
-		PVR_CR_WRITE64(pvr_dev, MIPS_ADDR_REMAP5_CONFIG1,
+		pvr_cr_write64(pvr_dev, ROGUE_CR_MIPS_ADDR_REMAP5_CONFIG1,
 			       ROGUE_CR_MIPS_ADDR_REMAP5_CONFIG1_MODE_ENABLE_EN);
-		PVR_CR_WRITE64(pvr_dev, MIPS_ADDR_REMAP5_CONFIG2,
+		pvr_cr_write64(pvr_dev, ROGUE_CR_MIPS_ADDR_REMAP5_CONFIG2,
 			       (mips_data->boot_code_dma_addr &
 				~ROGUE_CR_MIPS_ADDR_REMAP5_CONFIG2_ADDR_OUT_CLRMSK) |
 			       remap_settings);
 	}
 
-	PVR_CR_WRITE64(pvr_dev, MIPS_ADDR_REMAP2_CONFIG1,
+	pvr_cr_write64(pvr_dev, ROGUE_CR_MIPS_ADDR_REMAP2_CONFIG1,
 		       ROGUE_MIPSFW_DATA_REMAP_PHYS_ADDR_IN |
 		       ROGUE_CR_MIPS_ADDR_REMAP2_CONFIG1_MODE_ENABLE_EN);
-	PVR_CR_WRITE64(pvr_dev, MIPS_ADDR_REMAP2_CONFIG2,
+	pvr_cr_write64(pvr_dev, ROGUE_CR_MIPS_ADDR_REMAP2_CONFIG2,
 		       (mips_data->boot_data_dma_addr &
 			~ROGUE_CR_MIPS_ADDR_REMAP2_CONFIG2_ADDR_OUT_CLRMSK) | remap_settings);
 
-	PVR_CR_WRITE64(pvr_dev, MIPS_ADDR_REMAP3_CONFIG1,
+	pvr_cr_write64(pvr_dev, ROGUE_CR_MIPS_ADDR_REMAP3_CONFIG1,
 		       ROGUE_MIPSFW_CODE_REMAP_PHYS_ADDR_IN |
 		       ROGUE_CR_MIPS_ADDR_REMAP3_CONFIG1_MODE_ENABLE_EN);
-	PVR_CR_WRITE64(pvr_dev, MIPS_ADDR_REMAP3_CONFIG2,
+	pvr_cr_write64(pvr_dev, ROGUE_CR_MIPS_ADDR_REMAP3_CONFIG2,
 		       (mips_data->exception_code_dma_addr &
 			~ROGUE_CR_MIPS_ADDR_REMAP3_CONFIG2_ADDR_OUT_CLRMSK) | remap_settings);
 
 	/* Garten IDLE bit controlled by MIPS. */
-	PVR_CR_WRITE64(pvr_dev, MTS_GARTEN_WRAPPER_CONFIG,
+	pvr_cr_write64(pvr_dev, ROGUE_CR_MTS_GARTEN_WRAPPER_CONFIG,
 		       ROGUE_CR_MTS_GARTEN_WRAPPER_CONFIG_IDLE_CTRL_META);
 
 	/* Turn on the EJTAG probe. */
-	PVR_CR_WRITE32(pvr_dev, MIPS_DEBUG_CONFIG, 0);
+	pvr_cr_write32(pvr_dev, ROGUE_CR_MIPS_DEBUG_CONFIG, 0);
 
 	return 0;
 }
@@ -249,13 +249,13 @@ pvr_mips_get_fw_addr_with_offset(struct pvr_fw_object *fw_obj, u32 offset)
 static bool
 pvr_mips_check_and_ack_irq(struct pvr_device *pvr_dev)
 {
-	u32 irq_status = PVR_CR_READ32(pvr_dev, MIPS_WRAPPER_IRQ_STATUS);
+	u32 irq_status = pvr_cr_read32(pvr_dev, ROGUE_CR_MIPS_WRAPPER_IRQ_STATUS);
 
 	if (!(irq_status & ROGUE_CR_MIPS_WRAPPER_IRQ_STATUS_EVENT_EN))
 		return false; /* Spurious IRQ - ignore. */
 
 	/* Acknowledge IRQ. */
-	PVR_CR_WRITE32(pvr_dev, MIPS_WRAPPER_IRQ_CLEAR,
+	pvr_cr_write32(pvr_dev, ROGUE_CR_MIPS_WRAPPER_IRQ_CLEAR,
 		       ROGUE_CR_MIPS_WRAPPER_IRQ_CLEAR_EVENT_EN);
 
 	return true;

@@ -529,58 +529,6 @@ bool
 pvr_device_has_feature(struct pvr_device *pvr_dev, u32 feature);
 
 /**
- * PVR_CR_READ32() - Read a 32-bit register from a PowerVR device
- * @pvr_dev: Target PowerVR device.
- * @reg: Target register.
- *
- * This macro is a wrapper around pvr_cr_read32(). It applies ROGUE_CR_ prefix
- * to the provided @reg name, making it behave comparably to the
- * PVR_CR_FIELD_GET() macro.
- *
- * Return: The value of the requested register.
- */
-#define PVR_CR_READ32(pvr_dev, reg) pvr_cr_read32(pvr_dev, ROGUE_CR_##reg)
-
-/**
- * PVR_CR_READ64() - Read a 64-bit register from a PowerVR device
- * @pvr_dev: Target PowerVR device.
- * @reg: Target register.
- *
- * This macro is a wrapper around pvr_cr_read64(). It applies ROGUE_CR_ prefix
- * to the provided @reg name, making it behave comparably to the
- * PVR_CR_FIELD_GET() macro.
- *
- * Return: The value of the requested register.
- */
-#define PVR_CR_READ64(pvr_dev, reg) pvr_cr_read64(pvr_dev, ROGUE_CR_##reg)
-
-/**
- * PVR_CR_WRITE32() - Write to a 32-bit register in a PowerVR device
- * @pvr_dev: Target PowerVR device.
- * @reg: Target register.
- * @val: Value to write.
- *
- * This macro is a wrapper around pvr_cr_write32(). It applies ROGUE_CR_
- * prefix to the provided @reg name, making it behave comparably to the
- * PVR_CR_FIELD_GET() macro.
- */
-#define PVR_CR_WRITE32(pvr_dev, reg, val) \
-	pvr_cr_write32(pvr_dev, ROGUE_CR_##reg, val)
-
-/**
- * PVR_CR_WRITE64() - Write to a 64-bit register in a PowerVR device
- * @pvr_dev: Target PowerVR device.
- * @reg: Target register.
- * @val: Value to write.
- *
- * This macro is a wrapper around pvr_cr_write64(). It applies ROGUE_CR_
- * prefix to the provided @reg name, making it behave comparably to the
- * PVR_CR_FIELD_GET() macro.
- */
-#define PVR_CR_WRITE64(pvr_dev, reg, val) \
-	pvr_cr_write64(pvr_dev, ROGUE_CR_##reg, val)
-
-/**
  * PVR_CR_FIELD_GET() - Extract a single field from a PowerVR control register
  * @val: Value of the target register.
  * @field: Field specifier, as defined in "pvr_rogue_cr_defs.h".

@@ -408,7 +408,7 @@ pvr_load_gpu_id(struct pvr_device *pvr_dev)
 	 * Try reading the BVNC using the newer (cleaner) method first. If the
 	 * B value is zero, fall back to the older method.
 	 */
-	bvnc = PVR_CR_READ64(pvr_dev, CORE_ID__PBVNC);
+	bvnc = pvr_cr_read64(pvr_dev, ROGUE_CR_CORE_ID__PBVNC);
 
 	gpu_id->b = PVR_CR_FIELD_GET(bvnc, CORE_ID__PBVNC__BRANCH_ID);
 	if (gpu_id->b != 0) {
@@ -416,8 +416,8 @@ pvr_load_gpu_id(struct pvr_device *pvr_dev)
 		gpu_id->n = PVR_CR_FIELD_GET(bvnc, CORE_ID__PBVNC__NUMBER_OF_SCALABLE_UNITS);
 		gpu_id->c = PVR_CR_FIELD_GET(bvnc, CORE_ID__PBVNC__CONFIG_ID);
 	} else {
-		u32 core_rev = PVR_CR_READ32(pvr_dev, CORE_REVISION);
-		u32 core_id = PVR_CR_READ32(pvr_dev, CORE_ID);
+		u32 core_rev = pvr_cr_read32(pvr_dev, ROGUE_CR_CORE_REVISION);
+		u32 core_id = pvr_cr_read32(pvr_dev, ROGUE_CR_CORE_ID);
 		u16 core_id_config = PVR_CR_FIELD_GET(core_id, CORE_ID_CONFIG);
 
 		gpu_id->b = PVR_CR_FIELD_GET(core_rev, CORE_REVISION_MAJOR);

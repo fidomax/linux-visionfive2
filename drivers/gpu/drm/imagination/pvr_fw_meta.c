@@ -44,9 +44,9 @@ pvr_meta_cr_read32(struct pvr_device *pvr_dev, u32 reg_addr, u32 *reg_value_out)
 		goto err_out;
 
 	/* Issue a Read. */
-	PVR_CR_WRITE32(pvr_dev, META_SP_MSLVCTRL0,
+	pvr_cr_write32(pvr_dev, ROGUE_CR_META_SP_MSLVCTRL0,
 		       reg_addr | ROGUE_CR_META_SP_MSLVCTRL0_RD_EN);
-	(void)PVR_CR_READ32(pvr_dev, META_SP_MSLVCTRL0); /* Fence write. */
+	(void)pvr_cr_read32(pvr_dev, ROGUE_CR_META_SP_MSLVCTRL0); /* Fence write. */
 
 	/* Wait for Slave Port to be Ready. */
 	err = pvr_cr_poll_reg32(pvr_dev, ROGUE_CR_META_SP_MSLVCTRL1,
@@ -58,7 +58,7 @@ pvr_meta_cr_read32(struct pvr_device *pvr_dev, u32 reg_addr, u32 *reg_value_out)
 	if (err)
 		goto err_out;
 
-	*reg_value_out = PVR_CR_READ32(pvr_dev, META_SP_MSLVDATAX);
+	*reg_value_out = pvr_cr_read32(pvr_dev, ROGUE_CR_META_SP_MSLVDATAX);
 
 	return 0;
 
@@ -72,7 +72,7 @@ pvr_meta_wrapper_init(struct pvr_device *pvr_dev)
 	u64 garten_config;
 
 	/* Configure META to Master boot. */
-	PVR_CR_WRITE64(pvr_dev, META_BOOT, ROGUE_CR_META_BOOT_MODE_EN);
+	pvr_cr_write64(pvr_dev, ROGUE_CR_META_BOOT, ROGUE_CR_META_BOOT_MODE_EN);
 
 	/* Set Garten IDLE to META idle and Set the Garten Wrapper BIF Fence address. */
 
@@ -92,7 +92,7 @@ pvr_meta_wrapper_init(struct pvr_device *pvr_dev)
 	garten_config |= ((u64)ROGUE_FW_SEGMMU_META_BIFDM_ID)
 			 << ROGUE_CR_MTS_GARTEN_WRAPPER_CONFIG_FENCE_DM_SHIFT;
 
-	PVR_CR_WRITE64(pvr_dev, MTS_GARTEN_WRAPPER_CONFIG, garten_config);
+	pvr_cr_write64(pvr_dev, ROGUE_CR_MTS_GARTEN_WRAPPER_CONFIG, garten_config);
 
 	return 0;
 }
@@ -579,13 +579,13 @@ pvr_meta_vm_unmap(struct pvr_device *pvr_dev, struct pvr_fw_object *fw_obj)
 static bool
 pvr_meta_check_and_ack_irq(struct pvr_device *pvr_dev)
 {
-	u32 irq_status = PVR_CR_READ32(pvr_dev, META_SP_MSLVIRQSTATUS);
+	u32 irq_status = pvr_cr_read32(pvr_dev, ROGUE_CR_META_SP_MSLVIRQSTATUS);
 
 	if (!(irq_status & ROGUE_CR_META_SP_MSLVIRQSTATUS_TRIGVECT2_EN))
 		return false; /* Spurious IRQ - ignore. */
 
 	/* Acknowledge IRQ. */
-	PVR_CR_WRITE32(pvr_dev, META_SP_MSLVIRQSTATUS,
+	pvr_cr_write32(pvr_dev, ROGUE_CR_META_SP_MSLVIRQSTATUS,
 		       ROGUE_CR_META_SP_MSLVIRQSTATUS_TRIGVECT2_CLRMSK);
 
 	return true;
