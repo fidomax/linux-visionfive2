@@ -734,85 +734,20 @@ pvr_submit_jobs(struct pvr_device *pvr_dev, struct pvr_file *pvr_file,
 
 	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT | DRM_EXEC_IGNORE_DUPLICATES);
 
-	/* FIXME: We should probably not serialize things at the file level,
-	 * because that means we prevent parallel submission on separate VkQueue
-	 * objects. This mean this lock should go away and be replaced by
-	 * something better.
-	 *
-	 * I see several options here:
-	 *
-	 * 1. We try to lock all queues being targeted by jobs in the job array
-	 *    passed to SUBMIT_JOBS before actually submitting the jobs. This
-	 *    requires using ww_mutexes and making the right thing when DEADLCK
-	 *    is reported. Note that we don't have to implement our own ww_class,
-	 *    we can just use the dma_resv object attached to the FW context
-	 *    object (pvr_fw_object->gem->base.base.resv).
-	 *    This is a bit convoluted, but I fear we'll have to deal with resv
-	 *    objects at some point anyway, even if our driver is explicit-sync
-	 *    only (needed if we want to implement memory reclaim).
-	 * 2. We group FW contexts into a higher-level abstract matching exactly
-	 *    the VkQueue object (we could call those submit contexts) which can
-	 *    have several ctx (they currently have four, one gfx, one compute,
-	 *    another compute for queries and a transfer context). This approach
-	 *    has several advantages: we could make sure the multi-job submission
-	 *    only targets a single target submit-context (it doesn't make sense
-	 *    to do a multi-job submission on contexts that are not part of the
-	 *    same VkQueue), and we get a single lock we can acquire to protect
-	 *    access to the queues being targeted by the SUBMIT_JOBS request.
-	 *    There's basically 2 ways to implement that:
-	 *    A. Rework the CREATE_CONTEXT ioctls so they create those high-level
-	 *       submit contexts containing N FW contexts, each of them being
-	 *       assigned an index that's directly matching the position of the
-	 *       FW context creation args in the
-	 *       pvr_create_submit_context::sub_ctxs array
-	 *       (pvr_create_submit_context is the new struct taking an array
-	 *       of FW context to attach to the submit context). We also need
-	 *       to rework the SUBMIT_JOBS ioctl so it get passed a submit context
-	 *       handle, and each job is passed the index of the FW context in
-	 *       the submit context.
-	 *       This also implies reworking the mesa winsys abstraction to
-	 *       expose the concept of vk_queue to the winsys and let winsys
-	 *       implementation create high-level submit contexts instead of
-	 *       asking them to create each FW context independently.
-	 *    B. Add 2 new {CREATE,DESTROY}_SUBMIT_CONTEXT ioctls, creating
-	 *       those high-level submission contexts, and extend CREATE_CONTEXT
-	 *       so it can be passed a submit context handle (if one only wants
-	 *       to create an independent FW context, it can just pass a zero
-	 *       handle). In the SUBMIT_JOBS path, we iterate over all jobs and
-	 *       make sure the contexts they're targeting are part of the same
-	 *       submit context, if not, we fail. Once we've done that, we have
-	 *       a single lock (attached to the submit context) we can acquire
-	 *       to push job to the pvr_queues.
-	 *
-	 * From a design standpoint, I tend to prefer option 2A., because we
-	 * make submit contexts a first class citizen that matches how Vulkan is
-	 * going to use the API, rather than trying to retrofit it to original
-	 * model. But it's also the most invasive of all options.
-	 *
-	 * Option 1. might be interesting to look at, so we get things in shape
-	 * for the next step: dealing with mem-reclaim in a sane way, adding job
-	 * out fences to the VM resv and all external BOs, such that the
-	 * memory is guaranteed to be pinned/mapped when the job is being
-	 * executed by the GPU. But I like the idea of restricting multi-job
-	 * submission to jobs targeting pvr_queues that are part of the same
-	 * VkQueue, and this solution doesn't allow that grouping.
-	 */
-	mutex_lock(&pvr_file->submit_lock);
-
 	xa_init_flags(&signal_array, XA_FLAGS_ALLOC);
 
 	err = prepare_job_syncs_for_each(pvr_file, job_data, &args->jobs.count,
 					 &signal_array);
 	if (err)
-		goto out_submit_unlock;
+		goto out_exec_fini;
 
 	err = prepare_job_resvs_for_each(&exec, job_data, args->jobs.count);
 	if (err)
-		goto out_submit_unlock;
+		goto out_exec_fini;
 
 	err = pvr_jobs_link_geom_frag(job_data, &args->jobs.count);
 	if (err)
-		goto out_submit_unlock;
+		goto out_exec_fini;
 
 	/* Anything after that point must succeed because we start exposing job
 	 * finished fences to the outside world.
@@ -822,8 +757,7 @@ pvr_submit_jobs(struct pvr_device *pvr_dev, struct pvr_file *pvr_file,
 	pvr_sync_signal_array_push_fences(&signal_array);
 	err = 0;
 
-out_submit_unlock:
-	mutex_unlock(&pvr_file->submit_lock);
+out_exec_fini:
 	drm_exec_fini(&exec);
 	pvr_sync_signal_array_cleanup(&signal_array);
 	pvr_job_data_fini(job_data, jobs_alloced);
