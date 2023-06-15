@@ -14,6 +14,7 @@
 #include "pvr_stream_defs.h"
 #include "pvr_sync.h"
 
+#include <drm/drm_exec.h>
 #include <drm/drm_gem.h>
 #include <linux/types.h>
 #include <uapi/drm/pvr_drm.h>
@@ -344,6 +345,22 @@ prepare_job_syncs(struct pvr_file *pvr_file,
 	if (err)
 		return err;
 
+	if (job_data->job->hwrt) {
+		/* The geometry job writes the HWRT region headers, which are
+		 * then read by the fragment job.
+		 */
+		struct drm_gem_object *obj =
+			gem_from_pvr_gem(job_data->job->hwrt->fw_obj->gem);
+		enum dma_resv_usage usage =
+			dma_resv_usage_rw(job_data->job->type ==
+					  DRM_PVR_JOB_TYPE_GEOMETRY);
+
+		err = drm_sched_job_add_resv_dependencies(&job_data->job->base,
+							  obj->resv, usage);
+		if (err)
+			return err;
+	}
+
 	/* We need to arm the job to get the job done fence. */
 	done_fence = pvr_queue_job_arm(job_data->job);
 
@@ -509,6 +526,73 @@ push_jobs(struct pvr_job_data *job_data, u32 job_count)
 		pvr_queue_job_push(job_data[i].job);
 }
 
+static int
+prepare_fw_obj_resv(struct drm_exec *exec, struct pvr_fw_object *fw_obj)
+{
+	return drm_exec_prepare_obj(exec, gem_from_pvr_gem(fw_obj->gem), 1);
+}
+
+static int
+jobs_lock_all_objs(struct drm_exec *exec, struct pvr_job_data *job_data,
+		   u32 job_count)
+{
+	for (u32 i = 0; i < job_count; i++) {
+		struct pvr_job *job = job_data[i].job;
+
+		/* Grab a lock on a the context, to guard against
+		 * concurrent submission to the same queue.
+		 */
+		int err = drm_exec_lock_obj(exec,
+					    gem_from_pvr_gem(job->ctx->fw_obj->gem));
+
+		if (err)
+			return err;
+
+		if (job->hwrt) {
+			err = prepare_fw_obj_resv(exec,
+						  job->hwrt->fw_obj);
+			if (err)
+				return err;
+		}
+	}
+
+	return 0;
+}
+
+static int
+prepare_job_resvs_for_each(struct drm_exec *exec, struct pvr_job_data *job_data,
+			   u32 job_count)
+{
+	drm_exec_until_all_locked(exec) {
+		int err = jobs_lock_all_objs(exec, job_data, job_count);
+
+		drm_exec_retry_on_contention(exec);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static void
+update_job_resvs(struct pvr_job *job)
+{
+	if (job->hwrt) {
+		enum dma_resv_usage usage = job->type == DRM_PVR_JOB_TYPE_GEOMETRY ?
+					    DMA_RESV_USAGE_WRITE : DMA_RESV_USAGE_READ;
+		struct drm_gem_object *obj = gem_from_pvr_gem(job->hwrt->fw_obj->gem);
+
+		dma_resv_add_fence(obj->resv, &job->base.s_fence->finished, usage);
+	}
+}
+
+static void
+update_job_resvs_for_each(struct pvr_job_data *job_data, u32 job_count)
+{
+	for (u32 i = 0; i < job_count; i++)
+		update_job_resvs(job_data[i].job);
+}
+
 static bool can_combine_jobs(struct pvr_job *a, struct pvr_job *b)
 {
 	struct pvr_job *geom_job = a, *frag_job = b;
@@ -624,6 +708,7 @@ pvr_submit_jobs(struct pvr_device *pvr_dev, struct pvr_file *pvr_file,
 	struct drm_pvr_job *job_args;
 	struct xarray signal_array;
 	u32 jobs_alloced = 0;
+	struct drm_exec exec;
 	int err;
 
 	if (!args->jobs.count)
@@ -646,6 +731,8 @@ pvr_submit_jobs(struct pvr_device *pvr_dev, struct pvr_file *pvr_file,
 		goto out_free;
 
 	jobs_alloced = args->jobs.count;
+
+	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT | DRM_EXEC_IGNORE_DUPLICATES);
 
 	/* FIXME: We should probably not serialize things at the file level,
 	 * because that means we prevent parallel submission on separate VkQueue
@@ -719,6 +806,10 @@ pvr_submit_jobs(struct pvr_device *pvr_dev, struct pvr_file *pvr_file,
 	if (err)
 		goto out_submit_unlock;
 
+	err = prepare_job_resvs_for_each(&exec, job_data, args->jobs.count);
+	if (err)
+		goto out_submit_unlock;
+
 	err = pvr_jobs_link_geom_frag(job_data, &args->jobs.count);
 	if (err)
 		goto out_submit_unlock;
@@ -726,12 +817,14 @@ pvr_submit_jobs(struct pvr_device *pvr_dev, struct pvr_file *pvr_file,
 	/* Anything after that point must succeed because we start exposing job
 	 * finished fences to the outside world.
 	 */
+	update_job_resvs_for_each(job_data, args->jobs.count);
 	push_jobs(job_data, args->jobs.count);
 	pvr_sync_signal_array_push_fences(&signal_array);
 	err = 0;
 
 out_submit_unlock:
 	mutex_unlock(&pvr_file->submit_lock);
+	drm_exec_fini(&exec);
 	pvr_sync_signal_array_cleanup(&signal_array);
 	pvr_job_data_fini(job_data, jobs_alloced);
 
