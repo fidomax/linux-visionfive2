@@ -246,8 +246,10 @@ static irqreturn_t pvr_device_irq_handler(int irq, void *data)
 {
 	struct pvr_device *pvr_dev = data;
 
-	if (!pvr_dev->fw_dev.defs->check_and_ack_irq(pvr_dev))
+	if (!pvr_fw_irq_pending(pvr_dev))
 		return IRQ_NONE; /* Spurious IRQ - ignore. */
+
+	pvr_fw_irq_clear(pvr_dev);
 
 	/* Only process IRQ work if FW is currently running. */
 	if (pvr_dev->fw_dev.booted) {

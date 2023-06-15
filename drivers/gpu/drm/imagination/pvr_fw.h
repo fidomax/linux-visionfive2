@@ -158,20 +158,6 @@ struct pvr_fw_defs {
 	int (*wrapper_init)(struct pvr_device *pvr_dev);
 
 	/**
-	 * @check_and_ack_irq:
-	 *
-	 * Called to check if a GPU interrupt has occurred, and to acknowledge if it has.
-	 * @pvr_dev: Target PowerVR device.
-	 *
-	 * This function is mandatory.
-	 *
-	 * Returns:
-	 *  * %true if an interrupt has occurred, or
-	 *  * %false if no interrupt has occurred.
-	 */
-	bool (*check_and_ack_irq)(struct pvr_device *pvr_dev);
-
-	/**
 	 * @has_fixed_data_addr:
 	 *
 	 * Called to check if firmware fixed data must be loaded at the address given by the
@@ -185,6 +171,34 @@ struct pvr_fw_defs {
 	 *  * %false otherwise.
 	 */
 	bool (*has_fixed_data_addr)(void);
+
+	/**
+	 * @irq: FW Interrupt information.
+	 *
+	 * Those are processor dependent, and should be initialized by the
+	 * processor backend in pvr_fw_funcs::init().
+	 */
+	struct {
+		/** @enable_reg: FW interrupt enable register. */
+		u32 enable_reg;
+
+		/** @status_reg: FW interrupt status register. */
+		u32 status_reg;
+
+		/**
+		 * @clear_reg: FW interrupt clear register.
+		 *
+		 * If @status_reg == @clear_reg, we clear by write a bit to zero,
+		 * otherwise we clear by writing a bit to one.
+		 */
+		u32 clear_reg;
+
+		/** @event_mask: Bitmask of events to listen for. */
+		u32 event_mask;
+
+		/** @clear_mask: Value to write to the clear_reg in order to clear FW IRQs. */
+		u32 clear_mask;
+	} irq;
 };
 
 /**
@@ -331,6 +345,24 @@ struct pvr_fw_device {
 	/** @fw_trace: Device firmware trace buffer state. */
 	struct pvr_fw_trace fw_trace;
 };
+
+#define pvr_fw_irq_read_reg(pvr_dev, name) \
+	pvr_cr_read32((pvr_dev), (pvr_dev)->fw_dev.defs->irq.name ## _reg)
+
+#define pvr_fw_irq_write_reg(pvr_dev, name, value) \
+	pvr_cr_write32((pvr_dev), (pvr_dev)->fw_dev.defs->irq.name ## _reg, value)
+
+#define pvr_fw_irq_pending(pvr_dev) \
+	(pvr_fw_irq_read_reg(pvr_dev, status) & (pvr_dev)->fw_dev.defs->irq.event_mask)
+
+#define pvr_fw_irq_clear(pvr_dev) \
+	pvr_fw_irq_write_reg(pvr_dev, clear, (pvr_dev)->fw_dev.defs->irq.clear_mask)
+
+#define pvr_fw_irq_enable(pvr_dev) \
+	pvr_fw_irq_write_reg(pvr_dev, enable, (pvr_dev)->fw_dev.defs->irq.event_mask)
+
+#define pvr_fw_irq_disable(pvr_dev) \
+	pvr_fw_irq_write_reg(pvr_dev, enable, 0)
 
 extern const struct pvr_fw_defs pvr_fw_defs_meta;
 extern const struct pvr_fw_defs pvr_fw_defs_mips;

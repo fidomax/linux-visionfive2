@@ -247,21 +247,6 @@ pvr_mips_get_fw_addr_with_offset(struct pvr_fw_object *fw_obj, u32 offset)
 }
 
 static bool
-pvr_mips_check_and_ack_irq(struct pvr_device *pvr_dev)
-{
-	u32 irq_status = pvr_cr_read32(pvr_dev, ROGUE_CR_MIPS_WRAPPER_IRQ_STATUS);
-
-	if (!(irq_status & ROGUE_CR_MIPS_WRAPPER_IRQ_STATUS_EVENT_EN))
-		return false; /* Spurious IRQ - ignore. */
-
-	/* Acknowledge IRQ. */
-	pvr_cr_write32(pvr_dev, ROGUE_CR_MIPS_WRAPPER_IRQ_CLEAR,
-		       ROGUE_CR_MIPS_WRAPPER_IRQ_CLEAR_EVENT_EN);
-
-	return true;
-}
-
-static bool
 pvr_mips_has_fixed_data_addr(void)
 {
 	return true;
@@ -275,6 +260,12 @@ const struct pvr_fw_defs pvr_fw_defs_mips = {
 	.vm_unmap = pvr_vm_mips_unmap,
 	.get_fw_addr_with_offset = pvr_mips_get_fw_addr_with_offset,
 	.wrapper_init = pvr_mips_wrapper_init,
-	.check_and_ack_irq = pvr_mips_check_and_ack_irq,
 	.has_fixed_data_addr = pvr_mips_has_fixed_data_addr,
+	.irq = {
+		.enable_reg = ROGUE_CR_MIPS_WRAPPER_IRQ_ENABLE,
+		.status_reg = ROGUE_CR_MIPS_WRAPPER_IRQ_STATUS,
+		.clear_reg = ROGUE_CR_MIPS_WRAPPER_IRQ_CLEAR,
+		.event_mask = ROGUE_CR_MIPS_WRAPPER_IRQ_STATUS_EVENT_EN,
+		.clear_mask = ROGUE_CR_MIPS_WRAPPER_IRQ_CLEAR_EVENT_EN,
+	},
 };
