@@ -907,7 +907,7 @@ static int init_geom_reg_state_obj(struct pvr_queue *queue,
 	if (IS_ERR(geom_ctx_state_fw))
 		return PTR_ERR(geom_ctx_state_fw);
 
-	geom_ctx_state_fw->geom_core[0].geom_reg_vdm_call_stack_pointer = args->callstack_addr;
+	geom_ctx_state_fw->geom_core[0].geom_reg_vdm_call_stack_pointer_init = args->callstack_addr;
 
 	pvr_fw_object_vunmap(queue->reg_state_obj);
 	return 0;
