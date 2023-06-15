@@ -64,7 +64,7 @@ int
 pvr_sync_signal_array_collect_ops(struct xarray *array,
 				  struct drm_file *file,
 				  u32 sync_op_count,
-				  struct drm_pvr_sync_op *sync_ops);
+				  const struct drm_pvr_sync_op *sync_ops);
 
 int
 pvr_sync_signal_array_update_fences(struct xarray *array,

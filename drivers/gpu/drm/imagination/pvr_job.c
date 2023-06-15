@@ -297,14 +297,98 @@ pvr_job_fw_cmd_init(struct pvr_job *job,
 	}
 }
 
-static struct pvr_job *
-pvr_create_job(struct pvr_device *pvr_dev,
-	       struct pvr_file *pvr_file,
-	       struct drm_pvr_job *args,
-	       struct xarray *signal_array)
+/**
+ * struct pvr_job_data - Helper container for pairing jobs with the
+ * sync_ops supplied for them by the user.
+ */
+struct pvr_job_data {
+	/** @job: Pointer to the job. */
+	struct pvr_job *job;
+
+	/** @sync_ops: Pointer to the sync_ops associated with @job. */
+	struct drm_pvr_sync_op *sync_ops;
+
+	/** @sync_op_count: Number of members of @sync_ops. */
+	u32 sync_op_count;
+};
+
+/**
+ * prepare_job_syncs() - Prepare all sync objects for a single job.
+ * @pvr_file: PowerVR file.
+ * @job_data: Precreated job and sync_ops array.
+ * @signal_array: xarray to receive signal sync objects.
+ *
+ * Returns:
+ *  * 0 on success, or
+ *  * Any error code returned by pvr_sync_signal_array_collect_ops(),
+ *    pvr_sync_add_deps_to_job(), drm_sched_job_add_resv_dependencies() or
+ *    pvr_sync_signal_array_update_fences().
+ */
+static int
+prepare_job_syncs(struct pvr_file *pvr_file,
+		  struct pvr_job_data *job_data,
+		  struct xarray *signal_array)
 {
-	struct drm_pvr_sync_op *sync_ops = NULL;
 	struct dma_fence *done_fence;
+	int err = pvr_sync_signal_array_collect_ops(signal_array,
+						    from_pvr_file(pvr_file),
+						    job_data->sync_op_count,
+						    job_data->sync_ops);
+
+	if (err)
+		return err;
+
+	err = pvr_sync_add_deps_to_job(pvr_file, &job_data->job->base,
+				       job_data->sync_op_count,
+				       job_data->sync_ops, signal_array);
+	if (err)
+		return err;
+
+	/* We need to arm the job to get the job done fence. */
+	done_fence = pvr_queue_job_arm(job_data->job);
+
+	err = pvr_sync_signal_array_update_fences(signal_array,
+						  job_data->sync_op_count,
+						  job_data->sync_ops,
+						  done_fence);
+	return err;
+}
+
+/**
+ * prepare_job_syncs_for_each() - Prepare all sync objects for an array of jobs.
+ * @file: PowerVR file.
+ * @job_data: Array of precreated jobs and their sync_ops.
+ * @job_count: Number of jobs.
+ * @signal_array: xarray to receive signal sync objects.
+ *
+ * Returns:
+ *  * 0 on success, or
+ *  * Any error code returned by pvr_vm_bind_job_prepare_syncs().
+ */
+static int
+prepare_job_syncs_for_each(struct pvr_file *pvr_file,
+			   struct pvr_job_data *job_data,
+			   u32 *job_count,
+			   struct xarray *signal_array)
+{
+	for (u32 i = 0; i < *job_count; i++) {
+		int err = prepare_job_syncs(pvr_file, &job_data[i],
+					    signal_array);
+
+		if (err) {
+			*job_count = i;
+			return err;
+		}
+	}
+
+	return 0;
+}
+
+static struct pvr_job *
+create_job(struct pvr_device *pvr_dev,
+	   struct pvr_file *pvr_file,
+	   struct drm_pvr_job *args)
+{
 	struct pvr_job *job = NULL;
 	int err;
 
@@ -325,15 +409,6 @@ pvr_create_job(struct pvr_device *pvr_dev,
 	job->pvr_dev = pvr_dev;
 
 	err = xa_alloc(&pvr_dev->job_ids, &job->id, job, xa_limit_32b, GFP_KERNEL);
-	if (err)
-		goto err_put_job;
-
-	err = PVR_UOBJ_GET_ARRAY(sync_ops, &args->sync_ops);
-	if (err)
-		goto err_put_job;
-
-	err = pvr_sync_signal_array_collect_ops(signal_array, from_pvr_file(pvr_file),
-						args->sync_ops.count, sync_ops);
 	if (err)
 		goto err_put_job;
 
@@ -360,28 +435,78 @@ pvr_create_job(struct pvr_device *pvr_dev,
 	if (err)
 		goto err_put_job;
 
-	err = pvr_sync_add_deps_to_job(pvr_file, &job->base,
-				       args->sync_ops.count,
-				       sync_ops, signal_array);
-	if (err)
-		goto err_put_job;
-
-	/* We need to arm the job to get the job done fence. */
-	done_fence = pvr_queue_job_arm(job);
-
-	err = pvr_sync_signal_array_update_fences(signal_array,
-						  args->sync_ops.count, sync_ops,
-						  done_fence);
-	if (err)
-		goto err_put_job;
-
-	kvfree(sync_ops);
 	return job;
 
 err_put_job:
-	kvfree(sync_ops);
 	pvr_job_put(job);
 	return ERR_PTR(err);
+}
+
+/**
+ * pvr_job_data_fini() - Cleanup all allocs used to set up job submission.
+ * @job_data: Job data array.
+ * @job_count: Number of members of @job_data.
+ */
+static void
+pvr_job_data_fini(struct pvr_job_data *job_data, u32 job_count)
+{
+	for (u32 i = 0; i < job_count; i++) {
+		pvr_job_put(job_data[i].job);
+		kvfree(job_data[i].sync_ops);
+	}
+}
+
+/**
+ * pvr_job_data_init() - Init an array of created jobs, associating them with
+ * the appropriate sync_ops args, which will be copied in.
+ * @pvr_dev: Target PowerVR device.
+ * @pvr_file: Pointer to PowerVR file structure.
+ * @job_args: Job args array copied from user.
+ * @job_count: Number of members of @job_args.
+ * @job_data_out: Job data array.
+ */
+static int pvr_job_data_init(struct pvr_device *pvr_dev,
+			     struct pvr_file *pvr_file,
+			     struct drm_pvr_job *job_args,
+			     u32 *job_count,
+			     struct pvr_job_data *job_data_out)
+{
+	int err = 0, i = 0;
+
+	for (; i < *job_count; i++) {
+		job_data_out[i].job =
+			create_job(pvr_dev, pvr_file, &job_args[i]);
+		err = PTR_ERR_OR_ZERO(job_data_out[i].job);
+
+		if (err) {
+			*job_count = i;
+			job_data_out[i].job = NULL;
+			goto err_cleanup;
+		}
+
+		err = PVR_UOBJ_GET_ARRAY(job_data_out[i].sync_ops,
+					 &job_args[i].sync_ops);
+		if (err) {
+			*job_count = i;
+			goto err_cleanup;
+		}
+
+		job_data_out[i].sync_op_count = job_args[i].sync_ops.count;
+	}
+
+	return 0;
+
+err_cleanup:
+	pvr_job_data_fini(job_data_out, i);
+
+	return err;
+}
+
+static void
+push_jobs(struct pvr_job_data *job_data, u32 job_count)
+{
+	for (u32 i = 0; i < job_count; i++)
+		pvr_queue_job_push(job_data[i].job);
 }
 
 static bool can_combine_jobs(struct pvr_job *a, struct pvr_job *b)
@@ -410,14 +535,14 @@ static bool can_combine_jobs(struct pvr_job *a, struct pvr_job *b)
 
 static struct dma_fence *
 get_last_queued_job_scheduled_fence(struct pvr_queue *queue,
-				    struct pvr_job **jobs,
+				    struct pvr_job_data *job_data,
 				    u32 cur_job_pos)
 {
 	/* We iterate over the current job array in reverse order to grab the
 	 * last to-be-queued job targetting the same queue.
 	 */
 	for (u32 i = cur_job_pos; i > 0; i--) {
-		struct pvr_job *job = jobs[i - 1];
+		struct pvr_job *job = job_data[i - 1].job;
 
 		if (job->ctx == queue->ctx && job->type == queue->type)
 			return dma_fence_get(&job->base.s_fence->scheduled);
@@ -429,30 +554,37 @@ get_last_queued_job_scheduled_fence(struct pvr_queue *queue,
 	return dma_fence_get(queue->last_queued_job_scheduled_fence);
 }
 
-static int pvr_jobs_link_geom_frag(struct pvr_job **jobs, u32 job_count)
+static int
+pvr_jobs_link_geom_frag(struct pvr_job_data *job_data, u32 *job_count)
 {
-	for (u32 i = 0; i < job_count - 1; i++) {
-		struct pvr_job *geom_job = jobs[i], *frag_job = jobs[i + 1];
+	for (u32 i = 0; i < *job_count - 1; i++) {
+		struct pvr_job *geom_job = job_data[i].job;
+		struct pvr_job *frag_job = job_data[i + 1].job;
 		struct pvr_queue *frag_queue;
 		struct dma_fence *f;
-		int err;
 
-		if (!can_combine_jobs(jobs[i], jobs[i + 1]))
+		if (!can_combine_jobs(job_data[i].job, job_data[i + 1].job))
 			continue;
 
-		/* The fragment job will be submitted by the geometry queue. We need to
-		 * make sure it comes after all the other fragment jobs queued before it.
+		/* The fragment job will be submitted by the geometry queue. We
+		 * need to make sure it comes after all the other fragment jobs
+		 * queued before it.
 		 */
-		frag_queue = pvr_context_get_queue_for_job(frag_job->ctx, frag_job->type);
-		f = get_last_queued_job_scheduled_fence(frag_queue, jobs, i);
+		frag_queue = pvr_context_get_queue_for_job(frag_job->ctx,
+							   frag_job->type);
+		f = get_last_queued_job_scheduled_fence(frag_queue, job_data,
+							i);
 		if (f) {
-			err = drm_sched_job_add_dependency(&geom_job->base, f);
-			if (err)
+			int err = drm_sched_job_add_dependency(&geom_job->base,
+							       f);
+			if (err) {
+				*job_count = i;
 				return err;
+			}
 		}
 
-		/* The KCCB slot will be reserved by the geometry job, so we can drop the
-		 * KCCB fence on the fragment job.
+		/* The KCCB slot will be reserved by the geometry job, so we can
+		 * drop the KCCB fence on the fragment job.
 		 */
 		pvr_kccb_fence_put(frag_job->kccb_fence);
 		frag_job->kccb_fence = NULL;
@@ -471,42 +603,49 @@ static int pvr_jobs_link_geom_frag(struct pvr_job **jobs, u32 job_count)
  * pvr_submit_jobs() - Submit jobs to the GPU
  * @pvr_dev: Target PowerVR device.
  * @pvr_file: Pointer to PowerVR file structure.
- * @args: IOCTL arguments.
+ * @args: Ioctl args.
+ * @job_count: Number of jobs in @jobs_args. On error this will be updated
+ * with the index into @jobs_args where the error occurred.
  *
  * This initial implementation is entirely synchronous; on return the GPU will
  * be idle. This will not be the case for future implementations.
  *
  * Returns:
  *  * 0 on success,
- *  * -%EFAULT if arguments can not be copied from user space,
+ *  * -%EFAULT if arguments can not be copied from user space, or
  *  * -%EINVAL on invalid arguments, or
  *  * Any other error.
  */
 int
-pvr_submit_jobs(struct pvr_device *pvr_dev,
-		struct pvr_file *pvr_file,
+pvr_submit_jobs(struct pvr_device *pvr_dev, struct pvr_file *pvr_file,
 		struct drm_pvr_ioctl_submit_jobs_args *args)
 {
-	struct drm_pvr_job *jobs_args = NULL;
-	struct pvr_job **jobs = NULL;
+	struct pvr_job_data *job_data = NULL;
+	struct drm_pvr_job *job_args;
 	struct xarray signal_array;
+	u32 jobs_alloced = 0;
 	int err;
 
 	if (!args->jobs.count)
 		return -EINVAL;
 
-	err = PVR_UOBJ_GET_ARRAY(jobs_args, &args->jobs);
+	err = PVR_UOBJ_GET_ARRAY(job_args, &args->jobs);
 	if (err)
 		return err;
 
-	xa_init_flags(&signal_array, XA_FLAGS_ALLOC);
-
-	/* NOLINTNEXTLINE(bugprone-sizeof-expression) */
-	jobs = kvmalloc_array(args->jobs.count, sizeof(*jobs), GFP_KERNEL | __GFP_ZERO);
-	if (!jobs) {
+	job_data = kvmalloc_array(args->jobs.count, sizeof(*job_data),
+				  GFP_KERNEL | __GFP_ZERO);
+	if (!job_data) {
 		err = -ENOMEM;
-		goto out_free_jobs_args;
+		goto out_free;
 	}
+
+	err = pvr_job_data_init(pvr_dev, pvr_file, job_args, &args->jobs.count,
+				job_data);
+	if (err)
+		goto out_free;
+
+	jobs_alloced = args->jobs.count;
 
 	/* FIXME: We should probably not serialize things at the file level,
 	 * because that means we prevent parallel submission on separate VkQueue
@@ -573,35 +712,32 @@ pvr_submit_jobs(struct pvr_device *pvr_dev,
 	 */
 	mutex_lock(&pvr_file->submit_lock);
 
-	for (u32 i = 0; i < args->jobs.count; i++) {
-		jobs[i] = pvr_create_job(pvr_dev, pvr_file, &jobs_args[i], &signal_array);
-		if (IS_ERR(jobs[i])) {
-			err = PTR_ERR(jobs[i]);
-			jobs[i] = NULL;
-			goto out_submit_unlock;
-		}
-	}
+	xa_init_flags(&signal_array, XA_FLAGS_ALLOC);
 
-	err = pvr_jobs_link_geom_frag(jobs, args->jobs.count);
+	err = prepare_job_syncs_for_each(pvr_file, job_data, &args->jobs.count,
+					 &signal_array);
 	if (err)
 		goto out_submit_unlock;
 
-	for (u32 i = 0; i < args->jobs.count; i++)
-		pvr_queue_job_push(jobs[i]);
+	err = pvr_jobs_link_geom_frag(job_data, &args->jobs.count);
+	if (err)
+		goto out_submit_unlock;
 
+	/* Anything after that point must succeed because we start exposing job
+	 * finished fences to the outside world.
+	 */
+	push_jobs(job_data, args->jobs.count);
 	pvr_sync_signal_array_push_fences(&signal_array);
 	err = 0;
 
 out_submit_unlock:
 	mutex_unlock(&pvr_file->submit_lock);
-
-	for (u32 i = 0; i < args->jobs.count; i++)
-		pvr_job_put(jobs[i]);
-
-	kvfree(jobs);
-
-out_free_jobs_args:
 	pvr_sync_signal_array_cleanup(&signal_array);
-	kvfree(jobs_args);
+	pvr_job_data_fini(job_data, jobs_alloced);
+
+out_free:
+	kvfree(job_data);
+	kvfree(job_args);
+
 	return err;
 }

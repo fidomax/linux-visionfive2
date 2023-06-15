@@ -1291,6 +1291,10 @@ struct drm_pvr_job {
 
 /**
  * struct drm_pvr_ioctl_submit_jobs_args - Arguments for %DRM_IOCTL_PVR_SUBMIT_JOB
+ *
+ * If the syscall returns an error it is important to check the value of
+ * @jobs.count. This indicates the index into @jobs.array where the
+ * error occurred.
  */
 struct drm_pvr_ioctl_submit_jobs_args {
 	/** @jobs: [IN] Array of jobs to submit. */
