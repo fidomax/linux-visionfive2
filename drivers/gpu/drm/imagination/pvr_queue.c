@@ -545,8 +545,6 @@ static void pvr_queue_update_active_state(struct pvr_queue *queue)
  *
  * This function is called when all non-native dependencies have been met and
  * when the commands resulting from this job are guaranteed to fit in the CCCB.
- * There's no reason for it to fail, but the CCCB rollback mechanism has been
- * kept for debugging purpose.
  */
 static struct dma_fence *pvr_queue_run_job(struct drm_sched_job *sched_job)
 {
