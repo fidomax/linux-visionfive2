@@ -498,11 +498,24 @@ pvr_free_list_release(struct kref *ref_count)
 	struct pvr_free_list *free_list =
 		container_of(ref_count, struct pvr_free_list, ref_count);
 	struct list_head *pos, *n;
+	int err;
 
 	xa_erase(&free_list->pvr_dev->free_list_ids, free_list->fw_id);
 
-	WARN_ON(pvr_fw_structure_cleanup(free_list->pvr_dev, ROGUE_FWIF_CLEANUP_FREELIST,
-					 free_list->fw_obj, 0));
+	err = pvr_fw_structure_cleanup(free_list->pvr_dev,
+				       ROGUE_FWIF_CLEANUP_FREELIST,
+				       free_list->fw_obj, 0);
+	if (err == -EBUSY) {
+		/* Flush the FWCCB to process any HWR or freelist reconstruction
+		 * request that might keep the freelist busy, and try again.
+		 */
+		pvr_fwccb_process(free_list->pvr_dev);
+		err = pvr_fw_structure_cleanup(free_list->pvr_dev,
+					       ROGUE_FWIF_CLEANUP_FREELIST,
+					       free_list->fw_obj, 0);
+	}
+
+	WARN_ON(err);
 
 	/* clang-format off */
 	list_for_each_safe(pos, n, &free_list->mem_block_list) {
