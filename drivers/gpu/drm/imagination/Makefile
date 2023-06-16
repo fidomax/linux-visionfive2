@@ -26,6 +26,7 @@ powervr-y := \
 	pvr_queue.o \
 	pvr_stream.o \
 	pvr_stream_defs.o \
+	pvr_sync.o \
 	pvr_vm.o \
 	pvr_vm_mips.o
 
