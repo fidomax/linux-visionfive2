@@ -189,7 +189,7 @@ struct pvr_device {
 	struct xarray free_list_ids;
 
 	/**
-	 * @job_ids: Array of objects belonging to this device. Array members
+	 * @job_ids: Array of jobs belonging to this device. Array members
 	 *           are of type "struct pvr_job *".
 	 */
 	struct xarray job_ids;
