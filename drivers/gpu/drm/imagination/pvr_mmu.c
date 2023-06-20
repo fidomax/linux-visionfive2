@@ -2311,8 +2311,8 @@ pvr_mmu_map_sgl(struct scatterlist *sgl, struct pvr_page_table_ptr *ptr,
 		u64 offset, u64 size, struct pvr_page_flags_raw page_flags)
 {
 	const unsigned int pages = size >> PVR_DEVICE_PAGE_SHIFT;
+	dma_addr_t dma_addr = sg_dma_address(sgl) + offset;
 	const unsigned int dma_len = sg_dma_len(sgl);
-	dma_addr_t dma_addr = sg_dma_address(sgl);
 	struct pvr_page_table_ptr ptr_copy;
 	unsigned int page;
 	int err;
