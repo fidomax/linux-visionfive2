@@ -19,6 +19,18 @@ get_ccb_space(u32 w_off, u32 r_off, u32 ccb_size)
 	return (((r_off) - (w_off)) + ((ccb_size) - 1)) & ((ccb_size) - 1);
 }
 
+static void
+cccb_ctrl_init(void *cpu_ptr, void *priv)
+{
+	struct rogue_fwif_cccb_ctl *ctrl = cpu_ptr;
+	struct pvr_cccb *pvr_cccb = priv;
+
+	WRITE_ONCE(ctrl->write_offset, 0);
+	WRITE_ONCE(ctrl->read_offset, 0);
+	WRITE_ONCE(ctrl->dep_offset, 0);
+	WRITE_ONCE(ctrl->wrap_mask, pvr_cccb->wrap_mask);
+}
+
 /**
  * pvr_cccb_init() - Initialise a Client CCB
  * @pvr_dev: Device pointer.
@@ -37,12 +49,17 @@ pvr_cccb_init(struct pvr_device *pvr_dev, struct pvr_cccb *pvr_cccb,
 	size_t size = 1 << size_log2;
 	int err;
 
+	pvr_cccb->size = size;
+	pvr_cccb->write_offset = 0;
+	pvr_cccb->wrap_mask = size - 1;
+
 	/*
 	 * Map CCCB and control structure as uncached, so we don't have to flush
 	 * CPU cache repeatedly when polling for space.
 	 */
 	pvr_cccb->ctrl = pvr_fw_object_create_and_map(pvr_dev, sizeof(*pvr_cccb->ctrl),
 						      PVR_BO_FW_FLAGS_DEVICE_UNCACHED,
+						      cccb_ctrl_init, pvr_cccb,
 						      &pvr_cccb->ctrl_obj);
 	if (IS_ERR(pvr_cccb->ctrl)) {
 		err = PTR_ERR(pvr_cccb->ctrl);
@@ -52,7 +69,7 @@ pvr_cccb_init(struct pvr_device *pvr_dev, struct pvr_cccb *pvr_cccb,
 	pvr_cccb->cccb = pvr_fw_object_create_and_map(pvr_dev, size,
 						      PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
 						      DRM_PVR_BO_CREATE_ZEROED,
-						      &pvr_cccb->cccb_obj);
+						      NULL, NULL, &pvr_cccb->cccb_obj);
 	if (IS_ERR(pvr_cccb->cccb)) {
 		err = PTR_ERR(pvr_cccb->cccb);
 		goto err_free_ctrl;
@@ -60,14 +77,6 @@ pvr_cccb_init(struct pvr_device *pvr_dev, struct pvr_cccb *pvr_cccb,
 
 	pvr_fw_object_get_fw_addr(pvr_cccb->ctrl_obj, &pvr_cccb->ctrl_fw_addr);
 	pvr_fw_object_get_fw_addr(pvr_cccb->cccb_obj, &pvr_cccb->cccb_fw_addr);
-
-	WRITE_ONCE(pvr_cccb->ctrl->write_offset, 0);
-	WRITE_ONCE(pvr_cccb->ctrl->read_offset, 0);
-	WRITE_ONCE(pvr_cccb->ctrl->dep_offset, 0);
-	WRITE_ONCE(pvr_cccb->ctrl->wrap_mask, size - 1);
-	pvr_cccb->size = size;
-	pvr_cccb->write_offset = 0;
-	pvr_cccb->wrap_mask = size - 1;
 
 	return 0;
 

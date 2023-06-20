@@ -45,6 +45,18 @@ struct pvr_fw_object {
 	 *                  set.
 	 */
 	u32 fw_addr_offset;
+
+	/**
+	 * @init: Initialisation callback. Will be called on object creation and FW hard reset.
+	 *        Object will have been zeroed before this is called.
+	 */
+	void (*init)(void *cpu_ptr, void *priv);
+
+	/** @init_priv: Private data for initialisation callback. */
+	void *init_priv;
+
+	/** @node: Node for firmware object list. */
+	struct list_head node;
 };
 
 /**
@@ -223,6 +235,36 @@ struct pvr_fw_mem {
 	 */
 	struct pvr_fw_object *core_data_obj;
 
+	/** @code: Driver-side copy of firmware code. */
+	u8 *code;
+
+	/** @data: Driver-side copy of firmware data. */
+	u8 *data;
+
+	/**
+	 * @core_code: Driver-side copy of firmware core code. May be %NULL if firmware does not
+	 *             contain this section.
+	 */
+	u8 *core_code;
+
+	/**
+	 * @core_data: Driver-side copy of firmware core data. May be %NULL if firmware does not
+	 *             contain this section.
+	 */
+	u8 *core_data;
+
+	/** @code_alloc_size: Allocation size of firmware code section. */
+	u32 code_alloc_size;
+
+	/** @data_alloc_size: Allocation size of firmware data section. */
+	u32 data_alloc_size;
+
+	/** @core_code_alloc_size: Allocation size of firmware core code section. */
+	u32 core_code_alloc_size;
+
+	/** @core_data_alloc_size: Allocation size of firmware core data section. */
+	u32 core_data_alloc_size;
+
 	/**
 	 * @fwif_connection_ctl_obj: Object representing FWIF connection control
 	 *                           structure.
@@ -344,6 +386,15 @@ struct pvr_fw_device {
 
 	/** @fw_trace: Device firmware trace buffer state. */
 	struct pvr_fw_trace fw_trace;
+
+	/** @fw_objs: Structure tracking FW objects. */
+	struct {
+		/** @list: Head of FW object list. */
+		struct list_head list;
+
+		/** @lock: Lock protecting access to FW object list. */
+		struct mutex lock;
+	} fw_objs;
 };
 
 #define pvr_fw_irq_read_reg(pvr_dev, name) \
@@ -374,12 +425,6 @@ int pvr_wait_for_fw_boot(struct pvr_device *pvr_dev);
 
 void pvr_fw_mts_schedule(struct pvr_device *pvr_dev, u32 val);
 
-int
-pvr_fw_mem_context_create(struct pvr_device *pvr_dev, struct pvr_vm_context *vm_ctx,
-			  struct pvr_fw_object **fw_mem_ctx_obj_out);
-void
-pvr_fw_mem_context_destroy(struct pvr_fw_object *fw_mem_ctx_obj);
-
 void
 pvr_fw_heap_info_init(struct pvr_device *pvr_dev, u32 log2_size, u32 reserved_size);
 
@@ -397,16 +442,17 @@ pvr_fw_structure_cleanup(struct pvr_device *pvr_dev, u32 type, struct pvr_fw_obj
 			 u32 offset);
 
 int pvr_fw_object_create(struct pvr_device *pvr_dev, size_t size, u64 flags,
+			 void (*init)(void *cpu_ptr, void *priv), void *init_priv,
 			 struct pvr_fw_object **pvr_obj_out);
 
-void *pvr_fw_object_create_and_map(struct pvr_device *pvr_dev, size_t size,
-				   u64 flags,
-				   struct pvr_fw_object **pvr_obj_out);
+void *pvr_fw_object_create_and_map(struct pvr_device *pvr_dev, size_t size, u64 flags,
+				   void (*init)(void *cpu_ptr, void *priv),
+				   void *init_priv, struct pvr_fw_object **pvr_obj_out);
 
 void *
-pvr_fw_object_create_and_map_offset(struct pvr_device *pvr_dev,
-				    u32 dev_offset, size_t size, u64 flags,
-				    struct pvr_fw_object **pvr_obj_out);
+pvr_fw_object_create_and_map_offset(struct pvr_device *pvr_dev, u32 dev_offset, size_t size,
+				    u64 flags, void (*init)(void *cpu_ptr, void *priv),
+				    void *init_priv, struct pvr_fw_object **pvr_obj_out);
 
 static __always_inline void *
 pvr_fw_object_vmap(struct pvr_fw_object *fw_obj)

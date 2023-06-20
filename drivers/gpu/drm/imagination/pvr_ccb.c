@@ -21,6 +21,18 @@
 
 #define RESERVE_SLOT_TIMEOUT (1 * HZ) /* 1s */
 
+static void
+ccb_ctrl_init(void *cpu_ptr, void *priv)
+{
+	struct rogue_fwif_ccb_ctl *ctrl = cpu_ptr;
+	struct pvr_ccb *pvr_ccb = priv;
+
+	ctrl->write_offset = 0;
+	ctrl->read_offset = 0;
+	ctrl->wrap_mask = pvr_ccb->num_cmds - 1;
+	ctrl->cmd_size = pvr_ccb->cmd_size;
+}
+
 /**
  * pvr_ccb_init() - Initialise a CCB
  * @pvr_dev: Device pointer.
@@ -40,6 +52,9 @@ pvr_ccb_init(struct pvr_device *pvr_dev, struct pvr_ccb *pvr_ccb,
 	u32 ccb_size = num_cmds * cmd_size;
 	int err;
 
+	pvr_ccb->num_cmds = num_cmds;
+	pvr_ccb->cmd_size = cmd_size;
+
 	err = drmm_mutex_init(from_pvr_device(pvr_dev), &pvr_ccb->lock);
 	if (err)
 		goto err_out;
@@ -50,7 +65,7 @@ pvr_ccb_init(struct pvr_device *pvr_dev, struct pvr_ccb *pvr_ccb,
 	 */
 	pvr_ccb->ctrl = pvr_fw_object_create_and_map(pvr_dev, sizeof(*pvr_ccb->ctrl),
 						     PVR_BO_FW_FLAGS_DEVICE_UNCACHED,
-						     &pvr_ccb->ctrl_obj);
+						     ccb_ctrl_init, pvr_ccb, &pvr_ccb->ctrl_obj);
 	if (IS_ERR(pvr_ccb->ctrl)) {
 		err = PTR_ERR(pvr_ccb->ctrl);
 		goto err_out;
@@ -59,7 +74,7 @@ pvr_ccb_init(struct pvr_device *pvr_dev, struct pvr_ccb *pvr_ccb,
 	pvr_ccb->ccb = pvr_fw_object_create_and_map(pvr_dev, ccb_size,
 						    PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
 						    DRM_PVR_BO_CREATE_ZEROED,
-						    &pvr_ccb->ccb_obj);
+						    NULL, NULL, &pvr_ccb->ccb_obj);
 	if (IS_ERR(pvr_ccb->ccb)) {
 		err = PTR_ERR(pvr_ccb->ccb);
 		goto err_free_ctrl;

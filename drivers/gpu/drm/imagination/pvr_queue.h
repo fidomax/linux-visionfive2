@@ -142,6 +142,9 @@ struct pvr_queue {
 
 	/** @ctx_offset: Offset of the queue context in the FW context object. */
 	u32 ctx_offset;
+
+	/** @callstack_addr: Initial call stack address for register state object. */
+	u64 callstack_addr;
 };
 
 bool pvr_queue_fence_is_ufo_backed(struct dma_fence *f);

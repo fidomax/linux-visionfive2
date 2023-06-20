@@ -51,6 +51,12 @@ struct pvr_context {
 	/** @fw_obj: FW object representing FW-side context data. */
 	struct pvr_fw_object *fw_obj;
 
+	/** @data: Pointer to local copy of FW context data. */
+	void *data;
+
+	/** @data_size: Size of FW context data, in bytes. */
+	u32 data_size;
+
 	/** @ctx_id: FW context ID. */
 	u32 ctx_id;
 

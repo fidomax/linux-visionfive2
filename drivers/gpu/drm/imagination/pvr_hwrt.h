@@ -27,8 +27,8 @@ struct pvr_hwrt_data {
 	/** @fw_obj: FW object representing the FW-side structure. */
 	struct pvr_fw_object *fw_obj;
 
-	/** @fw_data: Pointer to CPU mappings of the FW-side structure. */
-	struct rogue_fwif_hwrtdata *fw_data;
+	/** @data: Local copy of FW-side structure. */
+	struct rogue_fwif_hwrtdata data;
 
 	/** @freelist_node: List node connecting this HWRT to the local freelist. */
 	struct list_head freelist_node;
@@ -63,6 +63,8 @@ struct pvr_hwrt_dataset {
 
 	/** @common_fw_obj: FW object representing common FW-side structure. */
 	struct pvr_fw_object *common_fw_obj;
+
+	struct rogue_fwif_hwrtdata_common common;
 
 	/** @data: HWRT data structures belonging to this set. */
 	struct pvr_hwrt_data data[ROGUE_FWIF_NUM_RTDATAS];

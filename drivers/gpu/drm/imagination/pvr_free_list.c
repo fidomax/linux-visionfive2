@@ -97,6 +97,8 @@ free_list_create_kernel_structure(struct pvr_file *pvr_file,
 	free_list->grow_pages = args->grow_num_pages;
 	free_list->grow_threshold = args->grow_threshold;
 	free_list->obj = free_list_obj;
+	free_list->free_list_gpu_addr = args->free_list_gpu_addr;
+	free_list->initial_num_pages = args->initial_num_pages;
 
 	err = pvr_gem_object_get_pages(free_list->obj);
 	if (err < 0)
@@ -174,14 +176,37 @@ calculate_free_list_ready_pages(struct pvr_free_list *free_list, u32 pages)
 	return ret;
 }
 
+static void
+free_list_fw_init(void *cpu_ptr, void *priv)
+{
+	struct rogue_fwif_freelist *fw_data = cpu_ptr;
+	struct pvr_free_list *free_list = priv;
+	u32 ready_pages;
+
+	/* Fill out FW structure */
+	ready_pages = calculate_free_list_ready_pages(free_list,
+						      free_list->initial_num_pages);
+
+	fw_data->max_pages = free_list->max_pages;
+	fw_data->current_pages = free_list->initial_num_pages - ready_pages;
+	fw_data->grow_pages = free_list->grow_pages;
+	fw_data->ready_pages = ready_pages;
+	fw_data->freelist_id = free_list->fw_id;
+	fw_data->grow_pending = false;
+	fw_data->current_stack_top = fw_data->current_pages - 1;
+	fw_data->freelist_dev_addr = free_list->free_list_gpu_addr;
+	fw_data->current_dev_addr = (fw_data->freelist_dev_addr +
+				     ((fw_data->max_pages - fw_data->current_pages) *
+				      FREE_LIST_ENTRY_SIZE)) &
+				    ~((u64)ROGUE_BIF_PM_FREELIST_BASE_ADDR_ALIGNSIZE - 1);
+}
+
 static int
 free_list_create_fw_structure(struct pvr_file *pvr_file,
 			      struct drm_pvr_ioctl_create_free_list_args *args,
 			      struct pvr_free_list *free_list)
 {
 	struct pvr_device *pvr_dev = pvr_file->pvr_dev;
-	struct rogue_fwif_freelist *fw_data;
-	u32 ready_pages;
 	int err;
 
 	/*
@@ -192,31 +217,12 @@ free_list_create_fw_structure(struct pvr_file *pvr_file,
 	free_list->fw_data = pvr_fw_object_create_and_map(pvr_dev, sizeof(*free_list->fw_data),
 							  PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
 							  DRM_PVR_BO_CREATE_ZEROED,
+							  free_list_fw_init, free_list,
 							  &free_list->fw_obj);
 	if (IS_ERR(free_list->fw_data)) {
 		err = PTR_ERR(free_list->fw_data);
 		goto err_out;
 	}
-
-	/* Fill out FW structure */
-	ready_pages = calculate_free_list_ready_pages(free_list,
-						      args->initial_num_pages);
-
-	fw_data = free_list->fw_data;
-
-	fw_data->max_pages = free_list->max_pages;
-	fw_data->current_pages = args->initial_num_pages - ready_pages;
-	fw_data->grow_pages = free_list->grow_pages;
-	fw_data->ready_pages = ready_pages;
-	fw_data->freelist_id = free_list->fw_id;
-	fw_data->grow_pending = false;
-	fw_data->current_stack_top = fw_data->current_pages - 1;
-	fw_data->freelist_dev_addr = args->free_list_gpu_addr;
-	fw_data->current_dev_addr = (fw_data->freelist_dev_addr +
-				     ((fw_data->max_pages - fw_data->current_pages) *
-				      FREE_LIST_ENTRY_SIZE)) &
-				    ~((u64)ROGUE_BIF_PM_FREELIST_BASE_ADDR_ALIGNSIZE - 1);
-
 	return 0;
 
 err_out:
@@ -614,8 +620,14 @@ pvr_free_list_reconstruct(struct pvr_device *pvr_dev, u32 freelist_id)
 
 	/* Reset the state of any associated HWRTs. */
 	list_for_each_entry(hwrt_data, &free_list->hwrt_list, freelist_node) {
-		hwrt_data->fw_data->state = ROGUE_FWIF_RTDATA_STATE_HWR;
-		hwrt_data->fw_data->hwrt_data_flags &= ~HWRTDATA_HAS_LAST_GEOM;
+		struct rogue_fwif_hwrtdata *hwrt_fw_data = pvr_fw_object_vmap(hwrt_data->fw_obj);
+
+		if (!WARN_ON(IS_ERR(hwrt_fw_data))) {
+			hwrt_fw_data->state = ROGUE_FWIF_RTDATA_STATE_HWR;
+			hwrt_fw_data->hwrt_data_flags &= ~HWRTDATA_HAS_LAST_GEOM;
+		}
+
+		pvr_fw_object_vunmap(hwrt_data->fw_obj);
 	}
 
 	mutex_unlock(&free_list->lock);

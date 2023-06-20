@@ -224,6 +224,14 @@ err_out:
 	return err;
 }
 
+static void
+hwrtdata_common_init(void *cpu_ptr, void *priv)
+{
+	struct pvr_hwrt_dataset *hwrt = priv;
+
+	memcpy(cpu_ptr, &hwrt->common, sizeof(hwrt->common));
+}
+
 static int
 hwrt_init_common_fw_structure(struct pvr_file *pvr_file,
 			      struct drm_pvr_ioctl_create_hwrt_dataset_args *args,
@@ -231,7 +239,6 @@ hwrt_init_common_fw_structure(struct pvr_file *pvr_file,
 {
 	struct drm_pvr_create_hwrt_geom_data_args *geom_data_args = &args->geom_data_args;
 	struct pvr_device *pvr_dev = pvr_file->pvr_dev;
-	struct rogue_fwif_hwrtdata_common *hwrt_data_common_fw;
 	struct pvr_rt_mtile_info info;
 	int err;
 
@@ -280,84 +287,75 @@ hwrt_init_common_fw_structure(struct pvr_file *pvr_file,
 		info.tile_max_y = info.num_tiles_y - 1;
 	}
 
-	/*
-	 * Create and map the FW structure so we can initialise it. This is not
-	 * accessed on the CPU side post-initialisation so the mapping lifetime
-	 * is only for this function.
-	 */
-	hwrt_data_common_fw =
-		pvr_fw_object_create_and_map(pvr_dev,
-					     sizeof(*hwrt_data_common_fw),
-					     PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
-					     DRM_PVR_BO_CREATE_ZEROED, &hwrt->common_fw_obj);
-	if (IS_ERR(hwrt_data_common_fw)) {
-		err = PTR_ERR(hwrt_data_common_fw);
-		return err;
-	}
+	hwrt->common.geom_caches_need_zeroing = false;
 
-	hwrt_data_common_fw->geom_caches_need_zeroing = false;
-
-	hwrt_data_common_fw->isp_merge_lower_x = args->isp_merge_lower_x;
-	hwrt_data_common_fw->isp_merge_lower_y = args->isp_merge_lower_y;
-	hwrt_data_common_fw->isp_merge_upper_x = args->isp_merge_upper_x;
-	hwrt_data_common_fw->isp_merge_upper_y = args->isp_merge_upper_y;
-	hwrt_data_common_fw->isp_merge_scale_x = args->isp_merge_scale_x;
-	hwrt_data_common_fw->isp_merge_scale_y = args->isp_merge_scale_y;
+	hwrt->common.isp_merge_lower_x = args->isp_merge_lower_x;
+	hwrt->common.isp_merge_lower_y = args->isp_merge_lower_y;
+	hwrt->common.isp_merge_upper_x = args->isp_merge_upper_x;
+	hwrt->common.isp_merge_upper_y = args->isp_merge_upper_y;
+	hwrt->common.isp_merge_scale_x = args->isp_merge_scale_x;
+	hwrt->common.isp_merge_scale_y = args->isp_merge_scale_y;
 
 	err = get_cr_multisamplectl_val(args->samples, false,
-					&hwrt_data_common_fw->multi_sample_ctl);
+					&hwrt->common.multi_sample_ctl);
 	if (err)
-		goto err_put_fw_obj;
+		return err;
 
 	err = get_cr_multisamplectl_val(args->samples, true,
-					&hwrt_data_common_fw->flipped_multi_sample_ctl);
+					&hwrt->common.flipped_multi_sample_ctl);
 	if (err)
-		goto err_put_fw_obj;
+		return err;
 
-	hwrt_data_common_fw->mtile_stride = info.mtile_x[0] * info.mtile_y[0];
+	hwrt->common.mtile_stride = info.mtile_x[0] * info.mtile_y[0];
 
-	err = get_cr_te_aa_val(pvr_dev, args->samples, &hwrt_data_common_fw->teaa);
+	err = get_cr_te_aa_val(pvr_dev, args->samples, &hwrt->common.teaa);
 	if (err)
-		goto err_put_fw_obj;
+		return err;
 
-	hwrt_data_common_fw->screen_pixel_max =
+	hwrt->common.screen_pixel_max =
 		(((args->width - 1) << ROGUE_CR_PPP_SCREEN_PIXXMAX_SHIFT) &
 		 ~ROGUE_CR_PPP_SCREEN_PIXXMAX_CLRMSK) |
 		(((args->height - 1) << ROGUE_CR_PPP_SCREEN_PIXYMAX_SHIFT) &
 		 ~ROGUE_CR_PPP_SCREEN_PIXYMAX_CLRMSK);
 
-	hwrt_data_common_fw->te_screen =
+	hwrt->common.te_screen =
 		((info.tile_max_x << ROGUE_CR_TE_SCREEN_XMAX_SHIFT) &
 		 ~ROGUE_CR_TE_SCREEN_XMAX_CLRMSK) |
 		((info.tile_max_y << ROGUE_CR_TE_SCREEN_YMAX_SHIFT) &
 		 ~ROGUE_CR_TE_SCREEN_YMAX_CLRMSK);
-	hwrt_data_common_fw->te_mtile1 =
+	hwrt->common.te_mtile1 =
 		((info.mtile_x[0] << ROGUE_CR_TE_MTILE1_X1_SHIFT) & ~ROGUE_CR_TE_MTILE1_X1_CLRMSK) |
 		((info.mtile_x[1] << ROGUE_CR_TE_MTILE1_X2_SHIFT) & ~ROGUE_CR_TE_MTILE1_X2_CLRMSK) |
 		((info.mtile_x[2] << ROGUE_CR_TE_MTILE1_X3_SHIFT) & ~ROGUE_CR_TE_MTILE1_X3_CLRMSK);
-	hwrt_data_common_fw->te_mtile2 =
+	hwrt->common.te_mtile2 =
 		((info.mtile_y[0] << ROGUE_CR_TE_MTILE2_Y1_SHIFT) & ~ROGUE_CR_TE_MTILE2_Y1_CLRMSK) |
 		((info.mtile_y[1] << ROGUE_CR_TE_MTILE2_Y2_SHIFT) & ~ROGUE_CR_TE_MTILE2_Y2_CLRMSK) |
 		((info.mtile_y[2] << ROGUE_CR_TE_MTILE2_Y3_SHIFT) & ~ROGUE_CR_TE_MTILE2_Y3_CLRMSK);
 
 	err = get_cr_isp_mtile_size_val(pvr_dev, args->samples, &info,
-					&hwrt_data_common_fw->isp_mtile_size);
+					&hwrt->common.isp_mtile_size);
 	if (err)
-		goto err_put_fw_obj;
+		return err;
 
-	hwrt_data_common_fw->tpc_stride = geom_data_args->tpc_stride;
-	hwrt_data_common_fw->tpc_size = geom_data_args->tpc_size;
+	hwrt->common.tpc_stride = geom_data_args->tpc_stride;
+	hwrt->common.tpc_size = geom_data_args->tpc_size;
 
-	hwrt_data_common_fw->rgn_header_size = args->region_header_size;
+	hwrt->common.rgn_header_size = args->region_header_size;
 
-	pvr_fw_object_vunmap(hwrt->common_fw_obj);
-
-	return 0;
-
-err_put_fw_obj:
-	pvr_fw_object_vunmap(hwrt->common_fw_obj);
+	err = pvr_fw_object_create(pvr_dev, sizeof(struct rogue_fwif_hwrtdata_common),
+				   PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
+				   DRM_PVR_BO_CREATE_ZEROED, hwrtdata_common_init, hwrt,
+				   &hwrt->common_fw_obj);
 
 	return err;
+}
+
+static void
+hwrt_fw_data_init(void *cpu_ptr, void *priv)
+{
+	struct pvr_hwrt_data *hwrt_data = priv;
+
+	memcpy(cpu_ptr, &hwrt_data->data, sizeof(hwrt_data->data));
 }
 
 static int
@@ -373,32 +371,23 @@ hwrt_data_init_fw_structure(struct pvr_file *pvr_file,
 	int free_list_i;
 	int err;
 
-	hwrt_data->fw_data = pvr_fw_object_create_and_map(pvr_dev, sizeof(*hwrt_data->fw_data),
-							  PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
-							  DRM_PVR_BO_CREATE_ZEROED,
-							  &hwrt_data->fw_obj);
-	if (IS_ERR(hwrt_data->fw_data)) {
-		err = PTR_ERR(hwrt_data->fw_data);
-		goto err_out;
-	}
-
 	pvr_fw_object_get_fw_addr(hwrt->common_fw_obj,
-				  &hwrt_data->fw_data->hwrt_data_common_fw_addr);
+				  &hwrt_data->data.hwrt_data_common_fw_addr);
 
 	for (free_list_i = 0; free_list_i < ARRAY_SIZE(hwrt->free_lists); free_list_i++) {
 		pvr_fw_object_get_fw_addr(hwrt->free_lists[free_list_i]->fw_obj,
-					  &hwrt_data->fw_data->freelists_fw_addr[free_list_i]);
+					  &hwrt_data->data.freelists_fw_addr[free_list_i]);
 	}
 
-	hwrt_data->fw_data->tail_ptrs_dev_addr = geom_data_args->tpc_dev_addr;
-	hwrt_data->fw_data->vheap_table_dev_addr = geom_data_args->vheap_table_dev_addr;
-	hwrt_data->fw_data->rtc_dev_addr = geom_data_args->rtc_dev_addr;
+	hwrt_data->data.tail_ptrs_dev_addr = geom_data_args->tpc_dev_addr;
+	hwrt_data->data.vheap_table_dev_addr = geom_data_args->vheap_table_dev_addr;
+	hwrt_data->data.rtc_dev_addr = geom_data_args->rtc_dev_addr;
 
-	hwrt_data->fw_data->pm_mlist_dev_addr = rt_data_args->pm_mlist_dev_addr;
-	hwrt_data->fw_data->macrotile_array_dev_addr = rt_data_args->macrotile_array_dev_addr;
-	hwrt_data->fw_data->rgn_header_dev_addr = rt_data_args->region_header_dev_addr;
+	hwrt_data->data.pm_mlist_dev_addr = rt_data_args->pm_mlist_dev_addr;
+	hwrt_data->data.macrotile_array_dev_addr = rt_data_args->macrotile_array_dev_addr;
+	hwrt_data->data.rgn_header_dev_addr = rt_data_args->region_header_dev_addr;
 
-	rta_ctl = &hwrt_data->fw_data->rta_ctl;
+	rta_ctl = &hwrt_data->data.rta_ctl;
 
 	rta_ctl->render_target_index = 0;
 	rta_ctl->active_render_targets = 0;
@@ -410,31 +399,39 @@ hwrt_data_init_fw_structure(struct pvr_file *pvr_file,
 		err = pvr_fw_object_create(pvr_dev, args->layers * SRTC_ENTRY_SIZE,
 					   PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
 					   DRM_PVR_BO_CREATE_ZEROED,
-					   &hwrt_data->srtc_obj);
+					   NULL, NULL, &hwrt_data->srtc_obj);
 		if (err)
-			goto err_put_fw_obj;
+			goto err_out;
 		pvr_fw_object_get_fw_addr(hwrt_data->srtc_obj,
 					  &rta_ctl->valid_render_targets_fw_addr);
 
 		err = pvr_fw_object_create(pvr_dev, args->layers * RAA_ENTRY_SIZE,
 					   PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
 					   DRM_PVR_BO_CREATE_ZEROED,
-					   &hwrt_data->raa_obj);
+					   NULL, NULL, &hwrt_data->raa_obj);
 		if (err)
 			goto err_put_shadow_rt_cache;
 		pvr_fw_object_get_fw_addr(hwrt_data->raa_obj,
 					  &rta_ctl->rta_num_partial_renders_fw_addr);
 	}
 
+	err = pvr_fw_object_create(pvr_dev, sizeof(struct rogue_fwif_hwrtdata),
+				   PVR_BO_FW_FLAGS_DEVICE_UNCACHED | DRM_PVR_BO_CREATE_ZEROED,
+				   hwrt_fw_data_init, hwrt_data, &hwrt_data->fw_obj);
+	if (err)
+		goto err_put_raa_obj;
+
 	pvr_free_list_add_hwrt(hwrt->free_lists[0], hwrt_data);
 
 	return 0;
 
-err_put_shadow_rt_cache:
-	pvr_fw_object_destroy(hwrt_data->srtc_obj);
+err_put_raa_obj:
+	if (args->layers > 1)
+		pvr_fw_object_destroy(hwrt_data->raa_obj);
 
-err_put_fw_obj:
-	pvr_fw_object_unmap_and_destroy(hwrt_data->fw_obj);
+err_put_shadow_rt_cache:
+	if (args->layers > 1)
+		pvr_fw_object_destroy(hwrt_data->srtc_obj);
 
 err_out:
 	return err;
@@ -452,7 +449,7 @@ hwrt_data_fini_fw_structure(struct pvr_hwrt_dataset *hwrt, int hwrt_nr)
 		pvr_fw_object_destroy(hwrt_data->srtc_obj);
 	}
 
-	pvr_fw_object_unmap_and_destroy(hwrt_data->fw_obj);
+	pvr_fw_object_destroy(hwrt_data->fw_obj);
 }
 
 /**

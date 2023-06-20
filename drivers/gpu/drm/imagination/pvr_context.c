@@ -271,6 +271,14 @@ static void pvr_context_kill_queues(struct pvr_context *ctx)
 	}
 }
 
+static void
+ctx_fw_data_init(void *cpu_ptr, void *priv)
+{
+	struct pvr_context *ctx = priv;
+
+	memcpy(cpu_ptr, ctx->data, ctx->data_size);
+}
+
 /**
  * pvr_context_create() - Create a context.
  * @pvr_file: File to attach the created context to.
@@ -284,7 +292,6 @@ int pvr_context_create(struct pvr_file *pvr_file, struct drm_pvr_ioctl_create_co
 {
 	struct pvr_device *pvr_dev = pvr_file->pvr_dev;
 	struct pvr_context *ctx;
-	void *ctx_map;
 	int ctx_size;
 	int err;
 
@@ -300,6 +307,7 @@ int pvr_context_create(struct pvr_file *pvr_file, struct drm_pvr_ioctl_create_co
 	if (!ctx)
 		return -ENOMEM;
 
+	ctx->data_size = ctx_size;
 	ctx->type = args->type;
 	ctx->flags = args->flags;
 	ctx->pvr_dev = pvr_dev;
@@ -316,43 +324,47 @@ int pvr_context_create(struct pvr_file *pvr_file, struct drm_pvr_ioctl_create_co
 		goto err_free_ctx;
 	}
 
-	ctx_map = pvr_fw_object_create_and_map(pvr_dev,
-					       ctx_size,
-					       PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
-					       DRM_PVR_BO_CREATE_ZEROED,
-					       &ctx->fw_obj);
-	if (IS_ERR(ctx_map)) {
-		err = PTR_ERR(ctx_map);
+	ctx->data = kzalloc(ctx_size, GFP_KERNEL);
+	if (!ctx->data) {
+		err = -ENOMEM;
 		goto err_put_vm;
 	}
 
-	err = pvr_context_create_queues(ctx, args, ctx_map);
+	err = pvr_context_create_queues(ctx, args, ctx->data);
 	if (err)
-		goto err_destroy_fw_obj;
+		goto err_free_ctx_data;
 
-	err = init_fw_objs(ctx, args, ctx_map);
+	err = init_fw_objs(ctx, args, ctx->data);
 	if (err)
 		goto err_destroy_queues;
+
+	err = pvr_fw_object_create(pvr_dev, ctx_size,
+				   PVR_BO_FW_FLAGS_DEVICE_UNCACHED | DRM_PVR_BO_CREATE_ZEROED,
+				   ctx_fw_data_init, ctx, &ctx->fw_obj);
+	if (err)
+		goto err_free_ctx_data;
 
 	err = xa_alloc(&pvr_dev->ctx_ids, &ctx->ctx_id, ctx, xa_limit_32b, GFP_KERNEL);
 	if (err)
-		goto err_destroy_queues;
+		goto err_destroy_fw_obj;
 
 	err = xa_alloc(&pvr_file->ctx_handles, &args->handle, ctx, xa_limit_32b, GFP_KERNEL);
 	if (err)
 		goto err_release_id;
 
-	pvr_fw_object_vunmap(ctx->fw_obj);
 	return 0;
 
 err_release_id:
 	xa_erase(&pvr_dev->ctx_ids, ctx->ctx_id);
 
+err_destroy_fw_obj:
+	pvr_fw_object_destroy(ctx->fw_obj);
+
 err_destroy_queues:
 	pvr_context_destroy_queues(ctx);
 
-err_destroy_fw_obj:
-	pvr_fw_object_unmap_and_destroy(ctx->fw_obj);
+err_free_ctx_data:
+	kfree(ctx->data);
 
 err_put_vm:
 	pvr_vm_context_put(ctx->vm_ctx);
@@ -372,6 +384,7 @@ pvr_context_release(struct kref *ref_count)
 	xa_erase(&pvr_dev->ctx_ids, ctx->ctx_id);
 	pvr_context_destroy_queues(ctx);
 	pvr_fw_object_destroy(ctx->fw_obj);
+	kfree(ctx->data);
 	pvr_vm_context_put(ctx->vm_ctx);
 	kfree(ctx);
 }

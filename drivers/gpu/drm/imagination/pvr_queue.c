@@ -992,30 +992,6 @@ static u32 get_dm_type(struct pvr_queue *queue)
 }
 
 /**
- * init_geom_reg_state_obj() - Initializes the geometry register state.
- * @queue: Queue object to initialize the register state for.
- * @args: Arguments passed to the context creation function.
- *
- * Return:
- *  * 0 on success, or
- *  * Any error returned by pvr_fw_object_vmap() if the vmap operation failed.
- */
-static int init_geom_reg_state_obj(struct pvr_queue *queue,
-				   struct drm_pvr_ioctl_create_context_args *args)
-{
-	struct rogue_fwif_geom_ctx_state *geom_ctx_state_fw;
-
-	geom_ctx_state_fw = pvr_fw_object_vmap(queue->reg_state_obj);
-	if (IS_ERR(geom_ctx_state_fw))
-		return PTR_ERR(geom_ctx_state_fw);
-
-	geom_ctx_state_fw->geom_core[0].geom_reg_vdm_call_stack_pointer_init = args->callstack_addr;
-
-	pvr_fw_object_vunmap(queue->reg_state_obj);
-	return 0;
-}
-
-/**
  * init_fw_context() - Initializes the queue part of a FW context.
  * @queue: Queue object to initialize the FW context for.
  * @fw_ctx_map: The FW context CPU mapping.
@@ -1161,6 +1137,18 @@ void pvr_queue_job_push(struct pvr_job *job)
 	drm_sched_entity_push_job(&job->base);
 }
 
+static void reg_state_init(void *cpu_ptr, void *priv)
+{
+	struct pvr_queue *queue = priv;
+
+	if (queue->type == DRM_PVR_JOB_TYPE_GEOMETRY) {
+		struct rogue_fwif_geom_ctx_state *geom_ctx_state_fw = cpu_ptr;
+
+		geom_ctx_state_fw->geom_core[0].geom_reg_vdm_call_stack_pointer_init =
+			queue->callstack_addr;
+	}
+}
+
 /**
  * pvr_queue_create() - Create a queue object.
  * @ctx: The context this queue will be attached to.
@@ -1238,6 +1226,7 @@ struct pvr_queue *pvr_queue_create(struct pvr_context *ctx,
 	queue->type = type;
 	queue->ctx_offset = get_ctx_offset(type);
 	queue->ctx = ctx;
+	queue->callstack_addr = args->callstack_addr;
 	sched = &queue->scheduler;
 	INIT_LIST_HEAD(&queue->node);
 	mutex_init(&queue->cccb_fence_ctx.job_lock);
@@ -1251,17 +1240,14 @@ struct pvr_queue *pvr_queue_create(struct pvr_context *ctx,
 	err = pvr_fw_object_create(pvr_dev, ctx_state_size,
 				   PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
 				   DRM_PVR_BO_CREATE_ZEROED,
-				   &queue->reg_state_obj);
+				   reg_state_init, queue, &queue->reg_state_obj);
 	if (err)
 		goto err_cccb_fini;
 
 	init_fw_context(queue, fw_ctx_map);
 
-	if (type == DRM_PVR_JOB_TYPE_GEOMETRY) {
-		err = init_geom_reg_state_obj(queue, args);
-		if (err)
-			goto err_release_reg_state;
-	} else if (type != DRM_PVR_JOB_TYPE_FRAGMENT && args->callstack_addr) {
+	if (type != DRM_PVR_JOB_TYPE_GEOMETRY && type != DRM_PVR_JOB_TYPE_FRAGMENT &&
+	    args->callstack_addr) {
 		err = -EINVAL;
 		goto err_release_reg_state;
 	}
@@ -1269,7 +1255,7 @@ struct pvr_queue *pvr_queue_create(struct pvr_context *ctx,
 	cpu_map = pvr_fw_object_create_and_map(pvr_dev, sizeof(*queue->timeline_ufo.value),
 					       PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
 					       DRM_PVR_BO_CREATE_ZEROED,
-					       &queue->timeline_ufo.fw_obj);
+					       NULL, NULL, &queue->timeline_ufo.fw_obj);
 	if (IS_ERR(cpu_map)) {
 		err = PTR_ERR(cpu_map);
 		goto err_release_reg_state;

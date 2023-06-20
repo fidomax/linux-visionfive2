@@ -26,6 +26,12 @@ struct pvr_ccb {
 	/** @ccb_fw_addr: FW virtual address of CCB. */
 	u32 ccb_fw_addr;
 
+	/** @num_cmds: Number of commands in this CCB. */
+	u32 num_cmds;
+
+	/** @cmd_size: Size of each command in this CCB, in bytes. */
+	u32 cmd_size;
+
 	/** @lock: Mutex protecting @ctrl and @ccb. */
 	struct mutex lock;
 	/**
