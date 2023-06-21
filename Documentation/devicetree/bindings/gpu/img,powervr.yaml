@@ -34,6 +34,7 @@ properties:
       - const: core
       - const: mem
       - const: sys
+    minItems: 1
 
   interrupts:
     items:
@@ -89,47 +90,12 @@ examples:
     #include <dt-bindings/interrupt-controller/irq.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
-    gpu@13000000 {
-        compatible = "mediatek,mt8173-gpu", "img,powervr-series6xt";
-        reg = <0 0x13000000 0 0xffff>, <0 0x13fff000 0 0x1000>;
-        power-domains = <&scpsys MT8173_POWER_DOMAIN_MFG>;
-        power-supply = <&da9211_vgpu_reg>;
-        operating-points-v2 = <&gpu_opp_table>;
-        clocks = <&gpu_ckgen 0>,
-                 <&gpu_ckgen 1>,
-                 <&gpu_ckgen 2>;
-        clock-names = "core",
-                      "mem",
-                      "sys";
-        interrupts = <GIC_SPI 217 IRQ_TYPE_LEVEL_LOW>;
+    gpu: gpu@fd00000 {
+        compatible = "ti,am62-gpu", "img,powervr-seriesaxe";
+        reg = <0x0fd00000 0x20000>;
+        power-domains = <&some_pds 187>;
+        clocks = <&k3_clks 187 0>;
+        clock-names = "core";
+        interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
         interrupt-names = "gpu";
-    };
-
-    gpu_opp_table: opp-table {
-      compatible = "operating-points-v2";
-
-      opp-598000000 {
-        opp-hz = /bits/ 64 <598000000>;
-        opp-microvolt = <1130000>;
-      };
-      opp-494000000 {
-        opp-hz = /bits/ 64 <494000000>;
-        opp-microvolt = <1130000>;
-      };
-      opp-455000000 {
-        opp-hz = /bits/ 64 <455000000>;
-        opp-microvolt = <1000000>;
-      };
-      opp-396500000 {
-        opp-hz = /bits/ 64 <396500000>;
-        opp-microvolt = <1000000>;
-      };
-      opp-299000000 {
-        opp-hz = /bits/ 64 <299000000>;
-        opp-microvolt = <1000000>;
-      };
-      opp-253500000 {
-        opp-hz = /bits/ 64 <253500000>;
-        opp-microvolt = <1000000>;
-      };
     };
