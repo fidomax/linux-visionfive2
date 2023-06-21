@@ -249,8 +249,7 @@ pvr_power_device_suspend(struct device *dev)
 	clk_disable_unprepare(pvr_dev->sys_clk);
 	clk_disable_unprepare(pvr_dev->core_clk);
 
-	if (pvr_dev->regulator)
-		regulator_disable(pvr_dev->regulator);
+	regulator_disable(pvr_dev->regulator);
 
 err_out:
 	return err;
@@ -265,11 +264,9 @@ pvr_power_device_resume(struct device *dev)
 	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
 	int err;
 
-	if (pvr_dev->regulator) {
-		err = regulator_enable(pvr_dev->regulator);
-		if (err)
-			goto err_out;
-	}
+	err = regulator_enable(pvr_dev->regulator);
+	if (err)
+		goto err_out;
 
 	err = clk_prepare_enable(pvr_dev->core_clk);
 	if (err)
