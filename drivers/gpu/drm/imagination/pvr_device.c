@@ -56,38 +56,19 @@ pvr_device_reg_init(struct pvr_device *pvr_dev)
 	struct platform_device *plat_dev = to_platform_device(drm_dev->dev);
 	struct resource *regs_resource;
 	void __iomem *regs;
-	int err;
 
 	pvr_dev->regs_resource = NULL;
 	pvr_dev->regs = NULL;
 
 	regs = devm_platform_get_and_ioremap_resource(plat_dev, 0, &regs_resource);
-	if (IS_ERR(regs)) {
-		err = PTR_ERR(regs);
-		drm_err(drm_dev, "failed to ioremap gpu registers (err=%d)\n",
-			err);
-		return err;
-	}
+	if (IS_ERR(regs))
+		return dev_err_probe(drm_dev->dev, PTR_ERR(regs),
+				     "failed to ioremap gpu registers\n");
 
 	pvr_dev->regs = regs;
 	pvr_dev->regs_resource = regs_resource;
 
 	return 0;
-}
-
-/**
- * pvr_device_reg_fini() - Deinitialize kernel access to a PowerVR device's
- * control registers.
- * @pvr_dev: Target PowerVR device.
- *
- * This is essentially a no-op, since pvr_device_reg_init() already ensures that
- * struct pvr_device->regs is unmapped when the device is detached. This
- * function just sets struct pvr_device->regs to %NULL.
- */
-static __always_inline void
-pvr_device_reg_fini(struct pvr_device *pvr_dev)
-{
-	pvr_dev->regs = NULL;
 }
 
 /**
@@ -109,7 +90,7 @@ pvr_device_reg_fini(struct pvr_device *pvr_dev)
  * Return:
  *  * 0 on success,
  *  * Any error returned by devm_clk_get(), or
- *  * Any error returned by clk_prepare_enable().
+ *  * Any error returned by devm_clk_get_optional().
  */
 static int pvr_device_clk_init(struct pvr_device *pvr_dev)
 {
@@ -117,74 +98,27 @@ static int pvr_device_clk_init(struct pvr_device *pvr_dev)
 	struct clk *core_clk;
 	struct clk *sys_clk;
 	struct clk *mem_clk;
-	int err;
-
-	pvr_dev->core_clk = NULL;
-	pvr_dev->sys_clk = NULL;
-	pvr_dev->mem_clk = NULL;
 
 	core_clk = devm_clk_get(drm_dev->dev, "core");
-	if (IS_ERR(core_clk)) {
-		err = PTR_ERR(core_clk);
-		drm_err(drm_dev, "failed to get core clock (err=%d)\n", err);
-		goto err_out;
-	}
+	if (IS_ERR(core_clk))
+		return dev_err_probe(drm_dev->dev, PTR_ERR(core_clk),
+				     "failed to get core clock\n");
 
-	sys_clk = devm_clk_get(drm_dev->dev, "sys");
+	sys_clk = devm_clk_get_optional(drm_dev->dev, "sys");
 	if (IS_ERR(sys_clk))
-		sys_clk = NULL;
+		return dev_err_probe(drm_dev->dev, PTR_ERR(core_clk),
+				     "failed to get sys clock\n");
 
-	mem_clk = devm_clk_get(drm_dev->dev, "mem");
+	mem_clk = devm_clk_get_optional(drm_dev->dev, "mem");
 	if (IS_ERR(mem_clk))
-		mem_clk = NULL;
-
-	err = clk_prepare(core_clk);
-	if (err)
-		goto err_out;
-
-	if (sys_clk) {
-		err = clk_prepare(sys_clk);
-		if (err)
-			goto err_deinit_core_clk;
-	}
-
-	if (mem_clk) {
-		err = clk_prepare(mem_clk);
-		if (err)
-			goto err_deinit_sys_clk;
-	}
+		return dev_err_probe(drm_dev->dev, PTR_ERR(core_clk),
+				     "failed to get mem clock\n");
 
 	pvr_dev->core_clk = core_clk;
 	pvr_dev->sys_clk = sys_clk;
 	pvr_dev->mem_clk = mem_clk;
 
 	return 0;
-
-err_deinit_sys_clk:
-	if (sys_clk)
-		clk_disable_unprepare(sys_clk);
-err_deinit_core_clk:
-	clk_disable_unprepare(core_clk);
-err_out:
-	return err;
-}
-
-/**
- * pvr_device_clk_fini() - Deinitialize clocks required by a PowerVR device
- * @pvr_dev: Target PowerVR device.
- */
-static void
-pvr_device_clk_fini(struct pvr_device *pvr_dev)
-{
-	if (pvr_dev->mem_clk)
-		clk_unprepare(pvr_dev->mem_clk);
-	if (pvr_dev->sys_clk)
-		clk_unprepare(pvr_dev->sys_clk);
-	clk_unprepare(pvr_dev->core_clk);
-
-	pvr_dev->core_clk = NULL;
-	pvr_dev->sys_clk = NULL;
-	pvr_dev->mem_clk = NULL;
 }
 
 /**
@@ -202,24 +136,13 @@ static int
 pvr_device_regulator_init(struct pvr_device *pvr_dev)
 {
 	struct drm_device *drm_dev = from_pvr_device(pvr_dev);
-	struct regulator *regulator;
-	int err;
 
-	regulator = devm_regulator_get(drm_dev->dev, "power");
-	if (IS_ERR(regulator)) {
-		err = PTR_ERR(regulator);
-		/* Regulator is not required, so ENODEV is allowed here. */
-		if (err != -ENODEV)
-			goto err_out;
-		regulator = NULL;
-	}
-
-	pvr_dev->regulator = regulator;
+	pvr_dev->regulator = devm_regulator_get(drm_dev->dev, "power");
+	if (IS_ERR(pvr_dev->regulator))
+		return dev_err_probe(drm_dev->dev, PTR_ERR(pvr_dev->regulator),
+				     "failed to get regulator\n");
 
 	return 0;
-
-err_out:
-	return err;
 }
 
 /**
@@ -631,12 +554,12 @@ pvr_device_init(struct pvr_device *pvr_dev)
 
 	err = pvr_device_regulator_init(pvr_dev);
 	if (err)
-		goto err_device_clk_fini;
+		goto err_out;
 
 	/* Explicitly power the GPU so we can access control registers before the FW is booted. */
 	err = pm_runtime_resume_and_get(dev);
 	if (err)
-		goto err_device_clk_fini;
+		goto err_out;
 
 	/* Map the control registers into memory. */
 	err = pvr_device_reg_init(pvr_dev);
@@ -646,7 +569,7 @@ pvr_device_init(struct pvr_device *pvr_dev)
 	/* Perform GPU-specific initialization steps. */
 	err = pvr_device_gpu_init(pvr_dev);
 	if (err)
-		goto err_device_reg_fini;
+		goto err_pm_runtime_put;
 
 	err = pvr_device_irq_init(pvr_dev);
 	if (err)
@@ -659,14 +582,8 @@ pvr_device_init(struct pvr_device *pvr_dev)
 err_device_gpu_fini:
 	pvr_device_gpu_fini(pvr_dev);
 
-err_device_reg_fini:
-	pvr_device_reg_fini(pvr_dev);
-
 err_pm_runtime_put:
 	pm_runtime_put_sync_suspend(dev);
-
-err_device_clk_fini:
-	pvr_device_clk_fini(pvr_dev);
 
 err_out:
 	return err;
@@ -689,11 +606,7 @@ pvr_device_fini(struct pvr_device *pvr_dev)
 	pm_runtime_get_sync(dev);
 	pvr_device_irq_fini(pvr_dev);
 	pvr_device_gpu_fini(pvr_dev);
-	pvr_device_reg_fini(pvr_dev);
 	pm_runtime_put_sync_suspend(dev);
-	pvr_device_clk_fini(pvr_dev);
-
-	/* TODO: Remaining deinitialization steps */
 }
 
 bool

@@ -245,9 +245,9 @@ pvr_power_device_suspend(struct device *dev)
 			goto err_out;
 	}
 
-	clk_disable(pvr_dev->mem_clk);
-	clk_disable(pvr_dev->sys_clk);
-	clk_disable(pvr_dev->core_clk);
+	clk_disable_unprepare(pvr_dev->mem_clk);
+	clk_disable_unprepare(pvr_dev->sys_clk);
+	clk_disable_unprepare(pvr_dev->core_clk);
 
 	if (pvr_dev->regulator)
 		regulator_disable(pvr_dev->regulator);
@@ -271,15 +271,23 @@ pvr_power_device_resume(struct device *dev)
 			goto err_out;
 	}
 
-	clk_enable(pvr_dev->core_clk);
-	clk_enable(pvr_dev->sys_clk);
-	clk_enable(pvr_dev->mem_clk);
+	err = clk_prepare_enable(pvr_dev->core_clk);
+	if (err)
+		goto err_regulator_disable;
+
+	err = clk_prepare_enable(pvr_dev->sys_clk);
+	if (err)
+		goto err_core_clk_disable;
+
+	err = clk_prepare_enable(pvr_dev->mem_clk);
+	if (err)
+		goto err_sys_clk_disable;
 
 	if (pvr_dev->vendor.callbacks &&
 	    pvr_dev->vendor.callbacks->power_enable) {
 		err = pvr_dev->vendor.callbacks->power_enable(pvr_dev);
 		if (err)
-			goto err_clk_disable;
+			goto err_mem_clk_disable;
 	}
 
 	if (pvr_dev->fw_dev.booted) {
@@ -298,10 +306,17 @@ err_power_disable:
 			goto err_out;
 	}
 
-err_clk_disable:
-	clk_disable(pvr_dev->mem_clk);
-	clk_disable(pvr_dev->sys_clk);
-	clk_disable(pvr_dev->core_clk);
+err_mem_clk_disable:
+	clk_disable_unprepare(pvr_dev->mem_clk);
+
+err_sys_clk_disable:
+	clk_disable_unprepare(pvr_dev->sys_clk);
+
+err_core_clk_disable:
+	clk_disable_unprepare(pvr_dev->core_clk);
+
+err_regulator_disable:
+	regulator_disable(pvr_dev->regulator);
 
 err_out:
 	return err;
