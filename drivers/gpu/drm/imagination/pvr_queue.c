@@ -727,7 +727,8 @@ static struct dma_fence *pvr_queue_run_job(struct drm_sched_job *sched_job)
 						 geom_queue->ctx_offset,
 						 pvr_context_get_fw_addr(frag_job->ctx) +
 						 frag_queue->ctx_offset,
-						 job->hwrt);
+						 job->hwrt,
+						 frag_job->fw_ccb_cmd_type == ROGUE_FWIF_CCB_CMD_TYPE_FRAG_PR);
 		geom_job->paired_job = NULL;
 		frag_job->paired_job = NULL;
 	} else {
