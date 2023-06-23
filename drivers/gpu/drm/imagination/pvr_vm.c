@@ -900,8 +900,7 @@ pvr_vm_find_gem_object(struct pvr_vm_context *vm_ctx, u64 device_addr,
 
 	mutex_lock(&vm_ctx->lock);
 
-	va = drm_gpuva_find_first(&vm_ctx->gpuva_mgr, device_addr,
-				  vm_ctx->gpuva_mgr.mm_range - device_addr);
+	va = drm_gpuva_find_first(&vm_ctx->gpuva_mgr, device_addr, 1);
 	if (!va)
 		goto err_unlock;
 
