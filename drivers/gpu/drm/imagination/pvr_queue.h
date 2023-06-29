@@ -9,6 +9,8 @@
 #include "pvr_cccb.h"
 #include "pvr_device.h"
 
+#include <drm/gpu_scheduler.h>
+
 struct pvr_context;
 struct pvr_queue;
 
@@ -167,6 +169,10 @@ void pvr_queue_kill(struct pvr_queue *queue);
 void pvr_queue_destroy(struct pvr_queue *queue);
 
 void pvr_queue_process(struct pvr_queue *queue);
+
+void pvr_queue_device_pre_reset(struct pvr_device *pvr_dev);
+
+void pvr_queue_device_post_reset(struct pvr_device *pvr_dev);
 
 int pvr_queue_device_init(struct pvr_device *pvr_dev);
 

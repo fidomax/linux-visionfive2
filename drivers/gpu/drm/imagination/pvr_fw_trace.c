@@ -127,24 +127,39 @@ void pvr_fw_trace_fini(struct pvr_device *pvr_dev)
  * @group_mask: New log group mask.
  *
  * Returns:
- *  * 0 on success, or
- *  * Any error returned by pvr_kccb_send_cmd().
+ *  * 0 on success,
+ *  * Any error returned by pvr_kccb_send_cmd(), or
+ *  * -%EIO if the device is lost.
  */
 static int
 update_logtype(struct pvr_device *pvr_dev, u32 group_mask)
 {
 	struct pvr_fw_trace *fw_trace = &pvr_dev->fw_dev.fw_trace;
 	struct rogue_fwif_kccb_cmd cmd;
+	int err;
 
 	if (group_mask)
 		fw_trace->tracebuf_ctrl->log_type = ROGUE_FWIF_LOG_TYPE_TRACE | group_mask;
 	else
 		fw_trace->tracebuf_ctrl->log_type = ROGUE_FWIF_LOG_TYPE_NONE;
 
+	fw_trace->group_mask = group_mask;
+
+	down_read(&pvr_dev->reset_sem);
+	if (pvr_dev->lost) {
+		err = -EIO;
+		goto err_out;
+	}
+
 	cmd.cmd_type = ROGUE_FWIF_KCCB_CMD_LOGTYPE_UPDATE;
 	cmd.kccb_flags = 0;
 
-	return pvr_kccb_send_cmd(pvr_dev, &cmd, NULL);
+	err = pvr_kccb_send_cmd(pvr_dev, &cmd, NULL);
+
+err_out:
+	up_read(&pvr_dev->reset_sem);
+
+	return err;
 }
 
 #if defined(CONFIG_DEBUG_FS)

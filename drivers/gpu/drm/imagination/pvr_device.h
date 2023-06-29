@@ -265,6 +265,16 @@ struct pvr_device {
 	/** @lost: %true if the device has been lost. */
 	bool lost;
 
+	/**
+	 * @reset_sem: Reset semaphore.
+	 *
+	 * GPU reset code will lock this for writing. Any code that submits commands to the firmware
+	 * that isn't in an IRQ handler or on the scheduler workqueue must lock this for reading.
+	 * Once this has been successfully locked, &pvr_dev->lost _must_ be checked, and -%EIO must
+	 * be returned if it is set.
+	 */
+	struct rw_semaphore reset_sem;
+
 	/** @sched_wq: Workqueue for schedulers. */
 	struct workqueue_struct *sched_wq;
 };

@@ -5,6 +5,7 @@
 #include "pvr_fw.h"
 #include "pvr_fw_startstop.h"
 #include "pvr_power.h"
+#include "pvr_queue.h"
 #include "pvr_rogue_fwif.h"
 
 #include <drm/drm_managed.h>
@@ -55,7 +56,7 @@ err_out:
 	return err;
 }
 
-int
+static int
 pvr_power_request_idle(struct pvr_device *pvr_dev)
 {
 	struct rogue_fwif_kccb_cmd pow_cmd;
@@ -68,7 +69,7 @@ pvr_power_request_idle(struct pvr_device *pvr_dev)
 	return pvr_power_send_command(pvr_dev, &pow_cmd);
 }
 
-int
+static int
 pvr_power_request_pwr_off(struct pvr_device *pvr_dev)
 {
 	struct rogue_fwif_kccb_cmd pow_cmd;
@@ -82,19 +83,21 @@ pvr_power_request_pwr_off(struct pvr_device *pvr_dev)
 }
 
 static int
-pvr_power_fw_disable(struct pvr_device *pvr_dev)
+pvr_power_fw_disable(struct pvr_device *pvr_dev, bool hard_reset)
 {
-	int err;
+	if (!hard_reset) {
+		int err;
 
-	cancel_delayed_work_sync(&pvr_dev->watchdog.work);
+		cancel_delayed_work_sync(&pvr_dev->watchdog.work);
 
-	err = pvr_power_request_idle(pvr_dev);
-	if (err)
-		return err;
+		err = pvr_power_request_idle(pvr_dev);
+		if (err)
+			return err;
 
-	err = pvr_power_request_pwr_off(pvr_dev);
-	if (err)
-		return err;
+		err = pvr_power_request_pwr_off(pvr_dev);
+		if (err)
+			return err;
+	}
 
 	return pvr_fw_stop(pvr_dev);
 }
@@ -148,8 +151,10 @@ pvr_watchdog_kccb_stalled(struct pvr_device *pvr_dev)
 		 * If we have commands pending with no progress for 2 consecutive polls then
 		 * consider KCCB command processing stalled.
 		 */
-		if (pvr_dev->watchdog.kccb_stall_count == 2)
+		if (pvr_dev->watchdog.kccb_stall_count == 2) {
+			pvr_dev->watchdog.kccb_stall_count = 0;
 			return true;
+		}
 	} else if (pvr_dev->watchdog.old_kccb_cmds_executed == kccb_cmds_executed) {
 		bool has_active_contexts;
 
@@ -186,7 +191,7 @@ pvr_watchdog_worker(struct work_struct *work)
 		return;
 
 	if (pm_runtime_get_if_in_use(from_pvr_device(pvr_dev)->dev) <= 0)
-		return;
+		goto out_requeue;
 
 	if (!pvr_dev->fw_dev.booted)
 		goto out_requeue;
@@ -194,8 +199,15 @@ pvr_watchdog_worker(struct work_struct *work)
 	stalled = pvr_watchdog_kccb_stalled(pvr_dev);
 
 	if (stalled) {
-		drm_err(from_pvr_device(pvr_dev), "GPU device lost");
-		pvr_device_lost(pvr_dev);
+		int err;
+
+		drm_err(from_pvr_device(pvr_dev), "FW stalled, trying hard reset");
+
+		err = pvr_power_reset(pvr_dev, true);
+		if (err) {
+			drm_err(from_pvr_device(pvr_dev), "GPU device lost");
+			pvr_device_lost(pvr_dev);
+		}
 	}
 
 out_requeue:
@@ -232,7 +244,7 @@ pvr_power_device_suspend(struct device *dev)
 	int err = 0;
 
 	if (pvr_dev->fw_dev.booted) {
-		err = pvr_power_fw_disable(pvr_dev);
+		err = pvr_power_fw_disable(pvr_dev, false);
 		if (err)
 			goto err_out;
 	}
@@ -253,7 +265,6 @@ pvr_power_device_suspend(struct device *dev)
 err_out:
 	return err;
 }
-
 
 int
 pvr_power_device_resume(struct device *dev)
@@ -328,33 +339,99 @@ pvr_power_device_idle(struct device *dev)
 	return pvr_power_is_idle(pvr_dev) ? 0 : -EBUSY;
 }
 
+/**
+ * pvr_power_reset() - Reset the GPU
+ * @pvr_dev: Device pointer
+ * @hard_reset: %true for hard reset, %false for soft reset
+ *
+ * If @hard_reset is %false and the FW processor fails to respond during the reset process, this
+ * function will attempt a hard reset.
+ *
+ * If a hard reset fails then the GPU device is reported as lost.
+ *
+ * Returns:
+ *  * 0 on success, or
+ *  * Any error code returned by pvr_power_get, pvr_power_fw_disable or pvr_power_fw_enable().
+ */
 int
-pvr_power_reset(struct pvr_device *pvr_dev)
+pvr_power_reset(struct pvr_device *pvr_dev, bool hard_reset)
 {
+	bool queues_disabled = false;
 	int err;
 
 	/*
 	 * Take a power reference during the reset. This should prevent any interference with the
 	 * power state during reset.
 	 */
-	err = pvr_power_get(pvr_dev);
-	if (err)
-		goto err_out;
+	WARN_ON(pvr_power_get(pvr_dev));
 
-	err = pvr_power_fw_disable(pvr_dev);
-	if (err)
-		goto err_power_put;
+	down_write(&pvr_dev->reset_sem);
 
-	/* Clear the FW faulted flags. */
-	pvr_dev->fw_dev.fwif_sysdata->hwr_state_flags &= ~(ROGUE_FWIF_HWR_FW_FAULT |
-							   ROGUE_FWIF_HWR_RESTART_REQUESTED);
+	/* Disable IRQs for the duration of the reset. */
+	disable_irq(pvr_dev->irq);
 
-	err = pvr_power_fw_enable(pvr_dev);
+	do {
+		if (hard_reset) {
+			pvr_queue_device_pre_reset(pvr_dev);
+			queues_disabled = true;
+		}
 
-err_power_put:
+		err = pvr_power_fw_disable(pvr_dev, hard_reset);
+		if (!err) {
+			if (hard_reset) {
+				pvr_dev->fw_dev.booted = false;
+				WARN_ON(pm_runtime_force_suspend(from_pvr_device(pvr_dev)->dev));
+
+				err = pvr_fw_hard_reset(pvr_dev);
+				if (err)
+					goto err_device_lost;
+
+				err = pm_runtime_force_resume(from_pvr_device(pvr_dev)->dev);
+				pvr_dev->fw_dev.booted = true;
+				if (err)
+					goto err_device_lost;
+			} else {
+				/* Clear the FW faulted flags. */
+				pvr_dev->fw_dev.fwif_sysdata->hwr_state_flags &=
+					~(ROGUE_FWIF_HWR_FW_FAULT |
+					  ROGUE_FWIF_HWR_RESTART_REQUESTED);
+			}
+
+			pvr_fw_irq_clear(pvr_dev);
+
+			err = pvr_power_fw_enable(pvr_dev);
+		}
+
+		if (err && hard_reset)
+			goto err_device_lost;
+
+		if (err && !hard_reset) {
+			drm_err(from_pvr_device(pvr_dev), "FW stalled, trying hard reset");
+			hard_reset = true;
+		}
+	} while (err);
+
+	if (queues_disabled)
+		pvr_queue_device_post_reset(pvr_dev);
+
+	enable_irq(pvr_dev->irq);
+
+	up_write(&pvr_dev->reset_sem);
+
 	pvr_power_put(pvr_dev);
 
-err_out:
+	return 0;
+
+err_device_lost:
+	drm_err(from_pvr_device(pvr_dev), "GPU device lost");
+	pvr_device_lost(pvr_dev);
+
+	/* Leave IRQs disabled if the device is lost. */
+
+	up_write(&pvr_dev->reset_sem);
+
+	pvr_power_put(pvr_dev);
+
 	return err;
 }
 

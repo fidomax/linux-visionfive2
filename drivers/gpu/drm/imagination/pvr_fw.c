@@ -787,6 +787,52 @@ err_out:
 	return err;
 }
 
+static int
+pvr_copy_to_fw(struct pvr_fw_object *dest_obj, u8 *src_ptr, u32 size)
+{
+	u8 *dest_ptr = pvr_fw_object_vmap(dest_obj);
+
+	if (IS_ERR(dest_ptr))
+		return PTR_ERR(dest_ptr);
+
+	memcpy(dest_ptr, src_ptr, size);
+
+	pvr_fw_object_vunmap(dest_obj);
+
+	return 0;
+}
+
+static int
+pvr_fw_reinit_code_data(struct pvr_device *pvr_dev)
+{
+	struct pvr_fw_mem *fw_mem = &pvr_dev->fw_dev.mem;
+	int err;
+
+	err = pvr_copy_to_fw(fw_mem->code_obj, fw_mem->code, fw_mem->code_alloc_size);
+	if (err)
+		return err;
+
+	err = pvr_copy_to_fw(fw_mem->data_obj, fw_mem->data, fw_mem->data_alloc_size);
+	if (err)
+		return err;
+
+	if (fw_mem->core_code) {
+		err = pvr_copy_to_fw(fw_mem->core_code_obj, fw_mem->core_code,
+				     fw_mem->core_code_alloc_size);
+		if (err)
+			return err;
+	}
+
+	if (fw_mem->core_data) {
+		err = pvr_copy_to_fw(fw_mem->core_data_obj, fw_mem->core_data,
+				     fw_mem->core_data_alloc_size);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static void
 pvr_fw_cleanup(struct pvr_device *pvr_dev)
 {
@@ -1030,6 +1076,12 @@ pvr_fw_structure_cleanup(struct pvr_device *pvr_dev, u32 type, struct pvr_fw_obj
 
 	struct rogue_fwif_cleanup_request *cleanup_req = &cmd.cmd_data.cleanup_data;
 
+	down_read(&pvr_dev->reset_sem);
+	if (pvr_dev->lost) {
+		err = -EIO;
+		goto err_out;
+	}
+
 	cmd.cmd_type = ROGUE_FWIF_KCCB_CMD_CLEANUP;
 	cmd.kccb_flags = 0;
 	cleanup_req->cleanup_type = type;
@@ -1064,6 +1116,8 @@ pvr_fw_structure_cleanup(struct pvr_device *pvr_dev, u32 type, struct pvr_fw_obj
 		err = -EBUSY;
 
 err_out:
+	up_read(&pvr_dev->reset_sem);
+
 	return err;
 }
 
@@ -1388,4 +1442,49 @@ void pvr_fw_object_get_fw_addr_offset(struct pvr_fw_object *fw_obj, u32 offset, 
 	struct pvr_device *pvr_dev = to_pvr_device(gem_from_pvr_gem(pvr_obj)->dev);
 
 	*fw_addr_out = pvr_dev->fw_dev.defs->get_fw_addr_with_offset(fw_obj, offset);
+}
+
+/*
+ * pvr_fw_hard_reset() - Re-initialise the FW code and data segments, and reset all global FW
+ *                       structures
+ * @pvr_dev: Device pointer
+ *
+ * If this function returns an error then the caller must regard the device as lost.
+ *
+ * Returns:
+ *  * 0 on success, or
+ *  * Any error returned by pvr_fw_init_dev_structures() or pvr_fw_reset_all().
+ */
+int
+pvr_fw_hard_reset(struct pvr_device *pvr_dev)
+{
+	struct list_head *pos;
+	int err;
+
+	/* Reset all FW objects */
+	mutex_lock(&pvr_dev->fw_dev.fw_objs.lock);
+
+	list_for_each(pos, &pvr_dev->fw_dev.fw_objs.list) {
+		struct pvr_fw_object *fw_obj = container_of(pos, struct pvr_fw_object, node);
+		void *cpu_ptr = pvr_fw_object_vmap(fw_obj);
+
+		WARN_ON(IS_ERR(cpu_ptr));
+
+		if (!(fw_obj->gem->flags & PVR_BO_FW_NO_CLEAR_ON_RESET)) {
+			memset(cpu_ptr, 0, pvr_gem_object_size(fw_obj->gem));
+
+			if (fw_obj->init)
+				fw_obj->init(cpu_ptr, fw_obj->init_priv);
+		}
+
+		pvr_fw_object_vunmap(fw_obj);
+	}
+
+	mutex_unlock(&pvr_dev->fw_dev.fw_objs.lock);
+
+	err = pvr_fw_reinit_code_data(pvr_dev);
+	if (err)
+		return err;
+
+	return 0;
 }

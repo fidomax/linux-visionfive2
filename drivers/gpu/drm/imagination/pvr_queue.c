@@ -743,6 +743,45 @@ static struct dma_fence *pvr_queue_run_job(struct drm_sched_job *sched_job)
 	return dma_fence_get(job->done_fence);
 }
 
+static void pvr_queue_stop(struct pvr_queue *queue, struct pvr_job *bad_job)
+{
+	drm_sched_stop(&queue->scheduler, bad_job ? &bad_job->base : NULL);
+}
+
+static void pvr_queue_start(struct pvr_queue *queue)
+{
+	struct pvr_job *job;
+
+	/* Make sure we CPU-signal the UFO object, so other queues don't get
+	 * blocked waiting on it.
+	 */
+	*queue->timeline_ufo.value = atomic_read(&queue->job_fence_ctx.seqno);
+
+	list_for_each_entry(job, &queue->scheduler.pending_list, base.list) {
+		if (dma_fence_is_signaled(job->done_fence)) {
+			/* Jobs might have completed after drm_sched_stop() was called.
+			 * In that case, re-assign the parent field to the done_fence.
+			 */
+			WARN_ON(job->base.s_fence->parent);
+			job->base.s_fence->parent = dma_fence_get(job->done_fence);
+		} else {
+			/* If we had unfinished jobs, flag the entity as guilty so no
+			 * new job can be submitted.
+			 */
+			atomic_set(&queue->ctx->faulty, 1);
+
+			if (job == queue->last_submitted_job) {
+				queue->last_submitted_job = NULL;
+				dma_fence_signal(job->done_fence);
+				pvr_job_release_pm_ref(job);
+				atomic_dec(&queue->in_flight_job_count);
+			}
+		}
+	}
+
+	drm_sched_start(&queue->scheduler, true);
+}
+
 /**
  * pvr_queue_timedout_job() - Handle a job timeout event.
  * @s_job: The job this timeout occurred on.
@@ -1057,6 +1096,9 @@ int pvr_queue_job_init(struct pvr_job *job)
 	struct pvr_queue *queue = pvr_context_get_queue_for_job(job->ctx, job->type);
 	int err;
 
+	if (atomic_read(&job->ctx->faulty))
+		return -EIO;
+
 	queue = pvr_context_get_queue_for_job(job->ctx, job->type);
 	if (!queue)
 		return -EINVAL;
@@ -1275,7 +1317,7 @@ struct pvr_queue *pvr_queue_create(struct pvr_context *ctx,
 
 	err = drm_sched_entity_init(&queue->entity,
 				    DRM_SCHED_PRIORITY_MIN,
-				    &sched, 1, NULL);
+				    &sched, 1, &ctx->faulty);
 	if (err)
 		goto err_sched_fini;
 
@@ -1302,6 +1344,30 @@ err_free_queue:
 	kfree(queue);
 
 	return ERR_PTR(err);
+}
+
+void pvr_queue_device_pre_reset(struct pvr_device *pvr_dev)
+{
+	struct pvr_queue *queue;
+
+	mutex_lock(&pvr_dev->queues.lock);
+	list_for_each_entry(queue, &pvr_dev->queues.idle, node)
+		pvr_queue_stop(queue, NULL);
+	list_for_each_entry(queue, &pvr_dev->queues.active, node)
+		pvr_queue_stop(queue, NULL);
+	mutex_unlock(&pvr_dev->queues.lock);
+}
+
+void pvr_queue_device_post_reset(struct pvr_device *pvr_dev)
+{
+	struct pvr_queue *queue;
+
+	mutex_lock(&pvr_dev->queues.lock);
+	list_for_each_entry(queue, &pvr_dev->queues.active, node)
+		pvr_queue_start(queue);
+	list_for_each_entry(queue, &pvr_dev->queues.idle, node)
+		pvr_queue_start(queue);
+	mutex_unlock(&pvr_dev->queues.lock);
 }
 
 /**

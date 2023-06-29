@@ -1385,6 +1385,9 @@ pvr_probe(struct platform_device *plat_dev)
 	drm_dev = &pvr_dev->base;
 
 	platform_set_drvdata(plat_dev, drm_dev);
+
+	init_rwsem(&pvr_dev->reset_sem);
+
 	pvr_context_device_init(pvr_dev);
 
 	err = pvr_queue_device_init(pvr_dev);

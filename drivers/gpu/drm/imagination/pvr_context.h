@@ -63,7 +63,16 @@ struct pvr_context {
 	/** @process_name: Name of process that created this context. */
 	char process_name[PVR_COREDUMP_PROCESS_NAME_LEN];
 
-	/** @queues: Union containg all kind of queues. */
+	/**
+	 * @faulty: Set to 1 when the context queues had unfinished job when
+	 * a GPU reset happened.
+	 *
+	 * In that case, the context is in an inconsistent state and can't be
+	 * used anymore.
+	 */
+	atomic_t faulty;
+
+	/** @queues: Union containing all kind of queues. */
 	union {
 		struct {
 			/** @geometry: Geometry queue. */

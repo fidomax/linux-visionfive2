@@ -95,7 +95,7 @@ pvr_fw_start(struct pvr_device *pvr_dev)
 {
 	bool has_reset2 = PVR_HAS_FEATURE(pvr_dev, s7_top_infrastructure) ||
 			  PVR_HAS_FEATURE(pvr_dev, xe_tpu2);
-	uint64_t soft_reset_mask;
+	u64 soft_reset_mask;
 	int err;
 
 	if (PVR_HAS_FEATURE(pvr_dev, pbe2_in_xe))
