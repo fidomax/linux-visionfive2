@@ -2178,8 +2178,6 @@ struct rogue_fwif_hwrtdata {
 
 	aligned_u64 vheap_table_dev_addr;
 
-	struct rogue_fwif_cleanup_ctl cleanup_state;
-
 	struct rogue_fwif_rta_ctl rta_ctl;
 
 	aligned_u64 tail_ptrs_dev_addr;
@@ -2190,6 +2188,8 @@ struct rogue_fwif_hwrtdata {
 	u32 owner_geom_not_used_by_host __aligned(8);
 
 	bool geom_caches_need_zeroing __aligned(4);
+
+	struct rogue_fwif_cleanup_ctl cleanup_state __aligned(64);
 } __aligned(8);
 
 /*
