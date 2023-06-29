@@ -31,6 +31,7 @@ struct pvr_device_features {
 	bool has_num_clusters : 1;
 	bool has_num_isp_ipp_pipes : 1;
 	bool has_num_raster_pipes : 1;
+	bool has_pbe2_in_xe : 1;
 	bool has_phys_bus_width : 1;
 	bool has_riscv_fw_processor : 1;
 	bool has_roguexe : 1;
@@ -47,6 +48,7 @@ struct pvr_device_features {
 	bool has_vdm_object_level_lls : 1;
 	bool has_virtual_address_space_bits : 1;
 	bool has_xe_memory_hierarchy : 1;
+	bool has_xe_tpu2 : 1;
 	bool has_xpu_max_slaves : 1;
 	bool has_xt_top_infrastructure : 1;
 	bool has_zls_subtile : 1;
