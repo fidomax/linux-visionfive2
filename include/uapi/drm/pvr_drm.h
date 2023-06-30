@@ -1147,7 +1147,9 @@ struct drm_pvr_sync_op {
  *
  * .. c:macro:: DRM_PVR_SUBMIT_JOB_FRAG_CMD_SCRATCHBUFFER
  *
- *    Indicates whether a scratch buffer is present.
+ *    Indicates whether partial renders write to a scratch buffer instead of
+ *    the final surface. It also forces the full screen copy expected to be
+ *    present on the last render after all partial renders have completed.
  *
  * .. c:macro:: DRM_PVR_SUBMIT_JOB_FRAG_CMD_FLAGS_MASK
  *
