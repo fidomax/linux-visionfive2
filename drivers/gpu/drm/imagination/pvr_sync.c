@@ -60,6 +60,7 @@ static struct pvr_sync_signal *
 pvr_sync_signal_array_add(struct xarray *array, struct drm_file *file, u32 handle, u64 point)
 {
 	struct pvr_sync_signal *sig_sync;
+	struct dma_fence *cur_fence;
 	int err;
 	u32 id;
 
@@ -88,7 +89,8 @@ pvr_sync_signal_array_add(struct xarray *array, struct drm_file *file, u32 handl
 	 * perfectly fine to get a NULL fence here, it just means there's
 	 * no fence attached to that point yet.
 	 */
-	drm_syncobj_find_fence(file, handle, point, 0, &sig_sync->fence);
+	if (!drm_syncobj_find_fence(file, handle, point, 0, &cur_fence))
+		sig_sync->fence = cur_fence;
 
 	err = xa_alloc(array, &id, sig_sync, xa_limit_32b, GFP_KERNEL);
 	if (err)
