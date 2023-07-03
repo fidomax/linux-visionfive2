@@ -423,46 +423,6 @@ pvr_dev_query_runtime_info_get(struct pvr_device *pvr_dev,
 }
 
 /**
- * pvr_dev_query_hwrt_info_get()
- * @pvr_dev: Device pointer.
- * @args: [IN] Device query arguments containing a pointer to a userspace
- *        struct drm_pvr_dev_query_hwrt_info.
- *
- * If the query object pointer is NULL, the size field is updated with the
- * expected size of the query object.
- *
- * Returns:
- *  * 0 on success, or if size is requested using a NULL pointer, or
- *  * -%E2BIG if the indicated length of the allocation is less than is
- *    required to contain the copied data, or
- *  * -%EFAULT if local memory could not be copied to userspace.
- */
-static int
-pvr_dev_query_hwrt_info_get(struct pvr_device *pvr_dev,
-			    struct drm_pvr_ioctl_dev_query_args *args)
-{
-	struct drm_pvr_dev_query_hwrt_info hwrt_info = {0};
-	int err;
-
-	if (!args->pointer) {
-		args->size = sizeof(struct drm_pvr_dev_query_hwrt_info);
-		return 0;
-	}
-
-	hwrt_info.num_geomdatas = ROGUE_FWIF_NUM_GEOMDATAS;
-	hwrt_info.num_rtdatas = ROGUE_FWIF_NUM_RTDATAS;
-	hwrt_info.num_freelists = ROGUE_FWIF_NUM_RTDATA_FREELISTS;
-
-	err = PVR_UOBJ_SET(args->pointer, args->size, hwrt_info);
-	if (err < 0)
-		return err;
-
-	if (args->size > sizeof(hwrt_info))
-		args->size = sizeof(hwrt_info);
-	return 0;
-}
-
-/**
  * pvr_dev_query_quirks_get() - Unpack array of quirks at the address given
  * in a struct drm_pvr_dev_query_quirks, or gets the amount of space required
  * for it.
@@ -673,9 +633,6 @@ pvr_ioctl_dev_query(struct drm_device *drm_dev, void *raw_args,
 
 	case DRM_PVR_DEV_QUERY_RUNTIME_INFO_GET:
 		return pvr_dev_query_runtime_info_get(pvr_dev, args);
-
-	case DRM_PVR_DEV_QUERY_HWRT_INFO_GET:
-		return pvr_dev_query_hwrt_info_get(pvr_dev, args);
 
 	case DRM_PVR_DEV_QUERY_QUIRKS_GET:
 		return pvr_dev_query_quirks_get(pvr_dev, args);

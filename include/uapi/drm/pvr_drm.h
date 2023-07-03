@@ -188,39 +188,6 @@ struct drm_pvr_dev_query_runtime_info {
 };
 
 /**
- * struct drm_pvr_dev_query_hwrt_info - Container used to fetch information
- * necessary for creating render targets.
- *
- * When fetching this type &struct drm_pvr_ioctl_dev_query_args.type must be set
- * to %DRM_PVR_DEV_QUERY_HWRT_INFO_GET.
- */
-struct drm_pvr_dev_query_hwrt_info {
-	/**
-	 * @num_geomdatas: Number of geom data arguments
-	 * required when creating a HWRT dataset.
-	 */
-	__u8 num_geomdatas;
-
-	/**
-	 * @num_rtdatas: Number of RT data arguments
-	 * required when creating a HWRT dataset.
-	 */
-	__u8 num_rtdatas;
-
-	/**
-	 * @num_freelists: Number of free list data
-	 * arguments required when creating a HWRT dataset.
-	 */
-	__u8 num_freelists;
-
-	/** @_padding_3: Reserved - will be zeroed */
-	__u8 _padding_3;
-
-	/** @_padding_4: Reserved - will be zeroed */
-	__u32 _padding_4;
-};
-
-/**
  * struct drm_pvr_dev_query_quirks - Container used to fetch information about
  * hardware fixes for which the device may require support in the user mode
  * driver.
@@ -500,12 +467,6 @@ enum drm_pvr_dev_query {
 	 * pointer to &struct drm_pvr_dev_query_runtime_info.
 	 */
 	DRM_PVR_DEV_QUERY_RUNTIME_INFO_GET,
-
-	/**
-	 * @DRM_PVR_DEV_QUERY_HWRT_INFO_GET: The dev query args contain a
-	 * pointer to &struct drm_pvr_dev_query_hwrt_info.
-	 */
-	DRM_PVR_DEV_QUERY_HWRT_INFO_GET,
 
 	/**
 	 * @DRM_PVR_DEV_QUERY_QUIRKS_GET: The dev query args contain a pointer
