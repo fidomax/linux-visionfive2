@@ -262,7 +262,12 @@ struct pvr_device {
 		} fence_ctx;
 	} kccb;
 
-	/** @lost: %true if the device has been lost. */
+	/**
+	 * @lost: %true if the device has been lost.
+	 *
+	 * This variable is set if the device has become irretrievably unavailable, e.g. if the
+	 * firmware processor has stopped responding and can not be revived via a hard reset.
+	 */
 	bool lost;
 
 	/**
