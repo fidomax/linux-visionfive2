@@ -199,7 +199,7 @@ pvr_fw_stop(struct pvr_device *pvr_dev)
 	err = pvr_cr_poll_reg32(pvr_dev, ROGUE_CR_SIDEKICK_IDLE, sidekick_idle_mask,
 				sidekick_idle_mask, POLL_TIMEOUT_USEC);
 	if (err)
-		goto err_out;
+		return err;
 
 	/* Unset MTS DM association with threads. */
 	pvr_cr_write32(pvr_dev, ROGUE_CR_MTS_INTCTX_THREAD0_DM_ASSOC,
@@ -220,33 +220,33 @@ pvr_fw_stop(struct pvr_device *pvr_dev)
 				ROGUE_CR_BIF_STATUS_MMU_MASKFULL,
 				POLL_TIMEOUT_USEC);
 	if (err)
-		goto err_out;
+		return err;
 
 	err = pvr_cr_poll_reg32(pvr_dev, ROGUE_CR_BIFPM_STATUS_MMU, 0,
 				ROGUE_CR_BIFPM_STATUS_MMU_MASKFULL,
 				POLL_TIMEOUT_USEC);
 	if (err)
-		goto err_out;
+		return err;
 
 	if (!PVR_HAS_FEATURE(pvr_dev, xt_top_infrastructure)) {
 		err = pvr_cr_poll_reg32(pvr_dev, ROGUE_CR_BIF_READS_EXT_STATUS, 0,
 					ROGUE_CR_BIF_READS_EXT_STATUS_MASKFULL,
 					POLL_TIMEOUT_USEC);
 		if (err)
-			goto err_out;
+			return err;
 	}
 
 	err = pvr_cr_poll_reg32(pvr_dev, ROGUE_CR_BIFPM_READS_EXT_STATUS, 0,
 				ROGUE_CR_BIFPM_READS_EXT_STATUS_MASKFULL,
 				POLL_TIMEOUT_USEC);
 	if (err)
-		goto err_out;
+		return err;
 
 	err = pvr_cr_poll_reg64(pvr_dev, ROGUE_CR_SLC_STATUS1, 0,
 				ROGUE_CR_SLC_STATUS1_MASKFULL,
 				POLL_TIMEOUT_USEC);
 	if (err)
-		goto err_out;
+		return err;
 
 	/*
 	 * Wait for SLC to signal IDLE.
@@ -257,7 +257,7 @@ pvr_fw_stop(struct pvr_device *pvr_dev)
 				ROGUE_CR_SLC_IDLE_MASKFULL,
 				ROGUE_CR_SLC_IDLE_MASKFULL, POLL_TIMEOUT_USEC);
 	if (err)
-		goto err_out;
+		return err;
 
 	/*
 	 * Wait for Sidekick/Jones to signal IDLE except for the Garten Wrapper.
@@ -267,12 +267,12 @@ pvr_fw_stop(struct pvr_device *pvr_dev)
 	err = pvr_cr_poll_reg32(pvr_dev, ROGUE_CR_SIDEKICK_IDLE, sidekick_idle_mask,
 				sidekick_idle_mask, POLL_TIMEOUT_USEC);
 	if (err)
-		goto err_out;
+		return err;
 
 	if (pvr_dev->fw_dev.processor_type == PVR_FW_PROCESSOR_TYPE_META) {
 		err = pvr_meta_cr_read32(pvr_dev, META_CR_TxVECINT_BHALT, &reg_value);
 		if (err)
-			goto err_out;
+			return err;
 
 		/*
 		 * Wait for Sidekick/Jones to signal IDLE including the Garten
@@ -289,7 +289,7 @@ pvr_fw_stop(struct pvr_device *pvr_dev)
 					ROGUE_CR_SIDEKICK_IDLE_GARTEN_EN,
 					POLL_TIMEOUT_USEC);
 		if (err)
-			goto err_out;
+			return err;
 	}
 
 	if (PVR_HAS_FEATURE(pvr_dev, pbe2_in_xe))
@@ -299,7 +299,4 @@ pvr_fw_stop(struct pvr_device *pvr_dev)
 		pvr_cr_write64(pvr_dev, ROGUE_CR_SOFT_RESET, ROGUE_CR_SOFT_RESET_MASKFULL);
 
 	return 0;
-
-err_out:
-	return err;
 }

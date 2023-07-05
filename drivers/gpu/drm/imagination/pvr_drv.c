@@ -87,8 +87,10 @@ pvr_ioctl_create_bo(struct drm_device *drm_dev, void *raw_args,
 		return -EIO;
 
 	/* All padding fields must be zeroed. */
-	if (args->_padding_c != 0)
-		return -EINVAL;
+	if (args->_padding_c != 0) {
+		err = -EINVAL;
+		goto err_drm_dev_exit;
+	}
 
 	/*
 	 * On 64-bit platforms (our primary target), size_t is a u64. However,
@@ -100,7 +102,8 @@ pvr_ioctl_create_bo(struct drm_device *drm_dev, void *raw_args,
 	 */
 	if (args->size > SIZE_MAX || args->size == 0 ||
 	    args->flags & PVR_BO_RESERVED_MASK) {
-		return -EINVAL;
+		err = -EINVAL;
+		goto err_drm_dev_exit;
 	}
 
 	sanitized_size = (size_t)args->size;
@@ -1322,13 +1325,9 @@ pvr_drm_driver_open(struct drm_device *drm_dev, struct drm_file *file)
 	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
 	struct pvr_file *pvr_file;
 
-	int err;
-
 	pvr_file = kzalloc(sizeof(*pvr_file), GFP_KERNEL);
-	if (!pvr_file) {
-		err = -ENOMEM;
-		goto err_out;
-	}
+	if (!pvr_file)
+		return -ENOMEM;
 
 	/*
 	 * Store reference to base DRM file private data for use by
@@ -1356,9 +1355,6 @@ pvr_drm_driver_open(struct drm_device *drm_dev, struct drm_file *file)
 	file->driver_priv = pvr_file;
 
 	return 0;
-
-err_out:
-	return err;
 }
 
 /**
@@ -1435,10 +1431,9 @@ pvr_probe(struct platform_device *plat_dev)
 
 	pvr_dev = devm_drm_dev_alloc(&plat_dev->dev, &pvr_drm_driver,
 				     struct pvr_device, base);
-	if (IS_ERR(pvr_dev)) {
-		err = PTR_ERR(pvr_dev);
-		goto err_out;
-	}
+	if (IS_ERR(pvr_dev))
+		return PTR_ERR(pvr_dev);
+
 	drm_dev = &pvr_dev->base;
 
 	platform_set_drvdata(plat_dev, drm_dev);
@@ -1494,7 +1489,6 @@ err_power_fini:
 err_context_fini:
 	pvr_context_device_fini(pvr_dev);
 
-err_out:
 	return err;
 }
 

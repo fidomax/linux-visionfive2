@@ -192,16 +192,15 @@ static ssize_t fw_trace_group_mask_write(struct file *file, const char __user *u
 
 	err = kstrtouint_from_user(ubuf, len, 0, &new_group_mask);
 	if (err)
-		goto err_out;
+		return err;
 
 	err = update_logtype(pvr_dev, new_group_mask);
 	if (err)
-		goto err_out;
+		return err;
 
 	pvr_dev->fw_dev.fw_trace.group_mask = new_group_mask;
 
-err_out:
-	return err ? err : (ssize_t)len;
+	return (ssize_t)len;
 }
 
 static const struct file_operations pvr_fw_trace_group_mask_fops = {
@@ -364,26 +363,19 @@ static int fw_trace_seq_show(struct seq_file *s, void *v)
 	u64 timestamp;
 	u32 id;
 	u32 sf_id;
-	int err;
 
-	if (trace_seq_data->idx >= ROGUE_FW_TRACE_BUF_DEFAULT_SIZE_IN_DWORDS) {
-		err = -EINVAL;
-		goto err_out;
-	}
+	if (trace_seq_data->idx >= ROGUE_FW_TRACE_BUF_DEFAULT_SIZE_IN_DWORDS)
+		return -EINVAL;
 
 	id = read_fw_trace(trace_seq_data, 0);
-	if (!ROGUE_FW_LOG_VALIDID(id)) {
-		/* Index is not pointing at a valid entry. */
-		err = -EINVAL;
-		goto err_out;
-	}
+	/* Index is not pointing at a valid entry. */
+	if (!ROGUE_FW_LOG_VALIDID(id))
+		return -EINVAL;
 
 	sf_id = find_sfid(id);
-	if (sf_id == ROGUE_FW_SF_LAST) {
-		/* Index is not pointing at a valid entry. */
-		err = -EINVAL;
-		goto err_out;
-	}
+	/* Index is not pointing at a valid entry. */
+	if (sf_id == ROGUE_FW_SF_LAST)
+		return -EINVAL;
 
 	timestamp = read_fw_trace(trace_seq_data, 1) |
 		((u64)read_fw_trace(trace_seq_data, 2) << 32);
@@ -421,9 +413,6 @@ static int fw_trace_seq_show(struct seq_file *s, void *v)
 	}
 	seq_puts(s, "\n");
 	return 0;
-
-err_out:
-	return err;
 }
 
 static const struct seq_operations pvr_fw_trace_seq_ops = {

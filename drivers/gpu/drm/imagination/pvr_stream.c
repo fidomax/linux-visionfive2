@@ -33,21 +33,16 @@ static int
 pvr_stream_get_data(u8 *stream, u32 *stream_offset, u32 stream_size, u32 data_size, u32 align_size,
 		    void *dest)
 {
-	int err = 0;
-
 	*stream_offset = ALIGN(*stream_offset, align_size);
 
-	if ((*stream_offset + data_size) > stream_size) {
-		err = -EINVAL;
-		goto err_out;
-	}
+	if ((*stream_offset + data_size) > stream_size)
+		return -EINVAL;
 
 	memcpy(dest, stream + *stream_offset, data_size);
 
 	(*stream_offset) += data_size;
 
-err_out:
-	return err;
+	return 0;
 }
 
 /**
@@ -88,28 +83,28 @@ pvr_stream_process_1(struct pvr_device *pvr_dev, const struct pvr_stream_def *st
 			err = pvr_stream_get_data(stream, &stream_offset, stream_size, sizeof(u8),
 						  sizeof(u8), dest + stream_def[i].offset);
 			if (err)
-				goto err_out;
+				return err;
 			break;
 
 		case PVR_STREAM_SIZE_16:
 			err = pvr_stream_get_data(stream, &stream_offset, stream_size, sizeof(u16),
 						  sizeof(u16), dest + stream_def[i].offset);
 			if (err)
-				goto err_out;
+				return err;
 			break;
 
 		case PVR_STREAM_SIZE_32:
 			err = pvr_stream_get_data(stream, &stream_offset, stream_size, sizeof(u32),
 						  sizeof(u32), dest + stream_def[i].offset);
 			if (err)
-				goto err_out;
+				return err;
 			break;
 
 		case PVR_STREAM_SIZE_64:
 			err = pvr_stream_get_data(stream, &stream_offset, stream_size, sizeof(u64),
 						  sizeof(u64), dest + stream_def[i].offset);
 			if (err)
-				goto err_out;
+				return err;
 			break;
 
 		case PVR_STREAM_SIZE_ARRAY:
@@ -117,16 +112,15 @@ pvr_stream_process_1(struct pvr_device *pvr_dev, const struct pvr_stream_def *st
 						  stream_def[i].array_size, sizeof(u64),
 						  dest + stream_def[i].offset);
 			if (err)
-				goto err_out;
+				return err;
 			break;
 		}
 	}
 
-	if (stream_offset_out && !err)
+	if (stream_offset_out)
 		*stream_offset_out = stream_offset;
 
-err_out:
-	return err;
+	return 0;
 }
 
 static int
@@ -151,21 +145,17 @@ pvr_stream_process_ext_stream(struct pvr_device *pvr_dev,
 		err = pvr_stream_get_data(ext_stream, &stream_offset, ext_stream_size, sizeof(u32),
 					  sizeof(ext_header), &ext_header);
 		if (err)
-			goto err_out;
+			return err;
 
 		type = (ext_header & PVR_STREAM_EXTHDR_TYPE_MASK) >> PVR_STREAM_EXTHDR_TYPE_SHIFT;
 		data = ext_header & PVR_STREAM_EXTHDR_DATA_MASK;
 
-		if (type >= cmd_defs->ext_nr_headers) {
-			err = -EINVAL;
-			goto err_out;
-		}
+		if (type >= cmd_defs->ext_nr_headers)
+			return -EINVAL;
 
 		header = &cmd_defs->ext_headers[type];
-		if (data & ~header->valid_mask) {
-			err = -EINVAL;
-			goto err_out;
-		}
+		if (data & ~header->valid_mask)
+			return -EINVAL;
 
 		musthave_masks[type] &= ~data;
 
@@ -175,17 +165,15 @@ pvr_stream_process_ext_stream(struct pvr_device *pvr_dev,
 			if (!(ext_header & ext_def->header_mask))
 				continue;
 
-			if (!pvr_device_has_uapi_quirk(pvr_dev, ext_def->quirk)) {
-				err = -EINVAL;
-				goto err_out;
-			}
+			if (!pvr_device_has_uapi_quirk(pvr_dev, ext_def->quirk))
+				return -EINVAL;
 
 			err = pvr_stream_process_1(pvr_dev, ext_def->stream, ext_def->stream_len,
 						   ext_stream, stream_offset,
 						   ext_stream_size, dest,
 						   cmd_defs->dest_size, &stream_offset);
 			if (err)
-				goto err_out;
+				return err;
 		}
 	} while (ext_header & PVR_STREAM_EXTHDR_CONTINUATION);
 
@@ -194,14 +182,11 @@ pvr_stream_process_ext_stream(struct pvr_device *pvr_dev,
 	 * for this command was not present.
 	 */
 	for (i = 0; i < cmd_defs->ext_nr_headers; i++) {
-		if (musthave_masks[i]) {
-			err = -EINVAL;
-			goto err_out;
-		}
+		if (musthave_masks[i])
+			return -EINVAL;
 	}
 
-err_out:
-	return err;
+	return 0;
 }
 
 /**
@@ -228,15 +213,13 @@ pvr_stream_process(struct pvr_device *pvr_dev, const struct pvr_stream_cmd_defs 
 	u32 padding;
 	int err;
 
-	if (!stream || !stream_size) {
-		err = -EINVAL;
-		goto err_out;
-	}
+	if (!stream || !stream_size)
+		return -EINVAL;
 
 	err = pvr_stream_get_data(stream, &stream_offset, stream_size, sizeof(u32),
 				  sizeof(u32), &main_stream_len);
 	if (err)
-		goto err_out;
+		return err;
 
 	/*
 	 * u32 after stream length is padding to ensure u64 alignment, but may be used for expansion
@@ -245,24 +228,22 @@ pvr_stream_process(struct pvr_device *pvr_dev, const struct pvr_stream_cmd_defs 
 	err = pvr_stream_get_data(stream, &stream_offset, stream_size, sizeof(u32),
 				  sizeof(u32), &padding);
 	if (err)
-		goto err_out;
+		return err;
 
-	if (main_stream_len < stream_offset || main_stream_len > stream_size || padding) {
-		err = -EINVAL;
-		goto err_out;
-	}
+	if (main_stream_len < stream_offset || main_stream_len > stream_size || padding)
+		return -EINVAL;
 
 	err = pvr_stream_process_1(pvr_dev, cmd_defs->main_stream, cmd_defs->main_stream_len,
 				   stream, stream_offset, main_stream_len, dest_out,
 				   cmd_defs->dest_size, &stream_offset);
 	if (err)
-		goto err_out;
+		return err;
 
 	if (stream_offset < stream_size) {
 		err = pvr_stream_process_ext_stream(pvr_dev, cmd_defs, stream, stream_offset,
 						    stream_size, dest_out);
 		if (err)
-			goto err_out;
+			return err;
 	} else {
 		u32 i;
 
@@ -271,17 +252,12 @@ pvr_stream_process(struct pvr_device *pvr_dev, const struct pvr_stream_cmd_defs 
 		 * quirks for this command.
 		 */
 		for (i = 0; i < cmd_defs->ext_nr_headers; i++) {
-			if (pvr_dev->stream_musthave_quirks[cmd_defs->type][i]) {
-				err = -EINVAL;
-				goto err_out;
-			}
+			if (pvr_dev->stream_musthave_quirks[cmd_defs->type][i])
+				return -EINVAL;
 		}
 	}
 
 	return 0;
-
-err_out:
-	return err;
 }
 
 /**

@@ -391,21 +391,18 @@ pvr_vm_create_context(struct pvr_device *pvr_dev, bool is_userspace_context)
 	if (err) {
 		drm_err(drm_dev,
 			"Failed to get device virtual address space bits\n");
-		goto err_out;
+		return ERR_PTR(err);
 	}
 
 	if (device_addr_bits != PVR_PAGE_TABLE_ADDR_BITS) {
 		drm_err(drm_dev,
 			"Device has unsupported virtual address space size\n");
-		err = -EINVAL;
-		goto err_out;
+		return ERR_PTR(-EINVAL);
 	}
 
 	vm_ctx = kzalloc(sizeof(*vm_ctx), GFP_KERNEL);
-	if (!vm_ctx) {
-		err = -ENOMEM;
-		goto err_out;
-	}
+	if (!vm_ctx)
+		return ERR_PTR(-ENOMEM);
 
 	vm_ctx->pvr_dev = pvr_dev;
 	kref_init(&vm_ctx->ref_count);
@@ -440,7 +437,6 @@ err_page_table_destroy:
 err_put_ctx:
 	pvr_vm_context_put(vm_ctx);
 
-err_out:
 	return ERR_PTR(err);
 }
 

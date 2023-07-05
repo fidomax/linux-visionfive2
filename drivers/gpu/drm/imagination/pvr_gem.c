@@ -125,7 +125,7 @@ pvr_gem_object_into_handle(struct pvr_gem_object *pvr_obj,
 
 	err = drm_gem_handle_create(file, gem_obj, &new_handle);
 	if (err)
-		goto err_out;
+		return err;
 
 	/*
 	 * Release our reference to @pvr_obj, effectively transferring
@@ -140,9 +140,6 @@ pvr_gem_object_into_handle(struct pvr_gem_object *pvr_obj,
 	*handle = new_handle;
 
 	return 0;
-
-err_out:
-	return err;
 }
 
 /**
@@ -266,13 +263,10 @@ static int
 pvr_gem_object_zero(struct pvr_gem_object *pvr_obj)
 {
 	void *cpu_ptr;
-	int err;
 
 	cpu_ptr = pvr_gem_object_vmap(pvr_obj);
-	if (IS_ERR(cpu_ptr)) {
-		err = PTR_ERR(cpu_ptr);
-		goto err_out;
-	}
+	if (IS_ERR(cpu_ptr))
+		return PTR_ERR(cpu_ptr);
 
 	memset(cpu_ptr, 0, pvr_gem_object_size(pvr_obj));
 
@@ -282,9 +276,6 @@ pvr_gem_object_zero(struct pvr_gem_object *pvr_obj)
 	pvr_gem_object_vunmap(pvr_obj);
 
 	return 0;
-
-err_out:
-	return err;
 }
 
 /**

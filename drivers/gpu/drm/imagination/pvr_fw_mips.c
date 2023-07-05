@@ -60,7 +60,7 @@ process_elf_command_stream(struct pvr_device *pvr_dev, const u8 *fw,
 			drm_err(drm_dev,
 				"Addr 0x%x (size: %d) not found in any firmware segment",
 				program_header->p_vaddr, program_header->p_memsz);
-			goto err_out;
+			return err;
 		}
 
 		/* Write to FW allocation only if available */
@@ -74,9 +74,6 @@ process_elf_command_stream(struct pvr_device *pvr_dev, const u8 *fw,
 	}
 
 	return 0;
-
-err_out:
-	return err;
 }
 
 static int
@@ -114,7 +111,7 @@ pvr_mips_fw_process(struct pvr_device *pvr_dev, const u8 *fw,
 					 fw_code_ptr, fw_data_ptr, fw_core_code_ptr,
 					 fw_core_data_ptr);
 	if (err)
-		goto err_out;
+		return err;
 
 	boot_code_entry = pvr_fw_find_layout_entry(layout_entries, num_layout_entries,
 						   MIPS_BOOT_CODE);
@@ -122,10 +119,8 @@ pvr_mips_fw_process(struct pvr_device *pvr_dev, const u8 *fw,
 						   MIPS_BOOT_DATA);
 	exception_code_entry = pvr_fw_find_layout_entry(layout_entries, num_layout_entries,
 							MIPS_EXCEPTIONS_CODE);
-	if (!boot_code_entry || !boot_data_entry || !exception_code_entry) {
-		err = -EINVAL;
-		goto err_out;
-	}
+	if (!boot_code_entry || !boot_data_entry || !exception_code_entry)
+		return -EINVAL;
 
 	WARN_ON(pvr_gem_get_dma_addr(fw_dev->mem.code_obj->gem, boot_code_entry->alloc_offset,
 				     &mips_data->boot_code_dma_addr));
@@ -136,10 +131,8 @@ pvr_mips_fw_process(struct pvr_device *pvr_dev, const u8 *fw,
 				     &mips_data->exception_code_dma_addr));
 
 	stack_entry = pvr_fw_find_layout_entry(layout_entries, num_layout_entries, MIPS_STACK);
-	if (!stack_entry) {
-		err = -EINVAL;
-		goto err_out;
-	}
+	if (!stack_entry)
+		return -EINVAL;
 
 	boot_data = (struct rogue_mipsfw_boot_data *)(fw_data_ptr + boot_data_entry->alloc_offset +
 						      ROGUE_MIPSFW_BOOTLDR_CONF_OFFSET);
@@ -163,9 +156,6 @@ pvr_mips_fw_process(struct pvr_device *pvr_dev, const u8 *fw,
 	boot_data->reserved2 = 0;
 
 	return 0;
-
-err_out:
-	return err;
 }
 
 static int

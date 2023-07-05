@@ -61,10 +61,8 @@ pvr_cccb_init(struct pvr_device *pvr_dev, struct pvr_cccb *pvr_cccb,
 						      PVR_BO_FW_FLAGS_DEVICE_UNCACHED,
 						      cccb_ctrl_init, pvr_cccb,
 						      &pvr_cccb->ctrl_obj);
-	if (IS_ERR(pvr_cccb->ctrl)) {
-		err = PTR_ERR(pvr_cccb->ctrl);
-		goto err_out;
-	}
+	if (IS_ERR(pvr_cccb->ctrl))
+		return PTR_ERR(pvr_cccb->ctrl);
 
 	pvr_cccb->cccb = pvr_fw_object_create_and_map(pvr_dev, size,
 						      PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
@@ -83,7 +81,6 @@ pvr_cccb_init(struct pvr_device *pvr_dev, struct pvr_cccb *pvr_cccb,
 err_free_ctrl:
 	pvr_fw_object_unmap_and_destroy(pvr_cccb->ctrl_obj);
 
-err_out:
 	return err;
 }
 

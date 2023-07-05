@@ -69,10 +69,8 @@ pvr_job_process_stream(struct pvr_device *pvr_dev, const struct pvr_stream_cmd_d
 	int err;
 
 	job->cmd = kzalloc(cmd_defs->dest_size, GFP_KERNEL);
-	if (!job->cmd) {
-		err = -ENOMEM;
-		goto err_out;
-	}
+	if (!job->cmd)
+		return -ENOMEM;
 
 	job->cmd_len = cmd_defs->dest_size;
 
@@ -80,7 +78,6 @@ pvr_job_process_stream(struct pvr_device *pvr_dev, const struct pvr_stream_cmd_d
 	if (err)
 		kfree(job->cmd);
 
-err_out:
 	return err;
 }
 
@@ -92,10 +89,8 @@ static int pvr_fw_cmd_init(struct pvr_device *pvr_dev, struct pvr_job *job,
 	int err;
 
 	stream = kzalloc(stream_len, GFP_KERNEL);
-	if (!stream) {
-		err = -ENOMEM;
-		goto err_out;
-	}
+	if (!stream)
+		return -ENOMEM;
 
 	if (copy_from_user(stream, u64_to_user_ptr(stream_userptr), stream_len)) {
 		err = -EFAULT;
@@ -107,7 +102,6 @@ static int pvr_fw_cmd_init(struct pvr_device *pvr_dev, struct pvr_job *job,
 err_free_stream:
 	kfree(stream);
 
-err_out:
 	return err;
 }
 

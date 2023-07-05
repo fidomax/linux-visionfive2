@@ -188,10 +188,8 @@ pvr_mmu_backing_page_init(struct pvr_mmu_backing_page *page,
 	void *host_ptr;
 
 	raw_page = alloc_page(__GFP_ZERO | GFP_KERNEL);
-	if (!raw_page) {
-		err = -ENOMEM;
-		goto err_out;
-	}
+	if (!raw_page)
+		return -ENOMEM;
 
 	host_ptr = vmap(&raw_page, 1, VM_MAP, pgprot_writecombine(PAGE_KERNEL));
 	if (!host_ptr) {
@@ -220,7 +218,6 @@ err_unmap_page:
 err_free_page:
 	__free_page(raw_page);
 
-err_out:
 	return err;
 }
 
@@ -1930,7 +1927,7 @@ pvr_page_table_ptr_load_tables(struct pvr_page_table_ptr *ptr,
 			if (err == -ENXIO)
 				err = 0;
 
-			goto err_out;
+			return err;
 		}
 	}
 
@@ -1962,7 +1959,7 @@ pvr_page_table_ptr_load_tables(struct pvr_page_table_ptr *ptr,
 				pvr_page_table_ptr_require_sync(ptr, 2);
 			}
 
-			goto err_out;
+			return err;
 		}
 	}
 
@@ -1972,9 +1969,6 @@ pvr_page_table_ptr_load_tables(struct pvr_page_table_ptr *ptr,
 		pvr_page_table_ptr_require_sync(ptr, 1);
 
 	return 0;
-
-err_out:
-	return err;
 }
 
 /**
@@ -2246,17 +2240,13 @@ pvr_page_table_ptr_unmap(struct pvr_page_table_ptr *ptr, u64 nr_pages)
 		 */
 		if (err == -ENXIO)
 			continue;
-
-		if (err)
-			goto err_out;
+		else if (err)
+			return err;
 
 		pvr_page_destroy(ptr);
 	}
 
 	return 0;
-
-err_out:
-	return err;
 }
 
 /**
@@ -2274,19 +2264,12 @@ int pvr_mmu_unmap(struct pvr_mmu_context *ctx, u64 device_addr, u64 nr_pages)
 	int err = pvr_page_table_ptr_init(&ptr, ctx, device_addr, false);
 
 	if (err && err != -ENXIO)
-		goto err_out;
+		return err;
 
 	err = pvr_page_table_ptr_unmap(&ptr, nr_pages);
-	if (err)
-		goto err_ptr_fini;
 
-	err = 0;
-	goto err_ptr_fini;
-
-err_ptr_fini:
 	pvr_page_table_ptr_fini(&ptr);
 
-err_out:
 	return err;
 }
 

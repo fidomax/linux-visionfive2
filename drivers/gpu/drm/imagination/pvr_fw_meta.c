@@ -42,7 +42,7 @@ pvr_meta_cr_read32(struct pvr_device *pvr_dev, u32 reg_addr, u32 *reg_value_out)
 					ROGUE_CR_META_SP_MSLVCTRL1_GBLPORT_IDLE_EN,
 				POLL_TIMEOUT_USEC);
 	if (err)
-		goto err_out;
+		return err;
 
 	/* Issue a Read. */
 	pvr_cr_write32(pvr_dev, ROGUE_CR_META_SP_MSLVCTRL0,
@@ -57,14 +57,11 @@ pvr_meta_cr_read32(struct pvr_device *pvr_dev, u32 reg_addr, u32 *reg_value_out)
 					ROGUE_CR_META_SP_MSLVCTRL1_GBLPORT_IDLE_EN,
 				POLL_TIMEOUT_USEC);
 	if (err)
-		goto err_out;
+		return err;
 
 	*reg_value_out = pvr_cr_read32(pvr_dev, ROGUE_CR_META_SP_MSLVDATAX);
 
 	return 0;
-
-err_out:
-	return err;
 }
 
 static int
@@ -123,19 +120,15 @@ meta_ldr_cmd_loadmem(struct drm_device *drm_dev, const u8 *fw,
 	int err;
 
 	/* Verify header is within bounds. */
-	if (((u8 *)l2_block - fw) >= fw_size || ((u8 *)(l2_block + 1) - fw) >= fw_size) {
-		err = -EINVAL;
-		goto err_out;
-	}
+	if (((u8 *)l2_block - fw) >= fw_size || ((u8 *)(l2_block + 1) - fw) >= fw_size)
+		return -EINVAL;
 
 	data_size = l2_block->length - 6 /* L2 Tag length and checksum */;
 
 	/* Verify data is within bounds. */
 	if (((u8 *)l2_block->block_data - fw) >= fw_size ||
-	    ((((u8 *)l2_block->block_data) + data_size) - fw) >= fw_size) {
-		err = -EINVAL;
-		goto err_out;
-	}
+	    ((((u8 *)l2_block->block_data) + data_size) - fw) >= fw_size)
+		return -EINVAL;
 
 	if (!ROGUE_META_IS_COREMEM_CODE(offset, coremem_size) &&
 	    !ROGUE_META_IS_COREMEM_DATA(offset, coremem_size)) {
@@ -150,15 +143,12 @@ meta_ldr_cmd_loadmem(struct drm_device *drm_dev, const u8 *fw,
 		drm_err(drm_dev,
 			"Addr 0x%x (size: %d) not found in any firmware segment",
 			offset, data_size);
-		goto err_out;
+		return err;
 	}
 
 	memcpy(write_addr, l2_block->block_data, data_size);
 
 	return 0;
-
-err_out:
-	return err;
 }
 
 static int
@@ -189,15 +179,12 @@ meta_ldr_cmd_zeromem(struct drm_device *drm_dev,
 		drm_err(drm_dev,
 			"Addr 0x%x (size: %d) not found in any firmware segment",
 			offset, byte_count);
-		goto err_out;
+		return err;
 	}
 
 	memset(write_addr, 0, byte_count);
 
 	return 0;
-
-err_out:
-	return err;
 }
 
 static int
@@ -212,28 +199,21 @@ meta_ldr_cmd_config(struct drm_device *drm_dev, const u8 *fw,
 	u32 l2_block_size;
 	u32 curr_block_size = 0;
 	u32 *boot_conf = boot_conf_ptr ? *boot_conf_ptr : NULL;
-	int err;
 
 	/* Verify block header is within bounds. */
-	if (((u8 *)l2_block - fw) >= fw_size || ((u8 *)(l2_block + 1) - fw) >= fw_size) {
-		err = -EINVAL;
-		goto err_out;
-	}
+	if (((u8 *)l2_block - fw) >= fw_size || ((u8 *)(l2_block + 1) - fw) >= fw_size)
+		return -EINVAL;
 
 	l2_block_size = l2_block->length - 6 /* L2 Tag length and checksum */;
 	config_command = (struct rogue_meta_ldr_cfg_blk *)l2_block->block_data;
 
 	if (((u8 *)config_command - fw) >= fw_size ||
-	    ((((u8 *)config_command) + l2_block_size) - fw) >= fw_size) {
-		err = -EINVAL;
-		goto err_out;
-	}
+	    ((((u8 *)config_command) + l2_block_size) - fw) >= fw_size)
+		return -EINVAL;
 
 	while (l2_block_size >= 12) {
-		if (config_command->type != ROGUE_META_LDR_CFG_WRITE) {
-			err = -EINVAL;
-			goto err_out;
-		}
+		if (config_command->type != ROGUE_META_LDR_CFG_WRITE)
+			return -EINVAL;
 
 		/*
 		 * Only write to bootloader if we got a valid pointer to the FW
@@ -259,9 +239,6 @@ meta_ldr_cmd_config(struct drm_device *drm_dev, const u8 *fw,
 		*boot_conf_ptr = boot_conf;
 
 	return 0;
-
-err_out:
-	return err;
 }
 
 /**
@@ -301,16 +278,14 @@ process_ldr_command_stream(struct pvr_device *pvr_dev, const u8 *fw,
 
 	err = PVR_FEATURE_VALUE(pvr_dev, meta_coremem_size, &coremem_size);
 	if (err)
-		goto err_out;
+		return err;
 
 	coremem_size *= SZ_1K;
 
 	while (l1_data) {
 		/* Verify block header is within bounds. */
-		if (((u8 *)l1_data - fw) >= fw_size || ((u8 *)(l1_data + 1) - fw) >= fw_size) {
-			err = -EINVAL;
-			goto err_out;
-		}
+		if (((u8 *)l1_data - fw) >= fw_size || ((u8 *)(l1_data + 1) - fw) >= fw_size)
+			return -EINVAL;
 
 		if (ROGUE_META_LDR_BLK_IS_COMMENT(l1_data->cmd)) {
 			/* Don't process comment blocks */
@@ -326,7 +301,7 @@ process_ldr_command_stream(struct pvr_device *pvr_dev, const u8 *fw,
 						   fw_core_code_ptr,
 						   fw_core_data_ptr, fw_size);
 			if (err)
-				goto err_out;
+				return err;
 			break;
 
 		case ROGUE_META_LDR_CMD_START_THREADS:
@@ -341,19 +316,18 @@ process_ldr_command_stream(struct pvr_device *pvr_dev, const u8 *fw,
 						   fw_core_code_ptr,
 						   fw_core_data_ptr);
 			if (err)
-				goto err_out;
+				return err;
 			break;
 
 		case ROGUE_META_LDR_CMD_CONFIG:
 			err = meta_ldr_cmd_config(drm_dev, fw, l1_data, fw_size,
 						  &boot_conf);
 			if (err)
-				goto err_out;
+				return err;
 			break;
 
 		default:
-			err = -EINVAL;
-			goto err_out;
+			return -EINVAL;
 		}
 
 next_block:
@@ -368,9 +342,6 @@ next_block:
 		*boot_conf_ptr = boot_conf;
 
 	return 0;
-
-err_out:
-	return err;
 }
 
 static void
@@ -516,7 +487,7 @@ pvr_meta_fw_process(struct pvr_device *pvr_dev, const u8 *fw,
 					 fw_code_ptr, fw_data_ptr, fw_core_code_ptr,
 					 fw_core_data_ptr, &boot_conf);
 	if (err)
-		goto err_out;
+		return err;
 
 	configure_meta_caches(&boot_conf);
 
@@ -535,9 +506,6 @@ pvr_meta_fw_process(struct pvr_device *pvr_dev, const u8 *fw,
 	add_boot_arg(&boot_conf, 0, 0);
 
 	return 0;
-
-err_out:
-	return err;
 }
 
 static int

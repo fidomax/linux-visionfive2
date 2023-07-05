@@ -33,29 +33,21 @@ pvr_vm_mips_init(struct pvr_device *pvr_dev)
 	int err;
 
 	/* Page table size must be at most ROGUE_MIPSFW_MAX_NUM_PAGETABLE_PAGES * 4k pages. */
-	if (pt_size > ROGUE_MIPSFW_MAX_NUM_PAGETABLE_PAGES * SZ_4K) {
-		err = -EINVAL;
-		goto err_out;
-	}
+	if (pt_size > ROGUE_MIPSFW_MAX_NUM_PAGETABLE_PAGES * SZ_4K)
+		return -EINVAL;
 
-	if (PVR_FEATURE_VALUE(pvr_dev, phys_bus_width, &phys_bus_width)) {
-		err = -EINVAL;
-		goto err_out;
-	}
+	if (PVR_FEATURE_VALUE(pvr_dev, phys_bus_width, &phys_bus_width))
+		return -EINVAL;
 
 	mips_data = drmm_kzalloc(from_pvr_device(pvr_dev), sizeof(*mips_data), GFP_KERNEL);
-	if (!mips_data) {
-		err = -ENOMEM;
-		goto err_out;
-	}
+	if (!mips_data)
+		return -ENOMEM;
 
 	mips_data->pt_obj = pvr_gem_object_create(pvr_dev, pt_size,
 						  DRM_PVR_BO_DEVICE_PM_FW_PROTECT |
 						  DRM_PVR_BO_CREATE_ZEROED);
-	if (IS_ERR(mips_data->pt_obj)) {
-		err = PTR_ERR(mips_data->pt_obj);
-		goto err_out;
-	}
+	if (IS_ERR(mips_data->pt_obj))
+		return PTR_ERR(mips_data->pt_obj);
 
 	mips_data->pt = pvr_gem_object_vmap(mips_data->pt_obj);
 	if (IS_ERR(mips_data->pt)) {
@@ -76,7 +68,6 @@ pvr_vm_mips_init(struct pvr_device *pvr_dev)
 err_put_obj:
 	pvr_gem_object_put(mips_data->pt_obj);
 
-err_out:
 	return err;
 }
 
@@ -140,20 +131,16 @@ pvr_vm_mips_map(struct pvr_device *pvr_dev, struct pvr_fw_object *fw_obj)
 	u32 pfn;
 	int err;
 
-	if (check_add_overflow(start, size - 1, &end)) {
-		err = -EINVAL;
-		goto err_out;
-	}
+	if (check_add_overflow(start, size - 1, &end))
+		return -EINVAL;
 
 	if (start < ROGUE_FW_HEAP_BASE ||
 	    start >= ROGUE_FW_HEAP_BASE + fw_dev->fw_heap_info.raw_size ||
 	    end < ROGUE_FW_HEAP_BASE ||
 	    end >= ROGUE_FW_HEAP_BASE + fw_dev->fw_heap_info.raw_size ||
 	    (start & ROGUE_MIPSFW_PAGE_MASK_4K) ||
-	    ((end + 1) & ROGUE_MIPSFW_PAGE_MASK_4K)) {
-		err = -EINVAL;
-		goto err_out;
-	}
+	    ((end + 1) & ROGUE_MIPSFW_PAGE_MASK_4K))
+		return -EINVAL;
 
 	start_pfn = (start & fw_dev->fw_heap_info.offset_mask) >> ROGUE_MIPSFW_LOG2_PAGE_SIZE_4K;
 	end_pfn = (end & fw_dev->fw_heap_info.offset_mask) >> ROGUE_MIPSFW_LOG2_PAGE_SIZE_4K;
@@ -193,7 +180,6 @@ err_unmap_pages:
 
 	pvr_mmu_flush(pvr_dev);
 
-err_out:
 	return err;
 }
 

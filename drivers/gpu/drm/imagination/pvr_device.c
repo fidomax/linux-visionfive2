@@ -435,30 +435,26 @@ pvr_device_gpu_init(struct pvr_device *pvr_dev)
 
 	err = pvr_device_info_init(pvr_dev);
 	if (err)
-		goto err_out;
+		return err;
 
-	if (PVR_HAS_FEATURE(pvr_dev, meta)) {
+	if (PVR_HAS_FEATURE(pvr_dev, meta))
 		pvr_dev->fw_dev.processor_type = PVR_FW_PROCESSOR_TYPE_META;
-	} else if (PVR_HAS_FEATURE(pvr_dev, mips)) {
+	else if (PVR_HAS_FEATURE(pvr_dev, mips))
 		pvr_dev->fw_dev.processor_type = PVR_FW_PROCESSOR_TYPE_MIPS;
-	} else if (PVR_HAS_FEATURE(pvr_dev, riscv_fw_processor)) {
+	else if (PVR_HAS_FEATURE(pvr_dev, riscv_fw_processor))
 		pvr_dev->fw_dev.processor_type = PVR_FW_PROCESSOR_TYPE_RISCV;
-	} else {
-		err = -EINVAL;
-		goto err_out;
-	}
+	else
+		return -EINVAL;
 
 	pvr_stream_create_musthave_masks(pvr_dev);
 
 	err = pvr_set_dma_info(pvr_dev);
 	if (err)
-		goto err_out;
+		return err;
 
 	pvr_dev->kernel_vm_ctx = pvr_vm_create_context(pvr_dev, false);
-	if (IS_ERR(pvr_dev->kernel_vm_ctx)) {
-		err = PTR_ERR(pvr_dev->kernel_vm_ctx);
-		goto err_out;
-	}
+	if (IS_ERR(pvr_dev->kernel_vm_ctx))
+		return PTR_ERR(pvr_dev->kernel_vm_ctx);
 
 	err = pvr_request_firmware(pvr_dev);
 	if (err)
@@ -477,7 +473,6 @@ err_vm_ctx_put:
 	pvr_vm_context_put(pvr_dev->kernel_vm_ctx);
 	pvr_dev->kernel_vm_ctx = NULL;
 
-err_out:
 	return err;
 }
 
@@ -531,16 +526,16 @@ pvr_device_init(struct pvr_device *pvr_dev)
 	/* Enable and initialize clocks required for the device to operate. */
 	err = pvr_device_clk_init(pvr_dev);
 	if (err)
-		goto err_out;
+		return err;
 
 	err = pvr_device_regulator_init(pvr_dev);
 	if (err)
-		goto err_out;
+		return err;
 
 	/* Explicitly power the GPU so we can access control registers before the FW is booted. */
 	err = pm_runtime_resume_and_get(dev);
 	if (err)
-		goto err_out;
+		return err;
 
 	/* Map the control registers into memory. */
 	err = pvr_device_reg_init(pvr_dev);
@@ -566,7 +561,6 @@ err_device_gpu_fini:
 err_pm_runtime_put:
 	pm_runtime_put_sync_suspend(dev);
 
-err_out:
 	return err;
 }
 

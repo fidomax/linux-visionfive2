@@ -36,18 +36,15 @@ mt8173_init(struct pvr_device *pvr_dev)
 	int err;
 
 	mt8173_data = drmm_kzalloc(drm_dev, sizeof(*mt8173_data), GFP_KERNEL);
-	if (!mt8173_data) {
-		err = -ENOMEM;
-		goto err_out;
-	}
+	if (!mt8173_data)
+		return -ENOMEM;
 
 	regs = devm_platform_ioremap_resource(plat_dev, 1);
 	if (IS_ERR(regs)) {
-		err = PTR_ERR(regs);
 		drm_err(drm_dev,
 			"failed to ioremap mt8173 gpu registers (err=%d)\n",
 			err);
-		goto err_out;
+		return PTR_ERR(regs);
 	}
 
 	mt8173_data->regs = regs;
@@ -55,9 +52,6 @@ mt8173_init(struct pvr_device *pvr_dev)
 	pvr_dev->vendor.data = mt8173_data;
 
 	return 0;
-
-err_out:
-	return err;
 }
 
 static void

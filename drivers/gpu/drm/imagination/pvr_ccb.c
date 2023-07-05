@@ -57,7 +57,7 @@ pvr_ccb_init(struct pvr_device *pvr_dev, struct pvr_ccb *pvr_ccb,
 
 	err = drmm_mutex_init(from_pvr_device(pvr_dev), &pvr_ccb->lock);
 	if (err)
-		goto err_out;
+		return err;
 
 	/*
 	 * Map CCB and control structure as uncached, so we don't have to flush
@@ -66,10 +66,8 @@ pvr_ccb_init(struct pvr_device *pvr_dev, struct pvr_ccb *pvr_ccb,
 	pvr_ccb->ctrl = pvr_fw_object_create_and_map(pvr_dev, sizeof(*pvr_ccb->ctrl),
 						     PVR_BO_FW_FLAGS_DEVICE_UNCACHED,
 						     ccb_ctrl_init, pvr_ccb, &pvr_ccb->ctrl_obj);
-	if (IS_ERR(pvr_ccb->ctrl)) {
-		err = PTR_ERR(pvr_ccb->ctrl);
-		goto err_out;
-	}
+	if (IS_ERR(pvr_ccb->ctrl))
+		return PTR_ERR(pvr_ccb->ctrl);
 
 	pvr_ccb->ccb = pvr_fw_object_create_and_map(pvr_dev, ccb_size,
 						    PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
@@ -93,7 +91,6 @@ pvr_ccb_init(struct pvr_device *pvr_dev, struct pvr_ccb *pvr_ccb,
 err_free_ctrl:
 	pvr_fw_object_unmap_and_destroy(pvr_ccb->ctrl_obj);
 
-err_out:
 	return err;
 }
 

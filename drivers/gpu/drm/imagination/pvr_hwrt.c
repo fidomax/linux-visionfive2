@@ -103,7 +103,7 @@ get_cr_isp_mtile_size_val(struct pvr_device *pvr_dev, u32 samples,
 
 	err = PVR_FEATURE_VALUE(pvr_dev, isp_samples_per_pixel, &samples_per_pixel);
 	if (err)
-		goto err_out;
+		return err;
 
 	if (samples_per_pixel == 1) {
 		if (samples >= 4)
@@ -120,15 +120,13 @@ get_cr_isp_mtile_size_val(struct pvr_device *pvr_dev, u32 samples,
 			y <<= 1;
 	} else {
 		WARN(true, "Unsupported ISP samples per pixel value");
-		err = -EINVAL;
-		goto err_out;
+		return -EINVAL;
 	}
 
 	*value_out = ((x << ROGUE_CR_ISP_MTILE_SIZE_X_SHIFT) & ~ROGUE_CR_ISP_MTILE_SIZE_X_CLRMSK) |
 		     ((y << ROGUE_CR_ISP_MTILE_SIZE_Y_SHIFT) & ~ROGUE_CR_ISP_MTILE_SIZE_Y_CLRMSK);
 
-err_out:
-	return err;
+	return 0;
 }
 
 static int
@@ -187,7 +185,7 @@ get_cr_te_aa_val(struct pvr_device *pvr_dev, u32 samples, u32 *value_out)
 
 	err = PVR_FEATURE_VALUE(pvr_dev, isp_samples_per_pixel, &samples_per_pixel);
 	if (err)
-		goto err_out;
+		return err;
 
 	switch (samples_per_pixel) {
 	case 1:
@@ -214,14 +212,12 @@ get_cr_te_aa_val(struct pvr_device *pvr_dev, u32 samples, u32 *value_out)
 		break;
 	default:
 		WARN(true, "Unsupported ISP samples per pixel value");
-		err = -EINVAL;
-		goto err_out;
+		return -EINVAL;
 	}
 
 	*value_out = value;
 
-err_out:
-	return err;
+	return 0;
 }
 
 static void
@@ -401,7 +397,7 @@ hwrt_data_init_fw_structure(struct pvr_file *pvr_file,
 					   DRM_PVR_BO_CREATE_ZEROED,
 					   NULL, NULL, &hwrt_data->srtc_obj);
 		if (err)
-			goto err_out;
+			return err;
 		pvr_fw_object_get_fw_addr(hwrt_data->srtc_obj,
 					  &rta_ctl->valid_render_targets_fw_addr);
 
@@ -433,7 +429,6 @@ err_put_shadow_rt_cache:
 	if (args->layers > 1)
 		pvr_fw_object_destroy(hwrt_data->srtc_obj);
 
-err_out:
 	return err;
 }
 

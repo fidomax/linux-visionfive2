@@ -45,18 +45,11 @@ pvr_power_send_command(struct pvr_device *pvr_dev, struct rogue_fwif_kccb_cmd *p
 
 	err = pvr_kccb_send_cmd_powered(pvr_dev, pow_cmd, &slot_nr);
 	if (err)
-		goto err_out;
+		return err;
 
 	/* Wait for FW to acknowledge. */
-	err = readl_poll_timeout(pvr_dev->fw_dev.power_sync, value, value != 0, 100,
-				 POWER_SYNC_TIMEOUT_US);
-	if (err)
-		goto err_out;
-
-	return 0;
-
-err_out:
-	return err;
+	return readl_poll_timeout(pvr_dev->fw_dev.power_sync, value, value != 0, 100,
+				  POWER_SYNC_TIMEOUT_US);
 }
 
 static int

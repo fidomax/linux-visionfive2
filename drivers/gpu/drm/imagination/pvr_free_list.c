@@ -60,22 +60,17 @@ free_list_create_kernel_structure(struct pvr_file *pvr_file,
 	    args->grow_num_pages > args->max_num_pages ||
 	    args->max_num_pages == 0 ||
 	    (args->initial_num_pages < args->max_num_pages && !args->grow_num_pages) ||
-	    (args->initial_num_pages == args->max_num_pages && args->grow_num_pages)) {
-		err = -EINVAL;
-		goto err_out;
-	}
+	    (args->initial_num_pages == args->max_num_pages && args->grow_num_pages))
+		return -EINVAL;
+
 	if ((args->initial_num_pages & FREE_LIST_ALIGNMENT) ||
 	    (args->max_num_pages & FREE_LIST_ALIGNMENT) ||
-	    (args->grow_num_pages & FREE_LIST_ALIGNMENT)) {
-		err = -EINVAL;
-		goto err_out;
-	}
+	    (args->grow_num_pages & FREE_LIST_ALIGNMENT))
+		return -EINVAL;
 
 	vm_ctx = pvr_vm_context_lookup(pvr_file, args->vm_context_handle);
-	if (!vm_ctx) {
-		err = -EINVAL;
-		goto err_out;
-	}
+	if (!vm_ctx)
+		return -EINVAL;
 
 	free_list_obj = pvr_vm_find_gem_object(vm_ctx, args->free_list_gpu_addr,
 					       NULL, &free_list_size);
@@ -114,7 +109,6 @@ err_put_free_list_obj:
 err_put_vm_context:
 	pvr_vm_context_put(vm_ctx);
 
-err_out:
 	return err;
 }
 
@@ -207,7 +201,6 @@ free_list_create_fw_structure(struct pvr_file *pvr_file,
 			      struct pvr_free_list *free_list)
 {
 	struct pvr_device *pvr_dev = pvr_file->pvr_dev;
-	int err;
 
 	/*
 	 * Create and map the FW structure so we can initialise it. This is not
@@ -219,14 +212,10 @@ free_list_create_fw_structure(struct pvr_file *pvr_file,
 							  DRM_PVR_BO_CREATE_ZEROED,
 							  free_list_fw_init, free_list,
 							  &free_list->fw_obj);
-	if (IS_ERR(free_list->fw_data)) {
-		err = PTR_ERR(free_list->fw_data);
-		goto err_out;
-	}
-	return 0;
+	if (IS_ERR(free_list->fw_data))
+		return PTR_ERR(free_list->fw_data);
 
-err_out:
-	return err;
+	return 0;
 }
 
 static void
@@ -241,15 +230,12 @@ pvr_free_list_insert_pages_locked(struct pvr_free_list *free_list,
 {
 	struct sg_dma_page_iter dma_iter;
 	u32 *page_list;
-	int err;
 
 	lockdep_assert_held(&free_list->lock);
 
 	page_list = pvr_gem_object_vmap(free_list->obj);
-	if (IS_ERR(page_list)) {
-		err = PTR_ERR(page_list);
-		goto err_out;
-	}
+	if (IS_ERR(page_list))
+		return PTR_ERR(page_list);
 
 	offset /= FREE_LIST_ENTRY_SIZE;
 	/* clang-format off */
@@ -284,9 +270,6 @@ pvr_free_list_insert_pages_locked(struct pvr_free_list *free_list,
 	pvr_gem_object_vunmap(free_list->obj);
 
 	return 0;
-
-err_out:
-	return err;
 }
 
 static int
