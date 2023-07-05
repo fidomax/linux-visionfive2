@@ -212,7 +212,7 @@ out_requeue:
 }
 
 /**
- * pvr_power_init() - Initialise power management for device
+ * pvr_watchdog_init() - Initialise watchdog for device
  * @pvr_dev: Target PowerVR device.
  *
  * Returns:
@@ -220,7 +220,7 @@ out_requeue:
  *  * -%ENOMEM on out of memory.
  */
 int
-pvr_power_init(struct pvr_device *pvr_dev)
+pvr_watchdog_init(struct pvr_device *pvr_dev)
 {
 	INIT_DELAYED_WORK(&pvr_dev->watchdog.work, pvr_watchdog_worker);
 
@@ -444,11 +444,11 @@ err_device_lost:
 }
 
 /**
- * pvr_power_fini() - Shutdown power management for device
+ * pvr_watchdog_fini() - Shutdown watchdog for device
  * @pvr_dev: Target PowerVR device.
  */
 void
-pvr_power_fini(struct pvr_device *pvr_dev)
+pvr_watchdog_fini(struct pvr_device *pvr_dev)
 {
 	cancel_delayed_work_sync(&pvr_dev->watchdog.work);
 }

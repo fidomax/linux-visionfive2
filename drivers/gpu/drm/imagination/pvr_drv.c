@@ -1451,14 +1451,14 @@ pvr_probe(struct platform_device *plat_dev)
 
 	pm_runtime_set_autosuspend_delay(&plat_dev->dev, 50);
 	pm_runtime_use_autosuspend(&plat_dev->dev);
-	pvr_power_init(pvr_dev);
+	pvr_watchdog_init(pvr_dev);
 
 	pvr_dev->vendor.callbacks = of_device_get_match_data(&plat_dev->dev);
 
 	if (pvr_dev->vendor.callbacks && pvr_dev->vendor.callbacks->init) {
 		err = pvr_dev->vendor.callbacks->init(pvr_dev);
 		if (err)
-			goto err_power_fini;
+			goto err_watchdog_fini;
 	}
 
 	err = pvr_device_init(pvr_dev);
@@ -1481,8 +1481,8 @@ err_vendor_fini:
 	if (pvr_dev->vendor.callbacks && pvr_dev->vendor.callbacks->fini)
 		pvr_dev->vendor.callbacks->fini(pvr_dev);
 
-err_power_fini:
-	pvr_power_fini(pvr_dev);
+err_watchdog_fini:
+	pvr_watchdog_fini(pvr_dev);
 
 	pvr_queue_device_fini(pvr_dev);
 
@@ -1508,7 +1508,7 @@ pvr_remove(struct platform_device *plat_dev)
 	pvr_device_fini(pvr_dev);
 	if (pvr_dev->vendor.callbacks && pvr_dev->vendor.callbacks->fini)
 		pvr_dev->vendor.callbacks->fini(pvr_dev);
-	pvr_power_fini(pvr_dev);
+	pvr_watchdog_fini(pvr_dev);
 	pvr_queue_device_fini(pvr_dev);
 	pvr_context_device_fini(pvr_dev);
 
