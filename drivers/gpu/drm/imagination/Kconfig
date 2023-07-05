@@ -2,7 +2,7 @@
 # Copyright (c) 2022 Imagination Technologies Ltd.
 
 config DRM_POWERVR
-	tristate "Imagination Technologies PowerVR Graphics"
+	tristate "Imagination Technologies PowerVR Graphics (Series 6 and later)"
 	depends on ARM64
 	depends on DRM
 	select DRM_GEM_SHMEM_HELPER
@@ -10,6 +10,6 @@ config DRM_POWERVR
 	select FW_LOADER
 	help
 	  Choose this option if you have a system that has an Imagination
-	  Technologies PowerVR Rogue GPU.
+	  Technologies PowerVR GPU (Series 6 or later).
 
 	  If "M" is selected, the module will be called powervr.

@@ -8,7 +8,7 @@
 #include <uapi/drm/pvr_drm.h>
 
 #define PVR_DRIVER_NAME "powervr"
-#define PVR_DRIVER_DESC "Imagination PowerVR Graphics"
+#define PVR_DRIVER_DESC "Imagination PowerVR Graphics (Series 6 and later)"
 #define PVR_DRIVER_DATE "20220211"
 
 /*

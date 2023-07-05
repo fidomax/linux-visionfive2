@@ -37,7 +37,7 @@
 #include <linux/xarray.h>
 
 /**
- * DOC: PowerVR Graphics Driver
+ * DOC: PowerVR (Series 6 and later) Graphics Driver
  *
  * This driver supports the following PowerVR graphics cores from Imagination
  * Technologies:
