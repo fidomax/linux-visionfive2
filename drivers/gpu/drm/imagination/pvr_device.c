@@ -551,7 +551,7 @@ pvr_device_init(struct pvr_device *pvr_dev)
 	if (err)
 		goto err_device_gpu_fini;
 
-	pm_runtime_put_autosuspend(dev);
+	pm_runtime_put(dev);
 
 	return 0;
 
@@ -578,10 +578,9 @@ pvr_device_fini(struct pvr_device *pvr_dev)
 	 * Deinitialization stages are performed in reverse order compared to
 	 * the initialization stages in pvr_device_init().
 	 */
-	pm_runtime_get_sync(dev);
 	pvr_device_irq_fini(pvr_dev);
 	pvr_device_gpu_fini(pvr_dev);
-	pm_runtime_put_sync_suspend(dev);
+	pm_runtime_suspend(dev);
 }
 
 bool
