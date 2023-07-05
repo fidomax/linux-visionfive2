@@ -123,29 +123,13 @@ struct pvr_gem_object {
 static_assert(offsetof(struct pvr_gem_object, base) == 0,
 	      "offsetof(struct pvr_gem_object, base) not zero");
 
-static __always_inline struct drm_gem_shmem_object *
-shmem_gem_from_pvr_gem(struct pvr_gem_object *pvr_obj)
-{
-	return &pvr_obj->base;
-}
+#define shmem_gem_from_pvr_gem(pvr_obj) (&pvr_obj->base)
 
-static __always_inline struct pvr_gem_object *
-shmem_gem_to_pvr_gem(struct drm_gem_shmem_object *shmem_obj)
-{
-	return container_of(shmem_obj, struct pvr_gem_object, base);
-}
+#define shmem_gem_to_pvr_gem(shmem_obj) container_of_const(shmem_obj, struct pvr_gem_object, base)
 
-static __always_inline struct drm_gem_object *
-gem_from_pvr_gem(struct pvr_gem_object *pvr_obj)
-{
-	return &pvr_obj->base.base;
-}
+#define gem_from_pvr_gem(pvr_obj) (&pvr_obj->base.base)
 
-static __always_inline struct pvr_gem_object *
-gem_to_pvr_gem(struct drm_gem_object *gem_obj)
-{
-	return container_of(gem_obj, struct pvr_gem_object, base.base);
-}
+#define gem_to_pvr_gem(gem_obj) container_of_const(gem_obj, struct pvr_gem_object, base.base)
 
 /* Functions defined in pvr_gem.c */
 

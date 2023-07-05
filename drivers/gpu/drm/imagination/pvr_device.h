@@ -420,29 +420,13 @@ struct pvr_file {
  */
 #define PVR_HAS_ENHANCEMENT(pvr_dev, enhancement) ((pvr_dev)->enhancements.has_ern##enhancement)
 
-static __always_inline struct drm_device *
-from_pvr_device(struct pvr_device *pvr_dev)
-{
-	return &pvr_dev->base;
-}
+#define from_pvr_device(pvr_dev) (&pvr_dev->base)
 
-static __always_inline struct pvr_device *
-to_pvr_device(struct drm_device *drm_dev)
-{
-	return container_of(drm_dev, struct pvr_device, base);
-}
+#define to_pvr_device(drm_dev) container_of_const(drm_dev, struct pvr_device, base)
 
-static __always_inline struct drm_file *
-from_pvr_file(struct pvr_file *pvr_file)
-{
-	return pvr_file->file;
-}
+#define from_pvr_file(pvr_file) (pvr_file->file)
 
-static __always_inline struct pvr_file *
-to_pvr_file(struct drm_file *file)
-{
-	return file->driver_priv;
-}
+#define to_pvr_file(file) (file->driver_priv)
 
 /**
  * PVR_PACKED_BVNC() - Packs B, V, N and C values into a 64-bit unsigned integer
