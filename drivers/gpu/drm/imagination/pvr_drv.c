@@ -1436,7 +1436,7 @@ pvr_probe(struct platform_device *plat_dev)
 	pvr_dev = devm_drm_dev_alloc(&plat_dev->dev, &pvr_drm_driver,
 				     struct pvr_device, base);
 	if (IS_ERR(pvr_dev)) {
-		err = IS_ERR(pvr_dev);
+		err = PTR_ERR(pvr_dev);
 		goto err_out;
 	}
 	drm_dev = &pvr_dev->base;
