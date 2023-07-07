@@ -194,7 +194,7 @@ pvr_watchdog_worker(struct work_struct *work)
 		goto out_requeue;
 
 	if (!pvr_dev->fw_dev.booted)
-		goto out_requeue;
+		goto out_pm_runtime_put;
 
 	stalled = pvr_watchdog_kccb_stalled(pvr_dev);
 
@@ -210,13 +210,14 @@ pvr_watchdog_worker(struct work_struct *work)
 		}
 	}
 
+out_pm_runtime_put:
+	pm_runtime_put(from_pvr_device(pvr_dev)->dev);
+
 out_requeue:
 	if (!pvr_dev->lost) {
 		queue_delayed_work(pvr_dev->sched_wq, &pvr_dev->watchdog.work,
 				   msecs_to_jiffies(WATCHDOG_TIME_MS));
 	}
-
-	pm_runtime_put(from_pvr_device(pvr_dev)->dev);
 }
 
 /**
