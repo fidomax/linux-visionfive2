@@ -189,6 +189,8 @@ static irqreturn_t pvr_device_irq_thread_handler(int irq, void *data)
 			pvr_device_process_active_queues(pvr_dev);
 		}
 
+		pm_runtime_mark_last_busy(from_pvr_device(pvr_dev)->dev);
+
 		ret = IRQ_HANDLED;
 	}
 
