@@ -7,6 +7,7 @@
 #include "pvr_rogue_fwif_sf.h"
 #include "pvr_fw_trace.h"
 
+#include <drm/drm_drv.h>
 #include <drm/drm_file.h>
 
 #include <linux/build_bug.h>
@@ -136,6 +137,7 @@ update_logtype(struct pvr_device *pvr_dev, u32 group_mask)
 {
 	struct pvr_fw_trace *fw_trace = &pvr_dev->fw_dev.fw_trace;
 	struct rogue_fwif_kccb_cmd cmd;
+	int idx;
 	int err;
 
 	if (group_mask)
@@ -146,9 +148,9 @@ update_logtype(struct pvr_device *pvr_dev, u32 group_mask)
 	fw_trace->group_mask = group_mask;
 
 	down_read(&pvr_dev->reset_sem);
-	if (pvr_dev->lost) {
+	if (!drm_dev_enter(from_pvr_device(pvr_dev), &idx)) {
 		err = -EIO;
-		goto err_out;
+		goto err_up_read;
 	}
 
 	cmd.cmd_type = ROGUE_FWIF_KCCB_CMD_LOGTYPE_UPDATE;
@@ -156,7 +158,9 @@ update_logtype(struct pvr_device *pvr_dev, u32 group_mask)
 
 	err = pvr_kccb_send_cmd(pvr_dev, &cmd, NULL);
 
-err_out:
+	drm_dev_exit(idx);
+
+err_up_read:
 	up_read(&pvr_dev->reset_sem);
 
 	return err;

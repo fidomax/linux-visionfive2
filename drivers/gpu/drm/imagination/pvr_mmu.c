@@ -10,6 +10,7 @@
 #include "pvr_rogue_fwif.h"
 #include "pvr_rogue_mmu_defs.h"
 
+#include <drm/drm_drv.h>
 #include <linux/bitops.h>
 #include <linux/dma-mapping.h>
 #include <linux/kmemleak.h>
@@ -75,12 +76,16 @@ pvr_mmu_flush(struct pvr_device *pvr_dev)
 	struct rogue_fwif_mmucachedata *cmd_mmu_cache_data =
 		&cmd_mmu_cache.cmd_data.mmu_cache_data;
 	u32 slot;
+	int idx;
 	int err;
+
+	if (!drm_dev_enter(from_pvr_device(pvr_dev), &idx))
+		return -EIO;
 
 	/* Can't flush MMU if the firmware hasn't booted yet. */
 	if (!pvr_dev->fw_dev.booted) {
 		err = 0;
-		goto err_out;
+		goto err_drm_dev_exit;
 	}
 
 	cmd_mmu_cache.cmd_type = ROGUE_FWIF_KCCB_CMD_MMUCACHE;
@@ -96,13 +101,13 @@ pvr_mmu_flush(struct pvr_device *pvr_dev)
 
 	err = pvr_kccb_send_cmd(pvr_dev, &cmd_mmu_cache, &slot);
 	if (err)
-		goto err_out;
+		goto err_drm_dev_exit;
 
 	err = pvr_kccb_wait_for_completion(pvr_dev, slot, HZ, NULL);
-	if (err)
-		goto err_out;
 
-err_out:
+err_drm_dev_exit:
+	drm_dev_exit(idx);
+
 	return err;
 }
 

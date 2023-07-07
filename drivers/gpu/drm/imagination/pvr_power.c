@@ -8,6 +8,7 @@
 #include "pvr_queue.h"
 #include "pvr_rogue_fwif.h"
 
+#include <drm/drm_drv.h>
 #include <drm/drm_managed.h>
 #include <linux/clk.h>
 #include <linux/interrupt.h>
@@ -26,8 +27,10 @@
 static void
 pvr_device_lost(struct pvr_device *pvr_dev)
 {
-	if (!pvr_dev->lost)
+	if (!pvr_dev->lost) {
 		pvr_dev->lost = true;
+		drm_dev_unplug(from_pvr_device(pvr_dev));
+	}
 }
 
 static int
@@ -199,15 +202,10 @@ pvr_watchdog_worker(struct work_struct *work)
 	stalled = pvr_watchdog_kccb_stalled(pvr_dev);
 
 	if (stalled) {
-		int err;
-
 		drm_err(from_pvr_device(pvr_dev), "FW stalled, trying hard reset");
 
-		err = pvr_power_reset(pvr_dev, true);
-		if (err) {
-			drm_err(from_pvr_device(pvr_dev), "GPU device lost");
-			pvr_device_lost(pvr_dev);
-		}
+		pvr_power_reset(pvr_dev, true);
+		/* Device may be lost at this point. */
 	}
 
 out_pm_runtime_put:
@@ -243,18 +241,22 @@ pvr_power_device_suspend(struct device *dev)
 	struct drm_device *drm_dev = platform_get_drvdata(plat_dev);
 	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
 	int err = 0;
+	int idx;
+
+	if (!drm_dev_enter(drm_dev, &idx))
+		return -EIO;
 
 	if (pvr_dev->fw_dev.booted) {
 		err = pvr_power_fw_disable(pvr_dev, false);
 		if (err)
-			goto err_out;
+			goto err_drm_dev_exit;
 	}
 
 	if (pvr_dev->vendor.callbacks &&
 	    pvr_dev->vendor.callbacks->power_disable) {
 		err = pvr_dev->vendor.callbacks->power_disable(pvr_dev);
 		if (err)
-			goto err_out;
+			goto err_drm_dev_exit;
 	}
 
 	clk_disable_unprepare(pvr_dev->mem_clk);
@@ -263,7 +265,9 @@ pvr_power_device_suspend(struct device *dev)
 
 	regulator_disable(pvr_dev->regulator);
 
-err_out:
+err_drm_dev_exit:
+	drm_dev_exit(idx);
+
 	return err;
 }
 
@@ -273,11 +277,15 @@ pvr_power_device_resume(struct device *dev)
 	struct platform_device *plat_dev = to_platform_device(dev);
 	struct drm_device *drm_dev = platform_get_drvdata(plat_dev);
 	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
+	int idx;
 	int err;
+
+	if (!drm_dev_enter(drm_dev, &idx))
+		return -EIO;
 
 	err = regulator_enable(pvr_dev->regulator);
 	if (err)
-		goto err_out;
+		goto err_drm_dev_exit;
 
 	err = clk_prepare_enable(pvr_dev->core_clk);
 	if (err)
@@ -304,14 +312,15 @@ pvr_power_device_resume(struct device *dev)
 			goto err_power_disable;
 	}
 
+	drm_dev_exit(idx);
+
 	return 0;
 
 err_power_disable:
 	if (pvr_dev->vendor.callbacks &&
 	    pvr_dev->vendor.callbacks->power_disable) {
 		err = pvr_dev->vendor.callbacks->power_disable(pvr_dev);
-		if (err)
-			goto err_out;
+		WARN_ON(err);
 	}
 
 err_mem_clk_disable:
@@ -326,7 +335,9 @@ err_core_clk_disable:
 err_regulator_disable:
 	regulator_disable(pvr_dev->regulator);
 
-err_out:
+err_drm_dev_exit:
+	drm_dev_exit(idx);
+
 	return err;
 }
 
@@ -428,6 +439,9 @@ err_device_lost:
 	pvr_device_lost(pvr_dev);
 
 	/* Leave IRQs disabled if the device is lost. */
+
+	if (queues_disabled)
+		pvr_queue_device_post_reset(pvr_dev);
 
 	up_write(&pvr_dev->reset_sem);
 

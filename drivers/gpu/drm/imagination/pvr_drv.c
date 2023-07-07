@@ -80,9 +80,10 @@ pvr_ioctl_create_bo(struct drm_device *drm_dev, void *raw_args,
 	size_t sanitized_size;
 	size_t real_size;
 
+	int idx;
 	int err;
 
-	if (pvr_dev->lost)
+	if (!drm_dev_enter(drm_dev, &idx))
 		return -EIO;
 
 	/* All padding fields must be zeroed. */
@@ -111,7 +112,7 @@ pvr_ioctl_create_bo(struct drm_device *drm_dev, void *raw_args,
 	pvr_obj = pvr_gem_object_create(pvr_dev, sanitized_size, args->flags);
 	if (IS_ERR(pvr_obj)) {
 		err = PTR_ERR(pvr_obj);
-		goto err_out;
+		goto err_drm_dev_exit;
 	}
 
 	/*
@@ -132,6 +133,8 @@ pvr_ioctl_create_bo(struct drm_device *drm_dev, void *raw_args,
 	 */
 	args->size = real_size;
 
+	drm_dev_exit(idx);
+
 	return 0;
 
 err_destroy_obj:
@@ -142,7 +145,9 @@ err_destroy_obj:
 	 */
 	pvr_gem_object_put(pvr_obj);
 
-err_out:
+err_drm_dev_exit:
+	drm_dev_exit(idx);
+
 	return err;
 }
 
@@ -171,18 +176,20 @@ pvr_ioctl_get_bo_mmap_offset(__always_unused struct drm_device *drm_dev,
 			     void *raw_args, struct drm_file *file)
 {
 	struct drm_pvr_ioctl_get_bo_mmap_offset_args *args = raw_args;
-	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
 	struct pvr_file *pvr_file = to_pvr_file(file);
 	struct pvr_gem_object *pvr_obj;
 	struct drm_gem_object *gem_obj;
+	int idx;
 	int ret;
 
-	if (pvr_dev->lost)
+	if (!drm_dev_enter(drm_dev, &idx))
 		return -EIO;
 
 	/* All padding fields must be zeroed. */
-	if (args->_padding_4 != 0)
-		return -EINVAL;
+	if (args->_padding_4 != 0) {
+		ret = -EINVAL;
+		goto err_drm_dev_exit;
+	}
 
 	/*
 	 * Obtain a kernel reference to the buffer object. This reference is
@@ -191,8 +198,10 @@ pvr_ioctl_get_bo_mmap_offset(__always_unused struct drm_device *drm_dev,
 	 * such file or directory).
 	 */
 	pvr_obj = pvr_gem_object_from_handle(pvr_file, args->handle);
-	if (!pvr_obj)
-		return -ENOENT;
+	if (!pvr_obj) {
+		ret = -ENOENT;
+		goto err_drm_dev_exit;
+	}
 
 	gem_obj = gem_from_pvr_gem(pvr_obj);
 
@@ -205,7 +214,7 @@ pvr_ioctl_get_bo_mmap_offset(__always_unused struct drm_device *drm_dev,
 	if (ret != 0) {
 		/* Drop our reference to the buffer object. */
 		drm_gem_object_put(gem_obj);
-		return ret;
+		goto err_drm_dev_exit;
 	}
 
 	/*
@@ -217,7 +226,10 @@ pvr_ioctl_get_bo_mmap_offset(__always_unused struct drm_device *drm_dev,
 	/* Drop our reference to the buffer object. */
 	pvr_gem_object_put(pvr_obj);
 
-	return 0;
+err_drm_dev_exit:
+	drm_dev_exit(idx);
+
+	return ret;
 }
 
 static __always_inline u64
@@ -623,31 +635,41 @@ pvr_ioctl_dev_query(struct drm_device *drm_dev, void *raw_args,
 {
 	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
 	struct drm_pvr_ioctl_dev_query_args *args = raw_args;
+	int idx;
+	int ret = -EINVAL;
 
-	if (pvr_dev->lost)
+	if (!drm_dev_enter(drm_dev, &idx))
 		return -EIO;
 
 	switch ((enum drm_pvr_dev_query)args->type) {
 	case DRM_PVR_DEV_QUERY_GPU_INFO_GET:
-		return pvr_dev_query_gpu_info_get(pvr_dev, args);
+		ret = pvr_dev_query_gpu_info_get(pvr_dev, args);
+		break;
 
 	case DRM_PVR_DEV_QUERY_RUNTIME_INFO_GET:
-		return pvr_dev_query_runtime_info_get(pvr_dev, args);
+		ret = pvr_dev_query_runtime_info_get(pvr_dev, args);
+		break;
 
 	case DRM_PVR_DEV_QUERY_QUIRKS_GET:
-		return pvr_dev_query_quirks_get(pvr_dev, args);
+		ret = pvr_dev_query_quirks_get(pvr_dev, args);
+		break;
 
 	case DRM_PVR_DEV_QUERY_ENHANCEMENTS_GET:
-		return pvr_dev_query_enhancements_get(pvr_dev, args);
+		ret = pvr_dev_query_enhancements_get(pvr_dev, args);
+		break;
 
 	case DRM_PVR_DEV_QUERY_HEAP_INFO_GET:
-		return pvr_heap_info_get(pvr_dev, args);
+		ret = pvr_heap_info_get(pvr_dev, args);
+		break;
 
 	case DRM_PVR_DEV_QUERY_STATIC_DATA_AREAS_GET:
-		return pvr_static_data_areas_get(pvr_dev, args);
+		ret = pvr_static_data_areas_get(pvr_dev, args);
+		break;
 	}
 
-	return -EINVAL;
+	drm_dev_exit(idx);
+
+	return ret;
 }
 
 /**
@@ -670,13 +692,18 @@ pvr_ioctl_create_context(struct drm_device *drm_dev, void *raw_args,
 			 struct drm_file *file)
 {
 	struct drm_pvr_ioctl_create_context_args *args = raw_args;
-	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
 	struct pvr_file *pvr_file = file->driver_priv;
+	int idx;
+	int ret;
 
-	if (pvr_dev->lost)
+	if (!drm_dev_enter(drm_dev, &idx))
 		return -EIO;
 
-	return pvr_context_create(pvr_file, args);
+	ret = pvr_context_create(pvr_file, args);
+
+	drm_dev_exit(idx);
+
+	return ret;
 }
 
 /**
@@ -723,18 +750,18 @@ pvr_ioctl_create_free_list(struct drm_device *drm_dev, void *raw_args,
 			   struct drm_file *file)
 {
 	struct drm_pvr_ioctl_create_free_list_args *args = raw_args;
-	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
 	struct pvr_file *pvr_file = to_pvr_file(file);
 	struct pvr_free_list *free_list;
+	int idx;
 	int err;
 
-	if (pvr_dev->lost)
+	if (!drm_dev_enter(drm_dev, &idx))
 		return -EIO;
 
 	free_list = pvr_free_list_create(pvr_file, args);
 	if (IS_ERR(free_list)) {
 		err = PTR_ERR(free_list);
-		goto err_out;
+		goto err_drm_dev_exit;
 	}
 
 	/* Allocate object handle for userspace. */
@@ -746,12 +773,16 @@ pvr_ioctl_create_free_list(struct drm_device *drm_dev, void *raw_args,
 	if (err < 0)
 		goto err_cleanup;
 
+	drm_dev_exit(idx);
+
 	return 0;
 
 err_cleanup:
 	pvr_free_list_put(free_list);
 
-err_out:
+err_drm_dev_exit:
+	drm_dev_exit(idx);
+
 	return err;
 }
 
@@ -805,18 +836,18 @@ pvr_ioctl_create_hwrt_dataset(struct drm_device *drm_dev, void *raw_args,
 			      struct drm_file *file)
 {
 	struct drm_pvr_ioctl_create_hwrt_dataset_args *args = raw_args;
-	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
 	struct pvr_file *pvr_file = to_pvr_file(file);
 	struct pvr_hwrt_dataset *hwrt;
+	int idx;
 	int err;
 
-	if (pvr_dev->lost)
+	if (!drm_dev_enter(drm_dev, &idx))
 		return -EIO;
 
 	hwrt = pvr_hwrt_dataset_create(pvr_file, args);
 	if (IS_ERR(hwrt)) {
 		err = PTR_ERR(hwrt);
-		goto err_out;
+		goto err_drm_dev_exit;
 	}
 
 	/* Allocate object handle for userspace. */
@@ -828,12 +859,16 @@ pvr_ioctl_create_hwrt_dataset(struct drm_device *drm_dev, void *raw_args,
 	if (err < 0)
 		goto err_cleanup;
 
+	drm_dev_exit(idx);
+
 	return 0;
 
 err_cleanup:
 	pvr_hwrt_dataset_put(hwrt);
 
-err_out:
+err_drm_dev_exit:
+	drm_dev_exit(idx);
+
 	return err;
 }
 
@@ -887,20 +922,24 @@ pvr_ioctl_create_vm_context(struct drm_device *drm_dev, void *raw_args,
 			    struct drm_file *file)
 {
 	struct drm_pvr_ioctl_create_vm_context_args *args = raw_args;
-	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
 	struct pvr_file *pvr_file = to_pvr_file(file);
 	struct pvr_vm_context *vm_ctx;
+	int idx;
 	int err;
 
-	if (pvr_dev->lost)
+	if (!drm_dev_enter(drm_dev, &idx))
 		return -EIO;
 
-	if (args->_padding_4)
-		return -EINVAL;
+	if (args->_padding_4) {
+		err = -EINVAL;
+		goto err_drm_dev_exit;
+	}
 
 	vm_ctx = pvr_vm_create_context(pvr_file->pvr_dev, true);
-	if (IS_ERR(vm_ctx))
-		return PTR_ERR(vm_ctx);
+	if (IS_ERR(vm_ctx)) {
+		err = PTR_ERR(vm_ctx);
+		goto err_drm_dev_exit;
+	}
 
 	/* Allocate object handle for userspace. */
 	err = xa_alloc(&pvr_file->vm_ctx_handles,
@@ -911,10 +950,15 @@ pvr_ioctl_create_vm_context(struct drm_device *drm_dev, void *raw_args,
 	if (err < 0)
 		goto err_cleanup;
 
+	drm_dev_exit(idx);
+
 	return 0;
 
 err_cleanup:
 	pvr_vm_context_put(vm_ctx);
+
+err_drm_dev_exit:
+	drm_dev_exit(idx);
 
 	return err;
 }
@@ -987,24 +1031,30 @@ pvr_ioctl_vm_map(struct drm_device *drm_dev, void *raw_args,
 	size_t pvr_obj_size;
 
 	u64 offset_plus_size;
+	int idx;
 	int err;
 
-	if (pvr_dev->lost)
+	if (!drm_dev_enter(drm_dev, &idx))
 		return -EIO;
 
 	/* Initial validation of args. */
-	if (args->_padding_14)
-		return -EINVAL;
+	if (args->_padding_14) {
+		err = -EINVAL;
+		goto err_drm_dev_exit;
+	}
 
 	if (args->flags != 0 ||
 	    check_add_overflow(args->offset, args->size, &offset_plus_size) ||
 	    !pvr_find_heap_containing(pvr_dev, args->device_addr, args->size)) {
-		return -EINVAL;
+		err = -EINVAL;
+		goto err_drm_dev_exit;
 	}
 
 	vm_ctx = pvr_vm_context_lookup(pvr_file, args->vm_context_handle);
-	if (!vm_ctx)
-		return -EINVAL;
+	if (!vm_ctx) {
+		err = -EINVAL;
+		goto err_drm_dev_exit;
+	}
 
 	pvr_obj = pvr_gem_object_from_handle(pvr_file, args->handle);
 	if (!pvr_obj) {
@@ -1034,14 +1084,15 @@ pvr_ioctl_vm_map(struct drm_device *drm_dev, void *raw_args,
 	 * However, pvr_vm_map() obtains and stores its own reference, so we
 	 * must release ours before returning.
 	 */
-	err = 0;
-	goto err_put_pvr_object;
 
 err_put_pvr_object:
 	pvr_gem_object_put(pvr_obj);
 
 err_put_vm_context:
 	pvr_vm_context_put(vm_ctx);
+
+err_drm_dev_exit:
+	drm_dev_exit(idx);
 
 	return err;
 }
@@ -1106,11 +1157,17 @@ pvr_ioctl_submit_jobs(struct drm_device *drm_dev, void *raw_args,
 	struct drm_pvr_ioctl_submit_jobs_args *args = raw_args;
 	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
 	struct pvr_file *pvr_file = to_pvr_file(file);
+	int idx;
+	int err;
 
-	if (pvr_dev->lost)
+	if (!drm_dev_enter(drm_dev, &idx))
 		return -EIO;
 
-	return pvr_submit_jobs(pvr_dev, pvr_file, args);
+	err = pvr_submit_jobs(pvr_dev, pvr_file, args);
+
+	drm_dev_exit(idx);
+
+	return err;
 }
 
 int
@@ -1453,7 +1510,7 @@ pvr_remove(struct platform_device *plat_dev)
 	xa_destroy(&pvr_dev->job_ids);
 	xa_destroy(&pvr_dev->free_list_ids);
 
-	drm_dev_unregister(drm_dev);
+	drm_dev_unplug(drm_dev);
 	pvr_device_fini(pvr_dev);
 	if (pvr_dev->vendor.callbacks && pvr_dev->vendor.callbacks->fini)
 		pvr_dev->vendor.callbacks->fini(pvr_dev);

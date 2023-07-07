@@ -13,6 +13,7 @@
 #include "pvr_rogue_heap_config.h"
 #include "pvr_vm.h"
 
+#include <drm/drm_drv.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_mm.h>
 #include <linux/clk.h>
@@ -1072,15 +1073,17 @@ pvr_fw_structure_cleanup(struct pvr_device *pvr_dev, u32 type, struct pvr_fw_obj
 {
 	struct rogue_fwif_kccb_cmd cmd;
 	int slot_nr;
+	int idx;
 	int err;
 	u32 rtn;
 
 	struct rogue_fwif_cleanup_request *cleanup_req = &cmd.cmd_data.cleanup_data;
 
 	down_read(&pvr_dev->reset_sem);
-	if (pvr_dev->lost) {
+
+	if (!drm_dev_enter(from_pvr_device(pvr_dev), &idx)) {
 		err = -EIO;
-		goto err_out;
+		goto err_up_read;
 	}
 
 	cmd.cmd_type = ROGUE_FWIF_KCCB_CMD_CLEANUP;
@@ -1102,21 +1105,24 @@ pvr_fw_structure_cleanup(struct pvr_device *pvr_dev, u32 type, struct pvr_fw_obj
 		break;
 	default:
 		err = -EINVAL;
-		goto err_out;
+		goto err_drm_dev_exit;
 	}
 
 	err = pvr_kccb_send_cmd(pvr_dev, &cmd, &slot_nr);
 	if (err)
-		goto err_out;
+		goto err_drm_dev_exit;
 
 	err = pvr_kccb_wait_for_completion(pvr_dev, slot_nr, HZ, &rtn);
 	if (err)
-		goto err_out;
+		goto err_drm_dev_exit;
 
 	if (rtn & ROGUE_FWIF_KCCB_RTN_SLOT_CLEANUP_BUSY)
 		err = -EBUSY;
 
-err_out:
+err_drm_dev_exit:
+	drm_dev_exit(idx);
+
+err_up_read:
 	up_read(&pvr_dev->reset_sem);
 
 	return err;
