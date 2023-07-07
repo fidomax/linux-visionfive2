@@ -509,9 +509,6 @@ int pvr_device_init(struct pvr_device *pvr_dev);
 void pvr_device_fini(struct pvr_device *pvr_dev);
 void pvr_device_reset(struct pvr_device *pvr_dev);
 
-int
-pvr_device_clk_core_get_freq(struct pvr_device *pvr_dev, u32 *freq_out);
-
 bool
 pvr_device_has_uapi_quirk(struct pvr_device *pvr_dev, u32 quirk);
 bool

@@ -146,27 +146,6 @@ pvr_device_regulator_init(struct pvr_device *pvr_dev)
 }
 
 /**
- * pvr_device_clk_core_get_freq - Get current PowerVR device core clock frequency
- * @pvr_dev: Target PowerVR device.
- * @freq_out: Pointer to location to store core clock frequency in Hz.
- *
- * Returns:
- *  * 0 on success, or
- *  * -%EINVAL if frequency can not be determined.
- */
-int
-pvr_device_clk_core_get_freq(struct pvr_device *pvr_dev, u32 *freq_out)
-{
-	u32 freq = clk_get_rate(pvr_dev->core_clk);
-
-	if (!freq)
-		return -EINVAL;
-
-	*freq_out = freq;
-	return 0;
-}
-
-/**
  * pvr_device_process_active_queues() - Process all queue related events.
  * @pvr_dev: PowerVR device to check
  *

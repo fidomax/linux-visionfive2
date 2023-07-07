@@ -15,6 +15,7 @@
 
 #include <drm/drm_managed.h>
 #include <drm/drm_mm.h>
+#include <linux/clk.h>
 #include <linux/firmware.h>
 #include <linux/minmax.h>
 #include <linux/sizes.h>
@@ -362,9 +363,9 @@ fw_sysinit_init(void *cpu_ptr, void *priv)
 	struct pvr_fw_device *fw_dev = &pvr_dev->fw_dev;
 	struct pvr_fw_mem *fw_mem = &fw_dev->mem;
 	dma_addr_t fault_dma_addr = 0;
-	u32 clock_speed_hz = 0;
+	u32 clock_speed_hz = clk_get_rate(pvr_dev->core_clk);
 
-	WARN_ON(pvr_device_clk_core_get_freq(pvr_dev, &clock_speed_hz));
+	WARN_ON(!clock_speed_hz);
 
 	WARN_ON(pvr_fw_object_get_dma_addr(fw_mem->fault_page_obj, 0, &fault_dma_addr));
 	fwif_sysinit->fault_phys_addr = (u64)fault_dma_addr;
@@ -408,9 +409,9 @@ fw_runtime_cfg_init(void *cpu_ptr, void *priv)
 {
 	struct rogue_fwif_runtime_cfg *runtime_cfg = cpu_ptr;
 	struct pvr_device *pvr_dev = priv;
-	u32 clock_speed_hz = 0;
+	u32 clock_speed_hz = clk_get_rate(pvr_dev->core_clk);
 
-	WARN_ON(pvr_device_clk_core_get_freq(pvr_dev, &clock_speed_hz));
+	WARN_ON(!clock_speed_hz);
 
 	runtime_cfg->core_clock_speed = clock_speed_hz;
 	runtime_cfg->active_pm_latency_ms = 0;
