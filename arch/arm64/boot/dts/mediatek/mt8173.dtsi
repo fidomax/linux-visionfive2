@@ -993,7 +993,6 @@
 		gpu: mfgsys-gpu@13000000 {
 			compatible = "mediatek,mt8173-gpu", "img,powervr-series6xt";
 			reg = <0 0x13000000 0 0xffff>, <0 0x13fff000 0 0x1000>;
-			power-domains =	<&spm MT8173_POWER_DOMAIN_MFG>;
 			clocks = <&topckgen CLK_TOP_MFG_SEL>,
 				<&topckgen CLK_TOP_MEM_MFG_IN_SEL>,
 				<&topckgen CLK_TOP_AXI_MFG_IN_SEL>;
@@ -1001,8 +1000,9 @@
 				"mem_clk",
 				"sys_clk";
 			interrupts = <GIC_SPI 217 IRQ_TYPE_LEVEL_LOW>;
-			status = "disabled";
+			power-domains =	<&spm MT8173_POWER_DOMAIN_MFG>;
 			#cooling-cells = <2>;
+			status = "disabled";
 		};
 
 		mmsys: syscon@14000000 {
