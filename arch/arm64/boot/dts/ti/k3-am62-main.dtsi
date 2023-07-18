@@ -963,7 +963,6 @@
 		clocks = <&k3_clks 187 0>;
 		clock-names = "core";
 		interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "gpu";
 		#cooling-cells = <2>;
 		status = "disabled";
 	};

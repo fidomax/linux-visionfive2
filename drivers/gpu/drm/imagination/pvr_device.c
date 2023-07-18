@@ -230,7 +230,7 @@ pvr_device_irq_init(struct pvr_device *pvr_dev)
 
 	init_waitqueue_head(&pvr_dev->kccb.rtn_q);
 
-	pvr_dev->irq = platform_get_irq_byname(plat_dev, "gpu");
+	pvr_dev->irq = platform_get_irq(plat_dev, 0);
 	if (pvr_dev->irq < 0)
 		return pvr_dev->irq;
 

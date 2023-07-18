@@ -1001,7 +1001,6 @@
 				"mem_clk",
 				"sys_clk";
 			interrupts = <GIC_SPI 217 IRQ_TYPE_LEVEL_LOW>;
-			interrupt-names = "gpu";
 			status = "disabled";
 			#cooling-cells = <2>;
 		};
