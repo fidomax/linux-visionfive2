@@ -965,8 +965,6 @@
 		interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "gpu";
 		#cooling-cells = <2>;
-		#cooling-min-level = <0>;
-		#cooling-max-level = <3>;
 		status = "disabled";
 	};
 };
