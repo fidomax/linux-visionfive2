@@ -98,7 +98,7 @@ examples:
 
     gpu: gpu@fd00000 {
         compatible = "ti,am62-gpu", "img,powervr-seriesaxe";
-        reg = <0 0x0fd00000 0 0x20000>;
+        reg = <0x0fd00000 0x20000>;
         clocks = <&k3_clks 187 0>;
         clock-names = "core";
         interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
