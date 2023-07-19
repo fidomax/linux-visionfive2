@@ -1093,7 +1093,7 @@ int pvr_queue_job_init(struct pvr_job *job)
 {
 	/* Fragment jobs need at least one native fence wait on the geometry job fence. */
 	u32 min_native_dep_count = job->type == DRM_PVR_JOB_TYPE_FRAGMENT ? 1 : 0;
-	struct pvr_queue *queue = pvr_context_get_queue_for_job(job->ctx, job->type);
+	struct pvr_queue *queue;
 	int err;
 
 	if (atomic_read(&job->ctx->faulty))
