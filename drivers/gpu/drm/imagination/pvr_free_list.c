@@ -95,10 +95,6 @@ free_list_create_kernel_structure(struct pvr_file *pvr_file,
 	free_list->free_list_gpu_addr = args->free_list_gpu_addr;
 	free_list->initial_num_pages = args->initial_num_pages;
 
-	err = pvr_gem_object_get_pages(free_list->obj);
-	if (err < 0)
-		goto err_put_free_list_obj;
-
 	pvr_vm_context_put(vm_ctx);
 
 	return 0;
@@ -117,7 +113,6 @@ free_list_destroy_kernel_structure(struct pvr_free_list *free_list)
 {
 	WARN_ON(!list_empty(&free_list->hwrt_list));
 
-	pvr_gem_object_put_pages(free_list->obj);
 	pvr_gem_object_put(free_list->obj);
 }
 
@@ -332,13 +327,9 @@ pvr_free_list_grow(struct pvr_free_list *free_list, u32 num_pages)
 		goto err_free;
 	}
 
-	err = pvr_gem_object_get_pages(free_list_node->mem_obj);
-	if (err < 0)
-		goto err_destroy_gem_object;
-
 	err = pvr_free_list_insert_node_locked(free_list_node);
 	if (err)
-		goto err_put_pages;
+		goto err_destroy_gem_object;
 
 	list_add_tail(&free_list_node->node, &free_list->mem_block_list);
 
@@ -354,9 +345,6 @@ pvr_free_list_grow(struct pvr_free_list *free_list, u32 num_pages)
 	mutex_unlock(&free_list->lock);
 
 	return 0;
-
-err_put_pages:
-	pvr_gem_object_put_pages(free_list_node->mem_obj);
 
 err_destroy_gem_object:
 	pvr_gem_object_put(free_list_node->mem_obj);
@@ -407,7 +395,6 @@ void pvr_free_list_process_grow_req(struct pvr_device *pvr_dev,
 static void
 pvr_free_list_free_node(struct pvr_free_list_node *free_list_node)
 {
-	pvr_gem_object_put_pages(free_list_node->mem_obj);
 	pvr_gem_object_put(free_list_node->mem_obj);
 
 	kfree(free_list_node);

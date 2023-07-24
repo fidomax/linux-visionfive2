@@ -149,16 +149,6 @@ pvr_gem_object_get_pages_sgt(struct pvr_gem_object *pvr_obj)
 	return drm_gem_shmem_get_pages_sgt(shmem_gem_from_pvr_gem(pvr_obj));
 }
 
-static __always_inline int pvr_gem_object_get_pages(struct pvr_gem_object *pvr_obj)
-{
-	return drm_gem_shmem_get_pages(shmem_gem_from_pvr_gem(pvr_obj));
-}
-
-static __always_inline void pvr_gem_object_put_pages(struct pvr_gem_object *pvr_obj)
-{
-	drm_gem_shmem_put_pages(shmem_gem_from_pvr_gem(pvr_obj));
-}
-
 void *pvr_gem_object_vmap(struct pvr_gem_object *pvr_obj);
 void pvr_gem_object_vunmap(struct pvr_gem_object *pvr_obj);
 

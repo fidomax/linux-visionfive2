@@ -126,7 +126,7 @@ pvr_vm_gpuva_mapping_fini(struct drm_gpuva *va)
  * Return:
  *  * 0 on success, or
  *  * Any error encountered while attempting to obtain a reference to the
- *    buffer bound to @op (see pvr_gem_object_get_pages()), or
+ *    buffer bound to @op (see pvr_gem_object_get_pages_sgt()), or
  *  * Any error returned by pvr_vm_context_map_sgt().
  */
 static int
@@ -137,31 +137,25 @@ pvr_vm_gpuva_map(struct drm_gpuva_op *op, void *op_ctx)
 	struct sg_table *sgt;
 	int err;
 
-	if (!gem_from_pvr_gem(pvr_gem)->import_attach) {
-		err = pvr_gem_object_get_pages(pvr_gem);
-		if (err)
-			return err;
-	}
-
 	if ((op->map.gem.offset | op->map.va.range) & ~PVR_DEVICE_PAGE_MASK)
 		return -EINVAL;
 
 	sgt = pvr_gem_object_get_pages_sgt(pvr_gem);
 	err = PTR_ERR_OR_ZERO(sgt);
 	if (err)
-		goto err_put_pages;
+		return err;
 
 	err = pvr_mmu_map(ctx->vm_ctx->mmu_ctx, sgt, op->map.gem.offset,
 			  op->map.va.range, pvr_gem->flags, op->map.va.addr);
 	if (err)
-		goto err_put_pages;
+		return err;
 
 	pvr_vm_gpuva_mapping_init(ctx->new_va, op->map.va.addr,
 				  op->map.va.range, pvr_gem, op->map.gem.offset);
 
 	err = drm_gpuva_map(&ctx->vm_ctx->gpuva_mgr, ctx->pa, ctx->new_va);
 	if (err)
-		goto err_put_pages;
+		return err;
 
 	/*
 	 * Increment the refcount on the underlying physical memory resource
@@ -173,12 +167,6 @@ pvr_vm_gpuva_map(struct drm_gpuva_op *op, void *op_ctx)
 	ctx->new_va = NULL;
 
 	return 0;
-
-err_put_pages:
-	if (!gem_from_pvr_gem(pvr_gem)->import_attach)
-		pvr_gem_object_put_pages(pvr_gem);
-
-	return err;
 }
 
 /**
@@ -207,9 +195,6 @@ pvr_vm_gpuva_unmap(struct drm_gpuva_op *op, drm_gpuva_state_t state, void *op_ct
 
 	drm_gpuva_unmap(state);
 	drm_gpuva_unlink(op->unmap.va);
-
-	if (!gem_from_pvr_gem(pvr_gem)->import_attach)
-		pvr_gem_object_put_pages(pvr_gem);
 
 	pvr_gem_object_put(pvr_gem);
 	kfree(op->unmap.va);
@@ -285,8 +270,6 @@ pvr_vm_gpuva_remap(struct drm_gpuva_op *op, drm_gpuva_state_t state, void *op_ct
 		struct pvr_gem_object *pvr_gem = gem_to_pvr_gem(op->remap.unmap->va->gem.obj);
 
 		drm_gpuva_unlink(op->unmap.va);
-		if (!gem_from_pvr_gem(pvr_gem)->import_attach)
-			pvr_gem_object_put_pages(pvr_gem);
 
 		pvr_gem_object_put(pvr_gem);
 	}
@@ -470,8 +453,6 @@ pvr_vm_context_release(struct kref *ref_count)
 		can_release_gem_obj =
 			!WARN_ON(pvr_mmu_unmap(vm_ctx->mmu_ctx, va->va.addr,
 					       va->va.range >> PVR_DEVICE_PAGE_SHIFT));
-		if (can_release_gem_obj && !va->gem.obj->import_attach)
-			pvr_gem_object_put_pages(gem_to_pvr_gem(va->gem.obj));
 		drm_gpuva_unlink(va);
 		drm_gem_gpuva_unlock(va->gem.obj);
 

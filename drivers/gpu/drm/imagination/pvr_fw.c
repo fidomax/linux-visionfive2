@@ -1114,10 +1114,6 @@ pvr_fw_object_fw_map(struct pvr_device *pvr_dev, struct pvr_fw_object *fw_obj, u
 
 	int err;
 
-	err = pvr_gem_object_get_pages(pvr_obj);
-	if (err)
-		return err;
-
 	spin_lock(&fw_dev->fw_mm_lock);
 
 	if (drm_mm_node_allocated(&fw_obj->fw_mm_node)) {
@@ -1163,8 +1159,6 @@ err_remove_node:
 err_unlock:
 	spin_unlock(&fw_dev->fw_mm_lock);
 
-	pvr_gem_object_put_pages(pvr_obj);
-
 	return err;
 }
 
@@ -1196,8 +1190,6 @@ pvr_fw_object_fw_unmap(struct pvr_fw_object *fw_obj)
 	drm_mm_remove_node(&fw_obj->fw_mm_node);
 
 	spin_unlock(&fw_dev->fw_mm_lock);
-
-	pvr_gem_object_put_pages(pvr_obj);
 
 	return 0;
 }
