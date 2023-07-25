@@ -179,7 +179,7 @@ pvr_gem_object_from_handle(struct pvr_file *pvr_file, u32 handle)
  * Once the caller is finished with the CPU mapping, they must call
  * pvr_gem_object_vunmap() on @pvr_obj.
  *
- * If @pvr_obj is CPU-cached, drm_gem_shmem_begin_cpu_access() is called to make
+ * If @pvr_obj is CPU-cached, dma_sync_sgtable_for_cpu() is called to make
  * sure the CPU mapping is consistent.
  *
  * Return:
@@ -221,7 +221,7 @@ pvr_gem_object_vmap(struct pvr_gem_object *pvr_obj)
  * address space.
  * @pvr_obj: Target PowerVR GEM object.
  *
- * If @pvr_obj is CPU-cached, drm_gem_shmem_end_cpu_access() is called to make
+ * If @pvr_obj is CPU-cached, dma_sync_sgtable_for_device() is called to make
  * sure the GPU mapping is consistent.
  */
 void
