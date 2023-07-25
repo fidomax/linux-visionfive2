@@ -282,6 +282,14 @@ pvr_build_firmware_filename(struct pvr_device *pvr_dev, const char *base,
 			 gpu_id->v, gpu_id->n, gpu_id->c, major);
 }
 
+static void
+pvr_release_firmware(void *data)
+{
+	struct pvr_device *pvr_dev = data;
+
+	release_firmware(pvr_dev->fw_dev.firmware);
+}
+
 /**
  * pvr_request_firmware() - Load firmware for a PowerVR device
  * @pvr_dev: Target PowerVR device.
@@ -322,7 +330,7 @@ pvr_request_firmware(struct pvr_device *pvr_dev)
 
 	pvr_dev->fw_dev.firmware = fw;
 
-	return 0;
+	return devm_add_action_or_reset(drm_dev->dev, pvr_release_firmware, pvr_dev);
 
 err_free_filename:
 	kfree(filename);
@@ -462,12 +470,9 @@ pvr_device_gpu_init(struct pvr_device *pvr_dev)
 
 	err = pvr_fw_init(pvr_dev);
 	if (err)
-		goto err_release_firmware;
+		goto err_vm_ctx_put;
 
 	return 0;
-
-err_release_firmware:
-	release_firmware(pvr_dev->fw_dev.firmware);
 
 err_vm_ctx_put:
 	pvr_vm_context_put(pvr_dev->kernel_vm_ctx);
@@ -484,7 +489,6 @@ static void
 pvr_device_gpu_fini(struct pvr_device *pvr_dev)
 {
 	pvr_fw_fini(pvr_dev);
-	release_firmware(pvr_dev->fw_dev.firmware);
 	WARN_ON(!pvr_vm_context_put(pvr_dev->kernel_vm_ctx));
 	pvr_dev->kernel_vm_ctx = NULL;
 }
