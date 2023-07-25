@@ -56,6 +56,8 @@ enum pvr_fw_section_type {
  *     |                 |
  *     |                 |
  *     +-----------------+
+ *     |   Device info   |  FILE_SIZE - 4K - device_info_size
+ *     +-----------------+
  *     | FW info header  |  FILE_SIZE - 4K
  *     +-----------------+
  *     |                 |
@@ -65,7 +67,7 @@ enum pvr_fw_section_type {
  *                          FILE_SIZE
  */
 
-#define PVR_FW_INFO_VERSION 2
+#define PVR_FW_INFO_VERSION 3
 
 #define PVR_FW_FLAGS_OPEN_SOURCE BIT(0)
 
@@ -91,6 +93,10 @@ struct pvr_fw_info_header {
 	u16 fw_version_minor;
 	/** @fw_version_build: Firmware build number. */
 	u32 fw_version_build;
+	/** @device_info_size: Size of device info structure. */
+	u32 device_info_size;
+	/** @padding: Padding. */
+	u32 padding;
 };
 
 /**
@@ -110,6 +116,20 @@ struct pvr_fw_layout_entry {
 	u32 alloc_size;
 	/** @alloc_offset: Allocation offset of section. */
 	u32 alloc_offset;
+};
+
+/**
+ * struct pvr_fw_device_info_header - Device information header.
+ */
+struct pvr_fw_device_info_header {
+	/* BRN Mask size (in u64s). */
+	u64 brn_mask_size;
+	/* ERN Mask size (in u64s). */
+	u64 ern_mask_size;
+	/* Feature Mask size (in u64s). */
+	u64 feature_mask_size;
+	/* Feature Parameter size (in u64s). */
+	u64 feature_param_size;
 };
 
 #endif /* PVR_FW_INFO_H */

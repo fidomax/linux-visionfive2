@@ -96,8 +96,6 @@ struct pvr_fw_defs {
 	 * Load and process firmware image.
 	 * @pvr_dev: Target PowerVR device.
 	 * @fw: Pointer to firmware image.
-	 * @layout_entries: Layout of firmware memory.
-	 * @num_layout_entries: Number of entries in @layout_entries.
 	 * @fw_code_ptr: Pointer to firmware code section.
 	 * @fw_data_ptr: Pointer to firmware data section.
 	 * @fw_core_code_ptr: Pointer to firmware core code section. May be %NULL.
@@ -111,7 +109,6 @@ struct pvr_fw_defs {
 	 *  * Any appropriate error on failure.
 	 */
 	int (*fw_process)(struct pvr_device *pvr_dev, const u8 *fw,
-			  const struct pvr_fw_layout_entry *layout_entries, u32 num_layout_entries,
 			  u8 *fw_code_ptr, u8 *fw_data_ptr, u8 *fw_core_code_ptr,
 			  u8 *fw_core_data_ptr, u32 core_code_alloc_size);
 
@@ -306,6 +303,12 @@ struct pvr_fw_device {
 	/** @firmware: Handle to the firmware loaded into the device. */
 	const struct firmware *firmware;
 
+	/** @header: Pointer to firmware header. */
+	const struct pvr_fw_info_header *header;
+
+	/** @layout_entries: Pointer to firmware layout. */
+	const struct pvr_fw_layout_entry *layout_entries;
+
 	/** @mem: Structure containing objects representing firmware memory allocations. */
 	struct pvr_fw_mem mem;
 
@@ -418,6 +421,7 @@ struct pvr_fw_device {
 extern const struct pvr_fw_defs pvr_fw_defs_meta;
 extern const struct pvr_fw_defs pvr_fw_defs_mips;
 
+int pvr_fw_validate_init_device_info(struct pvr_device *pvr_dev);
 int pvr_fw_init(struct pvr_device *pvr_dev);
 void pvr_fw_fini(struct pvr_device *pvr_dev);
 
@@ -432,12 +436,10 @@ void
 pvr_fw_heap_info_init(struct pvr_device *pvr_dev, u32 log2_size, u32 reserved_size);
 
 const struct pvr_fw_layout_entry *
-pvr_fw_find_layout_entry(const struct pvr_fw_layout_entry *layout_entries, u32 num_layout_entries,
-			 enum pvr_fw_section_id id);
+pvr_fw_find_layout_entry(struct pvr_device *pvr_dev, enum pvr_fw_section_id id);
 int
-pvr_fw_find_mmu_segment(u32 addr, u32 size, const struct pvr_fw_layout_entry *layout_entries,
-			u32 num_layout_entries, void *fw_code_ptr, void *fw_data_ptr,
-			void *fw_core_code_ptr, void *fw_core_data_ptr,
+pvr_fw_find_mmu_segment(struct pvr_device *pvr_dev, u32 addr, u32 size, void *fw_code_ptr,
+			void *fw_data_ptr, void *fw_core_code_ptr, void *fw_core_data_ptr,
 			void **host_addr_out);
 
 int

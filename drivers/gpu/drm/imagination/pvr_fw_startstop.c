@@ -54,7 +54,7 @@ rogue_bif_init(struct pvr_device *pvr_dev)
 static int
 rogue_slc_init(struct pvr_device *pvr_dev)
 {
-	u16 slc_cache_line_size_in_bits;
+	u16 slc_cache_line_size_bits;
 	u32 reg_val;
 	int err;
 
@@ -69,12 +69,12 @@ rogue_slc_init(struct pvr_device *pvr_dev)
 		      ROGUE_CR_SLC_CTRL_MISC_ENABLE_PSG_HAZARD_CHECK_EN) |
 		     ROGUE_CR_SLC_CTRL_MISC_ADDR_DECODE_MODE_PVR_HASH1;
 
-	err = PVR_FEATURE_VALUE(pvr_dev, slc_cache_line_size_in_bits, &slc_cache_line_size_in_bits);
+	err = PVR_FEATURE_VALUE(pvr_dev, slc_cache_line_size_bits, &slc_cache_line_size_bits);
 	if (err)
 		return err;
 
 	/* Bypass burst combiner if SLC line size is smaller than 1024 bits. */
-	if (slc_cache_line_size_in_bits < 1024)
+	if (slc_cache_line_size_bits < 1024)
 		reg_val |= ROGUE_CR_SLC_CTRL_MISC_BYPASS_BURST_COMBINER_EN;
 
 	pvr_cr_write32(pvr_dev, ROGUE_CR_SLC_CTRL_MISC, reg_val);
@@ -93,8 +93,7 @@ rogue_slc_init(struct pvr_device *pvr_dev)
 int
 pvr_fw_start(struct pvr_device *pvr_dev)
 {
-	bool has_reset2 = PVR_HAS_FEATURE(pvr_dev, s7_top_infrastructure) ||
-			  PVR_HAS_FEATURE(pvr_dev, xe_tpu2);
+	bool has_reset2 = PVR_HAS_FEATURE(pvr_dev, xe_tpu2);
 	u64 soft_reset_mask;
 	int err;
 

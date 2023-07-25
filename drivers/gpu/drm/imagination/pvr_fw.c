@@ -3,6 +3,7 @@
 
 #include "pvr_ccb.h"
 #include "pvr_device.h"
+#include "pvr_device_info.h"
 #include "pvr_fw.h"
 #include "pvr_fw_info.h"
 #include "pvr_rogue_mips.h"
@@ -10,6 +11,7 @@
 #include "pvr_fw_trace.h"
 #include "pvr_gem.h"
 #include "pvr_power.h"
+#include "pvr_rogue_fwif_dev_info.h"
 #include "pvr_rogue_heap_config.h"
 #include "pvr_vm.h"
 
@@ -18,6 +20,7 @@
 #include <drm/drm_mm.h>
 #include <linux/clk.h>
 #include <linux/firmware.h>
+#include <linux/math.h>
 #include <linux/minmax.h>
 #include <linux/sizes.h>
 
@@ -44,9 +47,10 @@
 #define PVR_SYNC_OBJ_SIZE sizeof(u32)
 
 const struct pvr_fw_layout_entry *
-pvr_fw_find_layout_entry(const struct pvr_fw_layout_entry *layout_entries, u32 num_layout_entries,
-			 enum pvr_fw_section_id id)
+pvr_fw_find_layout_entry(struct pvr_device *pvr_dev, enum pvr_fw_section_id id)
 {
+	const struct pvr_fw_layout_entry *layout_entries = pvr_dev->fw_dev.layout_entries;
+	u32 num_layout_entries = pvr_dev->fw_dev.header->layout_entry_num;
 	u32 entry;
 
 	for (entry = 0; entry < num_layout_entries; entry++) {
@@ -58,8 +62,10 @@ pvr_fw_find_layout_entry(const struct pvr_fw_layout_entry *layout_entries, u32 n
 }
 
 static const struct pvr_fw_layout_entry *
-pvr_fw_find_private_data(const struct pvr_fw_layout_entry *layout_entries, u32 num_layout_entries)
+pvr_fw_find_private_data(struct pvr_device *pvr_dev)
 {
+	const struct pvr_fw_layout_entry *layout_entries = pvr_dev->fw_dev.layout_entries;
+	u32 num_layout_entries = pvr_dev->fw_dev.header->layout_entry_num;
 	u32 entry;
 
 	for (entry = 0; entry < num_layout_entries; entry++) {
@@ -72,27 +78,26 @@ pvr_fw_find_private_data(const struct pvr_fw_layout_entry *layout_entries, u32 n
 	return NULL;
 }
 
+#define DEV_INFO_MASK_SIZE(x) DIV_ROUND_UP(x, 64)
+
 /**
  * pvr_fw_validate() - Parse firmware header and check compatibility
  * @pvr_dev: Device pointer.
- * @header_out: Pointer to location to write firmware header pointer.
- * @layout_entries_out: Pointer to location to write layout table pointer.
  *
  * Returns:
  *  * 0 on success, or
  *  * -EINVAL if firmware is incompatible.
  */
 static int
-pvr_fw_validate(struct pvr_device *pvr_dev,
-		const struct pvr_fw_info_header **header_out,
-		const struct pvr_fw_layout_entry **layout_entries_out)
+pvr_fw_validate(struct pvr_device *pvr_dev)
 {
 	struct drm_device *drm_dev = from_pvr_device(pvr_dev);
 	const struct firmware *firmware = pvr_dev->fw_dev.firmware;
-	const u8 *fw = firmware->data;
-	u32 fw_offset = firmware->size - SZ_4K;
+	struct pvr_fw_device_info_header *dev_info_header;
 	const struct pvr_fw_layout_entry *layout_entries;
 	const struct pvr_fw_info_header *header;
+	const u8 *fw = firmware->data;
+	u32 fw_offset = firmware->size - SZ_4K;
 	u32 layout_table_size;
 	u32 entry;
 
@@ -149,23 +154,52 @@ pvr_fw_validate(struct pvr_device *pvr_dev,
 			return -EINVAL;
 	}
 
+	fw_offset = (firmware->size - SZ_4K) - header->device_info_size;
+
+	dev_info_header = (struct pvr_fw_device_info_header *)&fw[fw_offset];
+
 	drm_info(drm_dev, "FW version v%u.%u (build %u OS)\n", header->fw_version_major,
 		 header->fw_version_minor, header->fw_version_build);
 
 	pvr_dev->fw_version.major = header->fw_version_major;
 	pvr_dev->fw_version.minor = header->fw_version_minor;
 
-	*header_out = header;
-	*layout_entries_out = layout_entries;
+	pvr_dev->fw_dev.header = header;
+	pvr_dev->fw_dev.layout_entries = layout_entries;
 
 	return 0;
 }
 
-static void
-layout_get_sizes(struct pvr_fw_mem *fw_mem, const struct pvr_fw_layout_entry *layout_entries,
-		 u32 num_layout_entries)
+static int
+pvr_fw_get_device_info(struct pvr_device *pvr_dev)
 {
-	u32 entry;
+	const struct firmware *firmware = pvr_dev->fw_dev.firmware;
+	struct pvr_fw_device_info_header *header;
+	const u8 *fw = firmware->data;
+	const u64 *dev_info;
+	u32 fw_offset;
+
+	fw_offset = (firmware->size - SZ_4K) - pvr_dev->fw_dev.header->device_info_size;
+
+	header = (struct pvr_fw_device_info_header *)&fw[fw_offset];
+	dev_info = (u64 *)(header + 1);
+
+	pvr_device_info_set_quirks(pvr_dev, dev_info, header->brn_mask_size);
+	dev_info += header->brn_mask_size;
+
+	pvr_device_info_set_enhancements(pvr_dev, dev_info, header->ern_mask_size);
+	dev_info += header->ern_mask_size;
+
+	return pvr_device_info_set_features(pvr_dev, dev_info, header->feature_mask_size,
+					    header->feature_param_size);
+}
+
+static void
+layout_get_sizes(struct pvr_device *pvr_dev)
+{
+	const struct pvr_fw_layout_entry *layout_entries = pvr_dev->fw_dev.layout_entries;
+	u32 num_layout_entries = pvr_dev->fw_dev.header->layout_entry_num;
+	struct pvr_fw_mem *fw_mem = &pvr_dev->fw_dev.mem;
 
 	fw_mem->code_alloc_size = 0;
 	fw_mem->data_alloc_size = 0;
@@ -173,7 +207,7 @@ layout_get_sizes(struct pvr_fw_mem *fw_mem, const struct pvr_fw_layout_entry *la
 	fw_mem->core_data_alloc_size = 0;
 
 	/* Extract section sizes from FW layout table. */
-	for (entry = 0; entry < num_layout_entries; entry++) {
+	for (u32 entry = 0; entry < num_layout_entries; entry++) {
 		switch (layout_entries[entry].type) {
 		case FW_CODE:
 			fw_mem->code_alloc_size += layout_entries[entry].alloc_size;
@@ -196,11 +230,12 @@ layout_get_sizes(struct pvr_fw_mem *fw_mem, const struct pvr_fw_layout_entry *la
 }
 
 int
-pvr_fw_find_mmu_segment(u32 addr, u32 size, const struct pvr_fw_layout_entry *layout_entries,
-			u32 num_layout_entries, void *fw_code_ptr, void *fw_data_ptr,
-			void *fw_core_code_ptr, void *fw_core_data_ptr,
+pvr_fw_find_mmu_segment(struct pvr_device *pvr_dev, u32 addr, u32 size, void *fw_code_ptr,
+			void *fw_data_ptr, void *fw_core_code_ptr, void *fw_core_data_ptr,
 			void **host_addr_out)
 {
+	const struct pvr_fw_layout_entry *layout_entries = pvr_dev->fw_dev.layout_entries;
+	u32 num_layout_entries = pvr_dev->fw_dev.header->layout_entry_num;
 	u32 end_addr = addr + size;
 	int entry = 0;
 
@@ -594,8 +629,6 @@ pvr_fw_process(struct pvr_device *pvr_dev)
 	struct drm_device *drm_dev = from_pvr_device(pvr_dev);
 	struct pvr_fw_mem *fw_mem = &pvr_dev->fw_dev.mem;
 	const u8 *fw = pvr_dev->fw_dev.firmware->data;
-	const struct pvr_fw_info_header *header;
-	const struct pvr_fw_layout_entry *layout_entries;
 	const struct pvr_fw_layout_entry *private_data;
 	u8 *fw_code_ptr;
 	u8 *fw_data_ptr;
@@ -603,13 +636,9 @@ pvr_fw_process(struct pvr_device *pvr_dev)
 	u8 *fw_core_data_ptr;
 	int err;
 
-	err = pvr_fw_validate(pvr_dev, &header, &layout_entries);
-	if (err)
-		return err;
+	layout_get_sizes(pvr_dev);
 
-	layout_get_sizes(fw_mem, layout_entries, header->layout_entry_num);
-
-	private_data = pvr_fw_find_private_data(layout_entries, header->layout_entry_num);
+	private_data = pvr_fw_find_private_data(pvr_dev);
 	if (!private_data)
 		return -EINVAL;
 
@@ -699,8 +728,7 @@ pvr_fw_process(struct pvr_device *pvr_dev)
 		goto err_free_kdata;
 	}
 
-	err = pvr_dev->fw_dev.defs->fw_process(pvr_dev, fw, layout_entries,
-					       header->layout_entry_num,
+	err = pvr_dev->fw_dev.defs->fw_process(pvr_dev, fw,
 					       fw_mem->code, fw_mem->data, fw_mem->core_code,
 					       fw_mem->core_data, fw_mem->core_code_alloc_size);
 
@@ -859,6 +887,28 @@ pvr_fw_heap_info_init(struct pvr_device *pvr_dev, u32 log2_size, u32 reserved_si
 					     PVR_ROGUE_FW_CONFIG_HEAP_SIZE;
 	fw_dev->fw_heap_info.size = fw_dev->fw_heap_info.raw_size -
 				    (PVR_ROGUE_FW_CONFIG_HEAP_SIZE + reserved_size);
+}
+
+/**
+ * pvr_fw_validate_init_device_info() - Validate firmware and initialise device information
+ * @pvr_dev: Target PowerVR device.
+ *
+ * This function must be called before querying device information.
+ *
+ * Returns:
+ *  * 0 on success, or
+ *  * -%EINVAL if firmware validation fails.
+ */
+int
+pvr_fw_validate_init_device_info(struct pvr_device *pvr_dev)
+{
+	int err;
+
+	err = pvr_fw_validate(pvr_dev);
+	if (err)
+		return err;
+
+	return pvr_fw_get_device_info(pvr_dev);
 }
 
 /**

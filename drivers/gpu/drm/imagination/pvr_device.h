@@ -634,15 +634,15 @@ pvr_cr_poll_reg64(struct pvr_device *pvr_dev, u32 reg_addr, u64 reg_value,
 static __always_inline size_t
 pvr_round_up_to_cacheline_size(struct pvr_device *pvr_dev, size_t size)
 {
-	u16 slc_cacheline_size_in_bits = 0;
-	u16 slc_cacheline_size_in_bytes;
+	u16 slc_cacheline_size_bits = 0;
+	u16 slc_cacheline_size_bytes;
 
-	WARN_ON(!PVR_HAS_FEATURE(pvr_dev, slc_cache_line_size_in_bits));
-	PVR_FEATURE_VALUE(pvr_dev, slc_cache_line_size_in_bits,
-			  &slc_cacheline_size_in_bits);
-	slc_cacheline_size_in_bytes = slc_cacheline_size_in_bits / 8;
+	WARN_ON(!PVR_HAS_FEATURE(pvr_dev, slc_cache_line_size_bits));
+	PVR_FEATURE_VALUE(pvr_dev, slc_cache_line_size_bits,
+			  &slc_cacheline_size_bits);
+	slc_cacheline_size_bytes = slc_cacheline_size_bits / 8;
 
-	return round_up(size, slc_cacheline_size_in_bytes);
+	return round_up(size, slc_cacheline_size_bytes);
 }
 
 /**

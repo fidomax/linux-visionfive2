@@ -21,8 +21,6 @@
  *                                firmware sections
  * @pvr_dev: Device pointer.
  * @fw: Pointer to firmware image.
- * @layout_entries: Pointer to layout table.
- * @num_layout_entries: Number of entries in layout table.
  * @fw_code_ptr: Pointer to FW code section.
  * @fw_data_ptr: Pointer to FW data section.
  * @fw_core_code_ptr: Pointer to FW coremem code section.
@@ -33,11 +31,8 @@
  *  * -EINVAL on any error in ELF command stream.
  */
 static int
-process_elf_command_stream(struct pvr_device *pvr_dev, const u8 *fw,
-			   const struct pvr_fw_layout_entry *layout_entries,
-			   u32 num_layout_entries, u8 *fw_code_ptr,
-			   u8 *fw_data_ptr, u8 *fw_core_code_ptr,
-			   u8 *fw_core_data_ptr)
+process_elf_command_stream(struct pvr_device *pvr_dev, const u8 *fw, u8 *fw_code_ptr,
+			   u8 *fw_data_ptr, u8 *fw_core_code_ptr, u8 *fw_core_data_ptr)
 {
 	struct elf32_hdr *header = (struct elf32_hdr *)fw;
 	struct elf32_phdr *program_header = (struct elf32_phdr *)(fw + header->e_phoff);
@@ -52,10 +47,9 @@ process_elf_command_stream(struct pvr_device *pvr_dev, const u8 *fw,
 		if (program_header->p_type != PT_LOAD)
 			continue;
 
-		err = pvr_fw_find_mmu_segment(program_header->p_vaddr, program_header->p_memsz,
-					      layout_entries, num_layout_entries, fw_code_ptr,
-					      fw_data_ptr, fw_core_code_ptr, fw_core_data_ptr,
-					      &write_addr);
+		err = pvr_fw_find_mmu_segment(pvr_dev, program_header->p_vaddr,
+					      program_header->p_memsz, fw_code_ptr, fw_data_ptr,
+					      fw_core_code_ptr, fw_core_data_ptr, &write_addr);
 		if (err) {
 			drm_err(drm_dev,
 				"Addr 0x%x (size: %d) not found in any firmware segment",
@@ -92,7 +86,6 @@ pvr_mips_fini(struct pvr_device *pvr_dev)
 
 static int
 pvr_mips_fw_process(struct pvr_device *pvr_dev, const u8 *fw,
-		    const struct pvr_fw_layout_entry *layout_entries, u32 num_layout_entries,
 		    u8 *fw_code_ptr, u8 *fw_data_ptr, u8 *fw_core_code_ptr, u8 *fw_core_data_ptr,
 		    u32 core_code_alloc_size)
 {
@@ -107,18 +100,14 @@ pvr_mips_fw_process(struct pvr_device *pvr_dev, const u8 *fw,
 	u32 page_nr;
 	int err;
 
-	err = process_elf_command_stream(pvr_dev, fw, layout_entries, num_layout_entries,
-					 fw_code_ptr, fw_data_ptr, fw_core_code_ptr,
+	err = process_elf_command_stream(pvr_dev, fw, fw_code_ptr, fw_data_ptr, fw_core_code_ptr,
 					 fw_core_data_ptr);
 	if (err)
 		return err;
 
-	boot_code_entry = pvr_fw_find_layout_entry(layout_entries, num_layout_entries,
-						   MIPS_BOOT_CODE);
-	boot_data_entry = pvr_fw_find_layout_entry(layout_entries, num_layout_entries,
-						   MIPS_BOOT_DATA);
-	exception_code_entry = pvr_fw_find_layout_entry(layout_entries, num_layout_entries,
-							MIPS_EXCEPTIONS_CODE);
+	boot_code_entry = pvr_fw_find_layout_entry(pvr_dev, MIPS_BOOT_CODE);
+	boot_data_entry = pvr_fw_find_layout_entry(pvr_dev, MIPS_BOOT_DATA);
+	exception_code_entry = pvr_fw_find_layout_entry(pvr_dev, MIPS_EXCEPTIONS_CODE);
 	if (!boot_code_entry || !boot_data_entry || !exception_code_entry)
 		return -EINVAL;
 
@@ -130,7 +119,7 @@ pvr_mips_fw_process(struct pvr_device *pvr_dev, const u8 *fw,
 				     exception_code_entry->alloc_offset,
 				     &mips_data->exception_code_dma_addr));
 
-	stack_entry = pvr_fw_find_layout_entry(layout_entries, num_layout_entries, MIPS_STACK);
+	stack_entry = pvr_fw_find_layout_entry(pvr_dev, MIPS_STACK);
 	if (!stack_entry)
 		return -EINVAL;
 

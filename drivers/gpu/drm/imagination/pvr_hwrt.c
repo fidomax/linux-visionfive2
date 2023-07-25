@@ -249,10 +249,10 @@ hwrt_init_common_fw_structure(struct pvr_file *pvr_file,
 	info.num_tiles_x = DIV_ROUND_UP(args->width, info.tile_size_x);
 	info.num_tiles_y = DIV_ROUND_UP(args->height, info.tile_size_y);
 
-	if (PVR_HAS_FEATURE(pvr_dev, simple_internal_parameter_format)) {
+	if (PVR_HAS_FEATURE(pvr_dev, simple_parameter_format_version)) {
 		u32 parameter_format;
 
-		err = PVR_FEATURE_VALUE(pvr_dev, simple_internal_parameter_format,
+		err = PVR_FEATURE_VALUE(pvr_dev, simple_parameter_format_version,
 					&parameter_format);
 		if (WARN_ON(err))
 			return err;
