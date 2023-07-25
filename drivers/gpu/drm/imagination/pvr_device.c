@@ -399,11 +399,6 @@ pvr_set_dma_info(struct pvr_device *pvr_dev)
 		return err;
 	}
 
-	/*
-	 * See the comment on &pvr_drm_driver.prime_fd_to_handle for an
-	 * explanation of the dma_set_mask function and dma_set_max_seg_size
-	 * calls below.
-	 */
 	err = dma_set_mask(drm_dev->dev, DMA_BIT_MASK(phys_bus_width));
 	if (err) {
 		drm_err(drm_dev, "Failed to set DMA mask (err=%d)\n", err);

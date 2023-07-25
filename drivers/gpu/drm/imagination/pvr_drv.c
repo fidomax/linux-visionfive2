@@ -1408,18 +1408,8 @@ static struct drm_driver pvr_drm_driver = {
 	.minor = PVR_DRIVER_MINOR,
 	.patchlevel = PVR_DRIVER_PATCHLEVEL,
 
-	/*
-	 * These three (four) helper functions implement PRIME buffer sharing
-	 * for us. The last is set implicitly when not assigned here. The only
-	 * additional requirement to make PRIME work is to call dma_set_mask()
-	 * in pvr_probe() to tell DMA that we can read from more than the first
-	 * 4GB (32 bits) of memory address space. The subsequent call to
-	 * dma_set_max_seg_size() is not strictly required, but prevents some
-	 * warnings from appearing when CONFIG_DMA_API_DEBUG_SG is enabled.
-	 */
 	.gem_prime_import_sg_table = drm_gem_shmem_prime_import_sg_table,
 	.gem_create_object = pvr_gem_create_object,
-	/* .gem_prime_import = drm_gem_prime_import, */
 };
 
 static int
