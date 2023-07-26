@@ -442,30 +442,26 @@ pvr_device_gpu_init(struct pvr_device *pvr_dev)
 
 	err = pvr_fw_validate_init_device_info(pvr_dev);
 	if (err)
-		goto err_release_firmware;
+		return err;
 
-	if (PVR_HAS_FEATURE(pvr_dev, meta)) {
+	if (PVR_HAS_FEATURE(pvr_dev, meta))
 		pvr_dev->fw_dev.processor_type = PVR_FW_PROCESSOR_TYPE_META;
-	} else if (PVR_HAS_FEATURE(pvr_dev, mips)) {
+	else if (PVR_HAS_FEATURE(pvr_dev, mips))
 		pvr_dev->fw_dev.processor_type = PVR_FW_PROCESSOR_TYPE_MIPS;
-	} else if (PVR_HAS_FEATURE(pvr_dev, riscv_fw_processor)) {
+	else if (PVR_HAS_FEATURE(pvr_dev, riscv_fw_processor))
 		pvr_dev->fw_dev.processor_type = PVR_FW_PROCESSOR_TYPE_RISCV;
-	} else {
-		err = -EINVAL;
-		goto err_release_firmware;
-	}
+	else
+		return -EINVAL;
 
 	pvr_stream_create_musthave_masks(pvr_dev);
 
 	err = pvr_set_dma_info(pvr_dev);
 	if (err)
-		goto err_release_firmware;
+		return err;
 
 	pvr_dev->kernel_vm_ctx = pvr_vm_create_context(pvr_dev, false);
-	if (IS_ERR(pvr_dev->kernel_vm_ctx)) {
-		err = PTR_ERR(pvr_dev->kernel_vm_ctx);
-		goto err_release_firmware;
-	}
+	if (IS_ERR(pvr_dev->kernel_vm_ctx))
+		return PTR_ERR(pvr_dev->kernel_vm_ctx);
 
 	err = pvr_fw_init(pvr_dev);
 	if (err)
@@ -476,9 +472,6 @@ pvr_device_gpu_init(struct pvr_device *pvr_dev)
 err_vm_ctx_put:
 	pvr_vm_context_put(pvr_dev->kernel_vm_ctx);
 	pvr_dev->kernel_vm_ctx = NULL;
-
-err_release_firmware:
-	release_firmware(pvr_dev->fw_dev.firmware);
 
 	return err;
 }
