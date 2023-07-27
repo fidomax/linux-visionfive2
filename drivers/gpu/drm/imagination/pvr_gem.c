@@ -192,28 +192,34 @@ void *
 pvr_gem_object_vmap(struct pvr_gem_object *pvr_obj)
 {
 	struct drm_gem_shmem_object *shmem_obj = shmem_gem_from_pvr_gem(pvr_obj);
+	struct drm_gem_object *obj = gem_from_pvr_gem(pvr_obj);
 	struct iosys_map map;
 	int err;
 
+	dma_resv_lock(obj->resv, NULL);
+
 	err = drm_gem_shmem_vmap(shmem_obj, &map);
 	if (err)
-		return ERR_PTR(err);
+		goto err_unlock;
 
 	if (pvr_obj->flags & PVR_BO_CPU_CACHED) {
-		struct drm_gem_object *obj = gem_from_pvr_gem(pvr_obj);
 		struct device *dev = shmem_obj->base.dev->dev;
-
-		dma_resv_lock(obj->resv, NULL);
 
 		/* If shmem_obj->sgt is NULL, that means the buffer hasn't been mapped
 		 * in GPU space yet.
 		 */
 		if (shmem_obj->sgt)
 			dma_sync_sgtable_for_cpu(dev, shmem_obj->sgt, DMA_BIDIRECTIONAL);
-		dma_resv_unlock(obj->resv);
 	}
 
+	dma_resv_unlock(obj->resv);
+
 	return map.vaddr;
+
+err_unlock:
+	dma_resv_unlock(obj->resv);
+
+	return ERR_PTR(err);
 }
 
 /**
@@ -229,25 +235,26 @@ pvr_gem_object_vunmap(struct pvr_gem_object *pvr_obj)
 {
 	struct drm_gem_shmem_object *shmem_obj = shmem_gem_from_pvr_gem(pvr_obj);
 	struct iosys_map map = IOSYS_MAP_INIT_VADDR(shmem_obj->vaddr);
+	struct drm_gem_object *obj = gem_from_pvr_gem(pvr_obj);
 
 	if (WARN_ON(!map.vaddr))
 		return;
 
-	if (pvr_obj->flags & PVR_BO_CPU_CACHED) {
-		struct drm_gem_object *obj = gem_from_pvr_gem(pvr_obj);
-		struct device *dev = shmem_obj->base.dev->dev;
+	dma_resv_lock(obj->resv, NULL);
 
-		dma_resv_lock(obj->resv, NULL);
+	if (pvr_obj->flags & PVR_BO_CPU_CACHED) {
+		struct device *dev = shmem_obj->base.dev->dev;
 
 		/* If shmem_obj->sgt is NULL, that means the buffer hasn't been mapped
 		 * in GPU space yet.
 		 */
 		if (shmem_obj->sgt)
 			dma_sync_sgtable_for_device(dev, shmem_obj->sgt, DMA_BIDIRECTIONAL);
-		dma_resv_unlock(obj->resv);
 	}
 
 	drm_gem_shmem_vunmap(shmem_obj, &map);
+
+	dma_resv_unlock(obj->resv);
 }
 
 /**
