@@ -577,16 +577,12 @@ err_pm_runtime_put:
 void
 pvr_device_fini(struct pvr_device *pvr_dev)
 {
-	struct drm_device *drm_dev = from_pvr_device(pvr_dev);
-	struct device *dev = drm_dev->dev;
-
 	/*
 	 * Deinitialization stages are performed in reverse order compared to
 	 * the initialization stages in pvr_device_init().
 	 */
 	pvr_device_irq_fini(pvr_dev);
 	pvr_device_gpu_fini(pvr_dev);
-	pm_runtime_suspend(dev);
 }
 
 bool

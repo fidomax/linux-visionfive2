@@ -1494,6 +1494,7 @@ pvr_remove(struct platform_device *plat_dev)
 	xa_destroy(&pvr_dev->job_ids);
 	xa_destroy(&pvr_dev->free_list_ids);
 
+	pm_runtime_suspend(drm_dev->dev);
 	drm_dev_unplug(drm_dev);
 	pvr_device_fini(pvr_dev);
 	if (pvr_dev->vendor.callbacks && pvr_dev->vendor.callbacks->fini)
