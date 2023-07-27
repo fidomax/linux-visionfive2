@@ -97,6 +97,7 @@ pvr_vm_gpuva_mapping_init(struct drm_gpuva *va, u64 device_addr, u64 size,
 
 struct pvr_vm_gpuva_op_ctx {
 	struct pvr_vm_context *vm_ctx;
+	struct pvr_mmu_op_context *mmu_op_ctx;
 	struct drm_gpuva *new_va, *prev_va, *next_va;
 };
 
@@ -110,28 +111,20 @@ struct pvr_vm_gpuva_op_ctx {
  *
  * Return:
  *  * 0 on success, or
- *  * Any error encountered while attempting to obtain a reference to the
- *    buffer bound to @op (see pvr_gem_object_get_pages_sgt()), or
- *  * Any error returned by pvr_vm_context_map_sgt().
+ *  * Any error returned by pvr_mmu_map().
  */
 static int
 pvr_vm_gpuva_map(struct drm_gpuva_op *op, void *op_ctx)
 {
 	struct pvr_gem_object *pvr_gem = gem_to_pvr_gem(op->map.gem.obj);
 	struct pvr_vm_gpuva_op_ctx *ctx = op_ctx;
-	struct sg_table *sgt;
 	int err;
 
 	if ((op->map.gem.offset | op->map.va.range) & ~PVR_DEVICE_PAGE_MASK)
 		return -EINVAL;
 
-	sgt = pvr_gem_object_get_pages_sgt(pvr_gem);
-	err = PTR_ERR_OR_ZERO(sgt);
-	if (err)
-		return err;
-
-	err = pvr_mmu_map(ctx->vm_ctx->mmu_ctx, sgt, op->map.gem.offset,
-			  op->map.va.range, pvr_gem->flags, op->map.va.addr);
+	err = pvr_mmu_map(ctx->mmu_op_ctx, op->map.va.range, pvr_gem->flags,
+			  op->map.va.addr);
 	if (err)
 		return err;
 
@@ -139,7 +132,6 @@ pvr_vm_gpuva_map(struct drm_gpuva_op *op, void *op_ctx)
 				  op->map.va.range, pvr_gem, op->map.gem.offset);
 
 	drm_gpuva_map(&ctx->vm_ctx->gpuva_mgr, ctx->new_va, &op->map);
-
 	drm_gpuva_link(ctx->new_va);
 	ctx->new_va = NULL;
 
@@ -162,7 +154,7 @@ pvr_vm_gpuva_map(struct drm_gpuva_op *op, void *op_ctx)
  *
  * Return:
  *  * 0 on success, or
- *  * Any error returned by pvr_vm_context_unmap().
+ *  * Any error returned by pvr_mmu_unmap().
  */
 static int
 pvr_vm_gpuva_unmap(struct drm_gpuva_op *op, void *op_ctx)
@@ -170,8 +162,8 @@ pvr_vm_gpuva_unmap(struct drm_gpuva_op *op, void *op_ctx)
 	struct pvr_gem_object *pvr_gem = gem_to_pvr_gem(op->unmap.va->gem.obj);
 	struct pvr_vm_gpuva_op_ctx *ctx = op_ctx;
 
-	int err = pvr_mmu_unmap(ctx->vm_ctx->mmu_ctx, op->unmap.va->va.addr,
-				op->unmap.va->va.range >> PVR_DEVICE_PAGE_SHIFT);
+	int err = pvr_mmu_unmap(ctx->mmu_op_ctx, op->unmap.va->va.addr,
+				op->unmap.va->va.range);
 
 	if (err)
 		return err;
@@ -180,7 +172,7 @@ pvr_vm_gpuva_unmap(struct drm_gpuva_op *op, void *op_ctx)
 	drm_gpuva_unlink(op->unmap.va);
 
 	pvr_gem_object_put(pvr_gem);
-	kfree(op->unmap.va);
+
 	return 0;
 }
 
@@ -210,8 +202,8 @@ pvr_vm_gpuva_remap(struct drm_gpuva_op *op, void *op_ctx)
 				   op->remap.next->va.addr :
 				   op->remap.unmap->va->va.addr + op->remap.unmap->va->va.range;
 
-		int err = pvr_mmu_unmap(ctx->vm_ctx->mmu_ctx, va_start,
-				    (va_end - va_start) >> PVR_DEVICE_PAGE_SHIFT);
+		int err = pvr_mmu_unmap(ctx->mmu_op_ctx, va_start,
+					va_end - va_start);
 
 		if (err)
 			return err;
@@ -522,6 +514,7 @@ pvr_vm_map(struct pvr_vm_context *vm_ctx,
 {
 	const size_t pvr_obj_size = pvr_gem_object_size(pvr_obj);
 	struct pvr_vm_gpuva_op_ctx op_ctx = { .vm_ctx = vm_ctx };
+	struct sg_table *sgt;
 	int err;
 
 	if (!pvr_device_addr_and_size_are_valid(device_addr, size) ||
@@ -536,7 +529,20 @@ pvr_vm_map(struct pvr_vm_context *vm_ctx,
 	op_ctx.next_va = kzalloc(sizeof(*op_ctx.next_va), GFP_KERNEL);
 	if (!op_ctx.new_va || !op_ctx.prev_va || !op_ctx.next_va) {
 		err = -ENOMEM;
-		goto out;
+		goto out_free;
+	}
+
+	sgt = pvr_gem_object_get_pages_sgt(pvr_obj);
+	err = PTR_ERR_OR_ZERO(sgt);
+	if (err)
+		goto out_free;
+
+	op_ctx.mmu_op_ctx = pvr_mmu_op_context_create(vm_ctx->mmu_ctx, sgt,
+						      pvr_obj_offset, size);
+	err = PTR_ERR_OR_ZERO(op_ctx.mmu_op_ctx);
+	if (err) {
+		op_ctx.mmu_op_ctx = NULL;
+		goto out_mmu_op_ctx_destroy;
 	}
 
 	mutex_lock(&vm_ctx->lock);
@@ -544,10 +550,14 @@ pvr_vm_map(struct pvr_vm_context *vm_ctx,
 			       gem_from_pvr_gem(pvr_obj), pvr_obj_offset);
 	mutex_unlock(&vm_ctx->lock);
 
-out:
+out_mmu_op_ctx_destroy:
+	pvr_mmu_op_context_destroy(op_ctx.mmu_op_ctx);
+
+out_free:
 	kfree(op_ctx.next_va);
 	kfree(op_ctx.prev_va);
 	kfree(op_ctx.new_va);
+
 	return err;
 }
 
@@ -581,13 +591,23 @@ pvr_vm_unmap(struct pvr_vm_context *vm_ctx, u64 device_addr, u64 size)
 		goto out;
 	}
 
+	op_ctx.mmu_op_ctx =
+		pvr_mmu_op_context_create(vm_ctx->mmu_ctx, NULL, 0, 0);
+	err = PTR_ERR_OR_ZERO(op_ctx.mmu_op_ctx);
+	if (err) {
+		op_ctx.mmu_op_ctx = NULL;
+		goto out;
+	}
+
 	mutex_lock(&vm_ctx->lock);
 	err = drm_gpuva_sm_unmap(&vm_ctx->gpuva_mgr, &op_ctx, device_addr, size);
 	mutex_unlock(&vm_ctx->lock);
 
 out:
+	pvr_mmu_op_context_destroy(op_ctx.mmu_op_ctx);
 	kfree(op_ctx.next_va);
 	kfree(op_ctx.prev_va);
+
 	return err;
 }
 

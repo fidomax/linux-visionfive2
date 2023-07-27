@@ -12,6 +12,7 @@ struct pvr_device;
 
 /* Forward declaration from "pvr_mmu.c" */
 struct pvr_mmu_context;
+struct pvr_mmu_op_context;
 
 /* Forward declaration from "pvr_vm.c" */
 struct pvr_vm_context;
@@ -94,10 +95,14 @@ void pvr_mmu_context_destroy(struct pvr_mmu_context *ctx);
 
 dma_addr_t pvr_mmu_get_root_table_dma_addr(struct pvr_mmu_context *ctx);
 
-int pvr_mmu_unmap(struct pvr_mmu_context *ctx, u64 device_addr,
-		  u64 nr_pages);
-int pvr_mmu_map(struct pvr_mmu_context *ctx, struct sg_table *sgt,
-		u64 sgt_offset, u64 size, u64 flags, u64 device_addr);
+void pvr_mmu_op_context_destroy(struct pvr_mmu_op_context *op_ctx);
+struct pvr_mmu_op_context *
+pvr_mmu_op_context_create(struct pvr_mmu_context *ctx,
+			  struct sg_table *sgt, u64 sgt_offset, u64 size);
+
+int pvr_mmu_map(struct pvr_mmu_op_context *op_ctx, u64 size, u64 flags,
+		u64 device_addr);
+int pvr_mmu_unmap(struct pvr_mmu_op_context *op_ctx, u64 device_addr, u64 size);
 
 #endif /* PVR_MMU_H */
 
