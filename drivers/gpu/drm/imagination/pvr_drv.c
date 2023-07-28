@@ -175,8 +175,8 @@ err_drm_dev_exit:
  *  * Any error returned by drm_gem_create_mmap_offset().
  */
 static int
-pvr_ioctl_get_bo_mmap_offset(__always_unused struct drm_device *drm_dev,
-			     void *raw_args, struct drm_file *file)
+pvr_ioctl_get_bo_mmap_offset(struct drm_device *drm_dev, void *raw_args,
+			     struct drm_file *file)
 {
 	struct drm_pvr_ioctl_get_bo_mmap_offset_args *args = raw_args;
 	struct pvr_file *pvr_file = to_pvr_file(file);
