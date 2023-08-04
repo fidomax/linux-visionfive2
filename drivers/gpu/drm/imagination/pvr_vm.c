@@ -170,6 +170,7 @@ pvr_vm_gpuva_unmap(struct drm_gpuva_op *op, void *op_ctx)
 
 	drm_gpuva_unmap(&op->unmap);
 	drm_gpuva_unlink(op->unmap.va);
+	kfree(op->unmap.va);
 
 	pvr_gem_object_put(pvr_gem);
 
@@ -242,6 +243,7 @@ pvr_vm_gpuva_remap(struct drm_gpuva_op *op, void *op_ctx)
 		struct pvr_gem_object *pvr_gem = gem_to_pvr_gem(op->remap.unmap->va->gem.obj);
 
 		drm_gpuva_unlink(op->unmap.va);
+		kfree(op->unmap.va);
 
 		pvr_gem_object_put(pvr_gem);
 	}
