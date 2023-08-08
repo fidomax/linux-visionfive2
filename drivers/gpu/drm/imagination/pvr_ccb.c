@@ -70,8 +70,7 @@ pvr_ccb_init(struct pvr_device *pvr_dev, struct pvr_ccb *pvr_ccb,
 		return PTR_ERR(pvr_ccb->ctrl);
 
 	pvr_ccb->ccb = pvr_fw_object_create_and_map(pvr_dev, ccb_size,
-						    PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
-						    DRM_PVR_BO_CREATE_ZEROED,
+						    PVR_BO_FW_FLAGS_DEVICE_UNCACHED,
 						    NULL, NULL, &pvr_ccb->ccb_obj);
 	if (IS_ERR(pvr_ccb->ccb)) {
 		err = PTR_ERR(pvr_ccb->ccb);

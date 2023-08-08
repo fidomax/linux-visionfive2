@@ -539,10 +539,6 @@ struct drm_pvr_ioctl_dev_query_args {
  * Creation options
  *    These use the prefix ``DRM_PVR_BO_CREATE_``.
  *
- *    :ZEROED: Require the allocated buffer to be zeroed before returning. Note
- *      that this is an active operation, and is never zero cost. Unless it is
- *      explicitly required, this option should not be set.
- *
  * Device mapping options
  *    These use the prefix ``DRM_PVR_BO_DEVICE_``.
  *
@@ -563,8 +559,7 @@ struct drm_pvr_ioctl_dev_query_args {
 #define DRM_PVR_BO_DEVICE_BYPASS_CACHE _BITULL(0)
 #define DRM_PVR_BO_DEVICE_PM_FW_PROTECT _BITULL(1)
 #define DRM_PVR_BO_CPU_ALLOW_USERSPACE_ACCESS _BITULL(2)
-#define DRM_PVR_BO_CREATE_ZEROED _BITULL(3)
-/* Bits 4..63 are reserved. */
+/* Bits 3..63 are reserved. */
 
 /**
  * struct drm_pvr_ioctl_create_bo_args - Arguments for %DRM_IOCTL_PVR_CREATE_BO

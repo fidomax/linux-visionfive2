@@ -378,8 +378,7 @@ pvr_vm_create_context(struct pvr_device *pvr_dev, bool is_userspace_context)
 
 	if (is_userspace_context) {
 		err = pvr_fw_object_create(pvr_dev, sizeof(struct rogue_fwif_fwmemcontext),
-					   PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
-					   DRM_PVR_BO_CREATE_ZEROED,
+					   PVR_BO_FW_FLAGS_DEVICE_UNCACHED,
 					   fw_mem_context_init, vm_ctx, &vm_ctx->fw_mem_ctx_obj);
 
 		if (err)

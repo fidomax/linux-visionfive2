@@ -44,8 +44,7 @@ pvr_vm_mips_init(struct pvr_device *pvr_dev)
 		return -ENOMEM;
 
 	mips_data->pt_obj = pvr_gem_object_create(pvr_dev, pt_size,
-						  DRM_PVR_BO_DEVICE_PM_FW_PROTECT |
-						  DRM_PVR_BO_CREATE_ZEROED);
+						  DRM_PVR_BO_DEVICE_PM_FW_PROTECT);
 	if (IS_ERR(mips_data->pt_obj))
 		return PTR_ERR(mips_data->pt_obj);
 

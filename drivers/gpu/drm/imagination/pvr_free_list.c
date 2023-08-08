@@ -203,8 +203,7 @@ free_list_create_fw_structure(struct pvr_file *pvr_file,
 	 * is only for this function.
 	 */
 	free_list->fw_data = pvr_fw_object_create_and_map(pvr_dev, sizeof(*free_list->fw_data),
-							  PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
-							  DRM_PVR_BO_CREATE_ZEROED,
+							  PVR_BO_FW_FLAGS_DEVICE_UNCACHED,
 							  free_list_fw_init, free_list,
 							  &free_list->fw_obj);
 	if (IS_ERR(free_list->fw_data))

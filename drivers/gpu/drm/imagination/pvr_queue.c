@@ -1280,8 +1280,7 @@ struct pvr_queue *pvr_queue_create(struct pvr_context *ctx,
 		goto err_free_queue;
 
 	err = pvr_fw_object_create(pvr_dev, ctx_state_size,
-				   PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
-				   DRM_PVR_BO_CREATE_ZEROED,
+				   PVR_BO_FW_FLAGS_DEVICE_UNCACHED,
 				   reg_state_init, queue, &queue->reg_state_obj);
 	if (err)
 		goto err_cccb_fini;
@@ -1295,8 +1294,7 @@ struct pvr_queue *pvr_queue_create(struct pvr_context *ctx,
 	}
 
 	cpu_map = pvr_fw_object_create_and_map(pvr_dev, sizeof(*queue->timeline_ufo.value),
-					       PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
-					       DRM_PVR_BO_CREATE_ZEROED,
+					       PVR_BO_FW_FLAGS_DEVICE_UNCACHED,
 					       NULL, NULL, &queue->timeline_ufo.fw_obj);
 	if (IS_ERR(cpu_map)) {
 		err = PTR_ERR(cpu_map);

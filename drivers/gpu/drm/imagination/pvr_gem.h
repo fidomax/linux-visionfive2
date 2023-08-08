@@ -71,11 +71,11 @@ struct pvr_file;
 
 #define PVR_BO_FW_NO_CLEAR_ON_RESET BIT_ULL(62)
 
-/* Bits 62..4 are undefined. */
-/* Bits 3..0 are defined in the UAPI. */
+/* Bits 62..3 are undefined. */
+/* Bits 2..0 are defined in the UAPI. */
 
 /* Other utilities. */
-#define PVR_BO_UNDEFINED_MASK GENMASK_ULL(61, 4)
+#define PVR_BO_UNDEFINED_MASK GENMASK_ULL(61, 3)
 #define PVR_BO_RESERVED_MASK (PVR_BO_UNDEFINED_MASK | GENMASK_ULL(63, 63))
 
 /*

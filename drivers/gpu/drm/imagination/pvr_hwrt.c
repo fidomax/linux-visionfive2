@@ -339,8 +339,7 @@ hwrt_init_common_fw_structure(struct pvr_file *pvr_file,
 	hwrt->common.rgn_header_size = args->region_header_size;
 
 	err = pvr_fw_object_create(pvr_dev, sizeof(struct rogue_fwif_hwrtdata_common),
-				   PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
-				   DRM_PVR_BO_CREATE_ZEROED, hwrtdata_common_init, hwrt,
+				   PVR_BO_FW_FLAGS_DEVICE_UNCACHED, hwrtdata_common_init, hwrt,
 				   &hwrt->common_fw_obj);
 
 	return err;
@@ -393,8 +392,7 @@ hwrt_data_init_fw_structure(struct pvr_file *pvr_file,
 
 	if (args->layers > 1) {
 		err = pvr_fw_object_create(pvr_dev, args->layers * SRTC_ENTRY_SIZE,
-					   PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
-					   DRM_PVR_BO_CREATE_ZEROED,
+					   PVR_BO_FW_FLAGS_DEVICE_UNCACHED,
 					   NULL, NULL, &hwrt_data->srtc_obj);
 		if (err)
 			return err;
@@ -402,8 +400,7 @@ hwrt_data_init_fw_structure(struct pvr_file *pvr_file,
 					  &rta_ctl->valid_render_targets_fw_addr);
 
 		err = pvr_fw_object_create(pvr_dev, args->layers * RAA_ENTRY_SIZE,
-					   PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
-					   DRM_PVR_BO_CREATE_ZEROED,
+					   PVR_BO_FW_FLAGS_DEVICE_UNCACHED,
 					   NULL, NULL, &hwrt_data->raa_obj);
 		if (err)
 			goto err_put_shadow_rt_cache;
@@ -412,7 +409,7 @@ hwrt_data_init_fw_structure(struct pvr_file *pvr_file,
 	}
 
 	err = pvr_fw_object_create(pvr_dev, sizeof(struct rogue_fwif_hwrtdata),
-				   PVR_BO_FW_FLAGS_DEVICE_UNCACHED | DRM_PVR_BO_CREATE_ZEROED,
+				   PVR_BO_FW_FLAGS_DEVICE_UNCACHED,
 				   hwrt_fw_data_init, hwrt_data, &hwrt_data->fw_obj);
 	if (err)
 		goto err_put_raa_obj;

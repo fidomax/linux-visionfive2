@@ -350,8 +350,7 @@ pvr_gem_object_create(struct pvr_device *pvr_dev, size_t size, u64 flags)
 	 * Do this last because pvr_gem_object_zero() requires a fully
 	 * configured instance of struct pvr_gem_object.
 	 */
-	if (flags & DRM_PVR_BO_CREATE_ZEROED)
-		pvr_gem_object_zero(pvr_obj);
+	pvr_gem_object_zero(pvr_obj);
 
 	return pvr_obj;
 }

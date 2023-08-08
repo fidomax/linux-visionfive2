@@ -58,8 +58,7 @@ int pvr_fw_trace_init(struct pvr_device *pvr_dev)
 						     ROGUE_FW_TRACE_BUF_DEFAULT_SIZE_IN_DWORDS *
 						     sizeof(*trace_buffer->buf),
 						     PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
-						     PVR_BO_FW_NO_CLEAR_ON_RESET |
-						     DRM_PVR_BO_CREATE_ZEROED,
+						     PVR_BO_FW_NO_CLEAR_ON_RESET,
 						     NULL, NULL, &trace_buffer->buf_obj);
 		if (IS_ERR(trace_buffer->buf)) {
 			drm_err(drm_dev, "Unable to allocate trace buffer\n");
@@ -75,8 +74,7 @@ int pvr_fw_trace_init(struct pvr_device *pvr_dev)
 		pvr_fw_object_create_and_map(pvr_dev,
 					     sizeof(*fw_trace->tracebuf_ctrl),
 					     PVR_BO_FW_FLAGS_DEVICE_UNCACHED |
-					     PVR_BO_FW_NO_CLEAR_ON_RESET |
-					     DRM_PVR_BO_CREATE_ZEROED,
+					     PVR_BO_FW_NO_CLEAR_ON_RESET,
 					     tracebuf_ctrl_init, fw_trace,
 					     &fw_trace->tracebuf_ctrl_obj);
 	if (IS_ERR(fw_trace->tracebuf_ctrl)) {
