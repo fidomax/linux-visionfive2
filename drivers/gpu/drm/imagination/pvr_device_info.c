@@ -27,6 +27,7 @@ static const uintptr_t quirks_mapping[] = {
 	QUIRK_MAPPING(63142),
 	QUIRK_MAPPING(63553),
 	QUIRK_MAPPING(66011),
+	QUIRK_MAPPING(71242),
 };
 
 #undef QUIRK_MAPPING
