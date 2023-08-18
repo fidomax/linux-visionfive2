@@ -561,6 +561,9 @@ struct drm_pvr_ioctl_dev_query_args {
 #define DRM_PVR_BO_CPU_ALLOW_USERSPACE_ACCESS _BITULL(2)
 /* Bits 3..63 are reserved. */
 
+#define DRM_PVR_BO_FLAGS_MASK (DRM_PVR_BO_DEVICE_BYPASS_CACHE | DRM_PVR_BO_DEVICE_PM_FW_PROTECT | \
+			       DRM_PVR_BO_CPU_ALLOW_USERSPACE_ACCESS)
+
 /**
  * struct drm_pvr_ioctl_create_bo_args - Arguments for %DRM_IOCTL_PVR_CREATE_BO
  */

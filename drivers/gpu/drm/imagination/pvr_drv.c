@@ -100,8 +100,7 @@ pvr_ioctl_create_bo(struct drm_device *drm_dev, void *raw_args,
 	 * We also disallow zero-sized allocations, and reserved (kernel-only)
 	 * flags.
 	 */
-	if (args->size > SIZE_MAX || args->size == 0 ||
-	    args->flags & PVR_BO_RESERVED_MASK) {
+	if (args->size > SIZE_MAX || args->size == 0 || args->flags & ~DRM_PVR_BO_FLAGS_MASK) {
 		err = -EINVAL;
 		goto err_drm_dev_exit;
 	}

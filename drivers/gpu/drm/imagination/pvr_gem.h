@@ -71,12 +71,13 @@ struct pvr_file;
 
 #define PVR_BO_FW_NO_CLEAR_ON_RESET BIT_ULL(62)
 
-/* Bits 62..3 are undefined. */
+#define PVR_BO_KERNEL_FLAGS_MASK (PVR_BO_CPU_CACHED | PVR_BO_FW_NO_CLEAR_ON_RESET)
+
+/* Bits 61..3 are undefined. */
 /* Bits 2..0 are defined in the UAPI. */
 
 /* Other utilities. */
-#define PVR_BO_UNDEFINED_MASK GENMASK_ULL(61, 3)
-#define PVR_BO_RESERVED_MASK (PVR_BO_UNDEFINED_MASK | GENMASK_ULL(63, 63))
+#define PVR_BO_UNDEFINED_MASK ~(PVR_BO_KERNEL_FLAGS_MASK | DRM_PVR_BO_FLAGS_MASK)
 
 /*
  * All firmware-mapped memory uses (mostly) the same flags. Specifically,
