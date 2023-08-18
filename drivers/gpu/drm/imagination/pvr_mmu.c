@@ -2237,6 +2237,13 @@ pvr_mmu_op_context_create(struct pvr_mmu_context *ctx, struct sg_table *sgt,
 	op_ctx->sync_level_required = PVR_MMU_SYNC_LEVEL_NONE;
 
 	if (size) {
+		/*
+		 * The number of page table objects we need to prealloc is
+		 * indicated by the mapping size, start offset and the sizes
+		 * of the areas mapped per PT or PD. The range calculation is
+		 * identical to that for the index into a table for a device
+		 * address, so we reuse those functions here.
+		 */
 		const u32 l1_start_idx = pvr_page_table_l2_idx(sgt_offset);
 		const u32 l1_end_idx = pvr_page_table_l2_idx(sgt_offset + size);
 		const u32 l1_count = l1_end_idx - l1_start_idx + 1;
