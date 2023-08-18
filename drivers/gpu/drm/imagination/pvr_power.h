@@ -6,17 +6,13 @@
 
 #include "pvr_device.h"
 
-#include <linux/mutex.h>
+#include <linux/pm.h>
 #include <linux/pm_runtime.h>
 
 int pvr_watchdog_init(struct pvr_device *pvr_dev);
 void pvr_watchdog_fini(struct pvr_device *pvr_dev);
 
 bool pvr_power_is_idle(struct pvr_device *pvr_dev);
-
-int pvr_power_device_suspend(struct device *dev);
-int pvr_power_device_resume(struct device *dev);
-int pvr_power_device_idle(struct device *dev);
 
 int pvr_power_reset(struct pvr_device *pvr_dev, bool hard_reset);
 
@@ -35,5 +31,7 @@ pvr_power_put(struct pvr_device *pvr_dev)
 
 	return pm_runtime_put(drm_dev->dev);
 }
+
+extern const struct dev_pm_ops pvr_power_pm_ops;
 
 #endif /* PVR_POWER_H */
