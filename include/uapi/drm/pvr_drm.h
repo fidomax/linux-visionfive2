@@ -237,7 +237,7 @@ struct drm_pvr_dev_query_enhancements {
 	 *
 	 * These enhancements affect userspace and the kernel or firmware. They
 	 * are disabled by default and require userspace to opt-in. The opt-in
-	 * mechanism depends on the quirk.
+	 * mechanism depends on the enhancement.
 	 */
 	__u64 enhancements;
 
