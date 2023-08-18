@@ -1639,7 +1639,6 @@ pvr_page_table_l1_get_or_insert(struct pvr_mmu_op_context *op_ctx,
 	struct pvr_page_table_l2 *l2_table =
 		&op_ctx->mmu_ctx->page_table_l2;
 	struct pvr_page_table_l1 *table;
-	int err;
 
 	if (pvr_page_table_l2_entry_is_valid(l2_table,
 					     op_ctx->curr_page.l2_idx)) {
@@ -1655,10 +1654,6 @@ pvr_page_table_l1_get_or_insert(struct pvr_mmu_op_context *op_ctx,
 	table = op_ctx->l1_free_tables;
 	if (!table)
 		return -ENOMEM;
-
-	err = pvr_page_table_l1_init(table, op_ctx->mmu_ctx->pvr_dev);
-	if (err)
-		return err;
 
 	/* Pop */
 	op_ctx->l1_free_tables = table->next_free;
@@ -1690,7 +1685,6 @@ pvr_page_table_l0_get_or_insert(struct pvr_mmu_op_context *op_ctx,
 				bool should_insert)
 {
 	struct pvr_page_table_l0 *table;
-	int err;
 
 	if (pvr_page_table_l1_entry_is_valid(op_ctx->curr_page.l1_table,
 					     op_ctx->curr_page.l1_idx)) {
@@ -1707,17 +1701,13 @@ pvr_page_table_l0_get_or_insert(struct pvr_mmu_op_context *op_ctx,
 	if (!table)
 		return -ENOMEM;
 
-	err = pvr_page_table_l0_init(table, op_ctx->mmu_ctx->pvr_dev);
-	if (err)
-		return err;
-
 	/* Pop */
 	op_ctx->l0_free_tables = table->next_free;
 	table->next_free = NULL;
 
 	pvr_page_table_l1_insert(op_ctx, table);
 
-	return err;
+	return 0;
 }
 
 /**
