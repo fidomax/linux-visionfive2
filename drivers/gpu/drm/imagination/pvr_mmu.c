@@ -361,16 +361,16 @@ pvr_page_table_l2_entry_raw_set(struct pvr_page_table_l2_entry_raw *entry,
 {
 	child_table_dma_addr >>= ROGUE_MMUCTRL_PC_DATA_PD_BASE_ALIGNSHIFT;
 
-	entry->val =
-		PVR_PAGE_TABLE_FIELD_PREP(2, PC, VALID, true) |
-		PVR_PAGE_TABLE_FIELD_PREP(2, PC, ENTRY_PENDING, false) |
-		PVR_PAGE_TABLE_FIELD_PREP(2, PC, PD_BASE, child_table_dma_addr);
+	WRITE_ONCE(entry->val,
+		   PVR_PAGE_TABLE_FIELD_PREP(2, PC, VALID, true) |
+		   PVR_PAGE_TABLE_FIELD_PREP(2, PC, ENTRY_PENDING, false) |
+		   PVR_PAGE_TABLE_FIELD_PREP(2, PC, PD_BASE, child_table_dma_addr));
 }
 
 static void
 pvr_page_table_l2_entry_raw_clear(struct pvr_page_table_l2_entry_raw *entry)
 {
-	entry->val = 0;
+	WRITE_ONCE(entry->val, 0);
 }
 
 /**
@@ -482,25 +482,24 @@ static void
 pvr_page_table_l1_entry_raw_set(struct pvr_page_table_l1_entry_raw *entry,
 				dma_addr_t child_table_dma_addr)
 {
-	entry->val = PVR_PAGE_TABLE_FIELD_PREP(1, PD, VALID, true) |
-		     PVR_PAGE_TABLE_FIELD_PREP(1, PD, ENTRY_PENDING, false) |
-		     PVR_PAGE_TABLE_FIELD_PREP(1, PD, PAGE_SIZE,
-					       ROGUE_MMUCTRL_PAGE_SIZE_X) |
-		     /*
-		      * The use of a 4K-specific macro here is correct. It is
-		      * a future optimization to allocate sub-host-page-sized
-		      * blocks for individual tables, so the condition that any
-		      * page table address is aligned to the size of the
-		      * largest (a 4KB) table currently holds.
-		      */
-		     (child_table_dma_addr &
-		      ~ROGUE_MMUCTRL_PT_BASE_4KB_RANGE_CLRMSK);
+	WRITE_ONCE(entry->val,
+		   PVR_PAGE_TABLE_FIELD_PREP(1, PD, VALID, true) |
+		   PVR_PAGE_TABLE_FIELD_PREP(1, PD, ENTRY_PENDING, false) |
+		   PVR_PAGE_TABLE_FIELD_PREP(1, PD, PAGE_SIZE, ROGUE_MMUCTRL_PAGE_SIZE_X) |
+		   /*
+		    * The use of a 4K-specific macro here is correct. It is
+		    * a future optimization to allocate sub-host-page-sized
+		    * blocks for individual tables, so the condition that any
+		    * page table address is aligned to the size of the
+		    * largest (a 4KB) table currently holds.
+		    */
+		   (child_table_dma_addr & ~ROGUE_MMUCTRL_PT_BASE_4KB_RANGE_CLRMSK));
 }
 
 static void
 pvr_page_table_l1_entry_raw_clear(struct pvr_page_table_l1_entry_raw *entry)
 {
-	entry->val = 0;
+	WRITE_ONCE(entry->val, 0);
 }
 
 /**
@@ -648,16 +647,16 @@ pvr_page_table_l0_entry_raw_set(struct pvr_page_table_l0_entry_raw *entry,
 				dma_addr_t dma_addr,
 				struct pvr_page_flags_raw flags)
 {
-	entry->val = PVR_PAGE_TABLE_FIELD_PREP(0, PT, VALID, true) |
-		     PVR_PAGE_TABLE_FIELD_PREP(0, PT, ENTRY_PENDING, false) |
-		     (dma_addr & ~ROGUE_MMUCTRL_PAGE_X_RANGE_CLRMSK) |
-		     flags.val.val;
+	WRITE_ONCE(entry->val, PVR_PAGE_TABLE_FIELD_PREP(0, PT, VALID, true) |
+			       PVR_PAGE_TABLE_FIELD_PREP(0, PT, ENTRY_PENDING, false) |
+			       (dma_addr & ~ROGUE_MMUCTRL_PAGE_X_RANGE_CLRMSK) |
+			       flags.val.val);
 }
 
 static void
 pvr_page_table_l0_entry_raw_clear(struct pvr_page_table_l0_entry_raw *entry)
 {
-	entry->val = 0;
+	WRITE_ONCE(entry->val, 0);
 }
 
 /**
