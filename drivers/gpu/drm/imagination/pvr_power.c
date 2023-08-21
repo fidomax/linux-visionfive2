@@ -24,7 +24,13 @@
 
 #define WATCHDOG_TIME_MS (500)
 
-static void
+/**
+ * pvr_device_lost() - Mark GPU device as lost
+ * @pvr_dev: Target PowerVR device.
+ *
+ * This will cause the DRM device to be unplugged.
+ */
+void
 pvr_device_lost(struct pvr_device *pvr_dev)
 {
 	if (!pvr_dev->lost) {
@@ -372,6 +378,11 @@ pvr_power_reset(struct pvr_device *pvr_dev, bool hard_reset)
 
 	down_write(&pvr_dev->reset_sem);
 
+	if (pvr_dev->lost) {
+		err = -EIO;
+		goto err_up_write;
+	}
+
 	/* Disable IRQs for the duration of the reset. */
 	disable_irq(pvr_dev->irq);
 
@@ -436,6 +447,7 @@ err_device_lost:
 	if (queues_disabled)
 		pvr_queue_device_post_reset(pvr_dev);
 
+err_up_write:
 	up_write(&pvr_dev->reset_sem);
 
 	pvr_power_put(pvr_dev);

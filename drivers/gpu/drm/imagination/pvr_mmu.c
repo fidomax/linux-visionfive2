@@ -7,6 +7,7 @@
 #include "pvr_device.h"
 #include "pvr_fw.h"
 #include "pvr_gem.h"
+#include "pvr_power.h"
 #include "pvr_rogue_fwif.h"
 #include "pvr_rogue_mmu_defs.h"
 
@@ -62,8 +63,10 @@
  * pvr_mmu_flush() - Request flush of all MMU caches.
  * @pvr_dev: Target PowerVR device.
  *
- * This function must be called following any possible change to the MMU page
- * tables.
+ * This function must be called following any possible change to the MMU page tables.
+ *
+ * As a failure to flush the MMU caches could risk memory corruption, if the flush fails (implying
+ * the firmware is not responding) then the GPU device is marked as lost.
  *
  * Returns:
  *  * 0 on success, or
@@ -101,9 +104,35 @@ pvr_mmu_flush(struct pvr_device *pvr_dev)
 
 	err = pvr_kccb_send_cmd(pvr_dev, &cmd_mmu_cache, &slot);
 	if (err)
-		goto err_drm_dev_exit;
+		goto err_reset_and_retry;
 
 	err = pvr_kccb_wait_for_completion(pvr_dev, slot, HZ, NULL);
+	if (err)
+		goto err_reset_and_retry;
+
+	drm_dev_exit(idx);
+
+	return 0;
+
+err_reset_and_retry:
+	/*
+	 * Flush command failure is most likely the result of a firmware lockup. Hard reset the GPU
+	 * and retry.
+	 */
+	err = pvr_power_reset(pvr_dev, true);
+	if (err)
+		goto err_drm_dev_exit; /* Device is lost. */
+
+	/* Retry sending flush request. */
+	err = pvr_kccb_send_cmd(pvr_dev, &cmd_mmu_cache, &slot);
+	if (err) {
+		pvr_device_lost(pvr_dev);
+		goto err_drm_dev_exit;
+	}
+
+	err = pvr_kccb_wait_for_completion(pvr_dev, slot, HZ, NULL);
+	if (err)
+		pvr_device_lost(pvr_dev);
 
 err_drm_dev_exit:
 	drm_dev_exit(idx);
