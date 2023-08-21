@@ -62,39 +62,6 @@ dma_addr_t pvr_vm_get_page_table_root_addr(struct pvr_vm_context *vm_ctx)
  * DOC: Memory mappings
  */
 
-/**
- * pvr_vm_gpuva_mapping_init() - Setup a mapping object with the specified
- * parameters ready for mapping using pvr_vm_gpuva_mapping_map().
- * @va: Pointer to drm_gpuva mapping object.
- * @device_addr: Device-virtual address at the start of the mapping.
- * @size: Size of the desired mapping.
- * @pvr_obj: Target PowerVR memory object.
- * @pvr_obj_offset: Offset into @pvr_obj to begin mapping from.
- *
- * Some parameters of this function are unchecked. It is therefore the callers
- * responsibility to ensure certain constraints are met. Specifically:
- *
- * * @pvr_obj_offset must be less than the size of @pvr_obj,
- * * The sum of @pvr_obj_offset and @size must be less than or equal to the
- *   size of @pvr_obj,
- * * The range specified by @pvr_obj_offset and @size (the "CPU range") must be
- *   CPU page-aligned both in start position and size, and
- * * The range specified by @device_addr and @size (the "device range") must be
- *   device page-aligned both in start position and size.
- *
- * Furthermore, it is up to the caller to make sure that a reference to @pvr_obj
- * is taken prior to mapping @va with the drm_gpuva_manager.
- */
-static void
-pvr_vm_gpuva_mapping_init(struct drm_gpuva *va, u64 device_addr, u64 size,
-			  struct pvr_gem_object *pvr_obj, u64 pvr_obj_offset)
-{
-	va->va.addr = device_addr;
-	va->va.range = size;
-	va->gem.obj = gem_from_pvr_gem(pvr_obj);
-	va->gem.offset = pvr_obj_offset;
-}
-
 struct pvr_vm_gpuva_op_ctx {
 	struct pvr_vm_context *vm_ctx;
 	struct pvr_mmu_op_context *mmu_op_ctx;
@@ -127,9 +94,6 @@ pvr_vm_gpuva_map(struct drm_gpuva_op *op, void *op_ctx)
 			  op->map.va.addr);
 	if (err)
 		return err;
-
-	pvr_vm_gpuva_mapping_init(ctx->new_va, op->map.va.addr,
-				  op->map.va.range, pvr_gem, op->map.gem.offset);
 
 	drm_gpuva_map(&ctx->vm_ctx->gpuva_mgr, ctx->new_va, &op->map);
 	drm_gpuva_link(ctx->new_va);
@@ -195,32 +159,18 @@ pvr_vm_gpuva_remap(struct drm_gpuva_op *op, void *op_ctx)
 {
 	struct pvr_vm_gpuva_op_ctx *ctx = op_ctx;
 
-	if (op->remap.unmap) {
-		const u64 va_start = op->remap.prev ?
-				     op->remap.prev->va.addr + op->remap.prev->va.range :
-				     op->remap.unmap->va->va.addr;
-		const u64 va_end = op->remap.next ?
-				   op->remap.next->va.addr :
-				   op->remap.unmap->va->va.addr + op->remap.unmap->va->va.range;
+	const u64 va_start = op->remap.prev ?
+			     op->remap.prev->va.addr + op->remap.prev->va.range :
+			     op->remap.unmap->va->va.addr;
+	const u64 va_end = op->remap.next ?
+			   op->remap.next->va.addr :
+			   op->remap.unmap->va->va.addr + op->remap.unmap->va->va.range;
 
-		int err = pvr_mmu_unmap(ctx->mmu_op_ctx, va_start,
-					va_end - va_start);
+	int err = pvr_mmu_unmap(ctx->mmu_op_ctx, va_start,
+				va_end - va_start);
 
-		if (err)
-			return err;
-	}
-
-	if (op->remap.prev)
-		pvr_vm_gpuva_mapping_init(ctx->prev_va, op->remap.prev->va.addr,
-					  op->remap.prev->va.range,
-					  gem_to_pvr_gem(op->remap.prev->gem.obj),
-					  op->remap.prev->gem.offset);
-
-	if (op->remap.next)
-		pvr_vm_gpuva_mapping_init(ctx->next_va, op->remap.next->va.addr,
-					  op->remap.next->va.range,
-					  gem_to_pvr_gem(op->remap.next->gem.obj),
-					  op->remap.next->gem.offset);
+	if (err)
+		return err;
 
 	/* No actual remap required: the page table tree depth is fixed to 3,
 	 * and we use 4k page table entries only for now.
@@ -239,14 +189,10 @@ pvr_vm_gpuva_remap(struct drm_gpuva_op *op, void *op_ctx)
 		ctx->next_va = NULL;
 	}
 
-	if (op->remap.unmap) {
-		struct pvr_gem_object *pvr_gem = gem_to_pvr_gem(op->remap.unmap->va->gem.obj);
+	drm_gpuva_unlink(op->unmap.va);
+	kfree(op->unmap.va);
 
-		drm_gpuva_unlink(op->unmap.va);
-		kfree(op->unmap.va);
-
-		pvr_gem_object_put(pvr_gem);
-	}
+	pvr_gem_object_put(gem_to_pvr_gem(op->remap.unmap->va->gem.obj));
 
 	return 0;
 }
