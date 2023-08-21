@@ -20,6 +20,7 @@
 #include <linux/workqueue.h>
 
 #define RESERVE_SLOT_TIMEOUT (1 * HZ) /* 1s */
+#define RESERVE_SLOT_MIN_RETRIES 10
 
 static void
 ccb_ctrl_init(void *cpu_ptr, void *priv)
@@ -320,19 +321,25 @@ static bool pvr_kccb_try_reserve_slot(struct pvr_device *pvr_dev)
  *
  * Return:
  *  * 0 on success, or
- *  * -EBUSY if now slots were reserved after %RESERVE_SLOT_TIMEOUT.
+ *  * -EBUSY if no slots were reserved after %RESERVE_SLOT_TIMEOUT, with a minimum of
+ *    %RESERVE_SLOT_MIN_RETRIES retries.
  */
 static int pvr_kccb_reserve_slot_sync(struct pvr_device *pvr_dev)
 {
 	unsigned long start_timestamp = jiffies;
 	bool reserved = false;
+	u32 retries = 0;
 
-	while ((jiffies - start_timestamp) < (u32)RESERVE_SLOT_TIMEOUT) {
+	while ((jiffies - start_timestamp) < (u32)RESERVE_SLOT_TIMEOUT ||
+	       retries < RESERVE_SLOT_MIN_RETRIES) {
 		reserved = pvr_kccb_try_reserve_slot(pvr_dev);
 		if (reserved)
 			break;
 
 		usleep_range(1, 50);
+
+		if (retries < U32_MAX)
+			retries++;
 	}
 
 	return reserved ? 0 : -EBUSY;
