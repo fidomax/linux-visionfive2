@@ -68,6 +68,26 @@ struct pvr_vm_gpuva_op_ctx {
 	struct drm_gpuva *new_va, *prev_va, *next_va;
 };
 
+static void
+pvr_vm_gpuva_link(struct drm_gpuva *va)
+{
+	struct pvr_gem_object *pvr_gem = gem_to_pvr_gem(va->gem.obj);
+
+	mutex_lock(&pvr_gem->gpuva_lock);
+	drm_gpuva_link(va);
+	mutex_unlock(&pvr_gem->gpuva_lock);
+}
+
+static void
+pvr_vm_gpuva_unlink(struct drm_gpuva *va)
+{
+	struct pvr_gem_object *pvr_gem = gem_to_pvr_gem(va->gem.obj);
+
+	mutex_lock(&pvr_gem->gpuva_lock);
+	drm_gpuva_unlink(va);
+	mutex_unlock(&pvr_gem->gpuva_lock);
+}
+
 /**
  * pvr_vm_gpuva_map() - Insert a mapping into a memory context.
  * @op: gpuva op containing the remap details.
@@ -96,7 +116,7 @@ pvr_vm_gpuva_map(struct drm_gpuva_op *op, void *op_ctx)
 		return err;
 
 	drm_gpuva_map(&ctx->vm_ctx->gpuva_mgr, ctx->new_va, &op->map);
-	drm_gpuva_link(ctx->new_va);
+	pvr_vm_gpuva_link(ctx->new_va);
 	ctx->new_va = NULL;
 
 	/*
@@ -133,7 +153,7 @@ pvr_vm_gpuva_unmap(struct drm_gpuva_op *op, void *op_ctx)
 		return err;
 
 	drm_gpuva_unmap(&op->unmap);
-	drm_gpuva_unlink(op->unmap.va);
+	pvr_vm_gpuva_unlink(op->unmap.va);
 	kfree(op->unmap.va);
 
 	pvr_gem_object_put(pvr_gem);
@@ -179,17 +199,17 @@ pvr_vm_gpuva_remap(struct drm_gpuva_op *op, void *op_ctx)
 
 	if (op->remap.prev) {
 		pvr_gem_object_get(gem_to_pvr_gem(ctx->prev_va->gem.obj));
-		drm_gpuva_link(ctx->prev_va);
+		pvr_vm_gpuva_link(ctx->prev_va);
 		ctx->prev_va = NULL;
 	}
 
 	if (op->remap.next) {
 		pvr_gem_object_get(gem_to_pvr_gem(ctx->next_va->gem.obj));
-		drm_gpuva_link(ctx->next_va);
+		pvr_vm_gpuva_link(ctx->next_va);
 		ctx->next_va = NULL;
 	}
 
-	drm_gpuva_unlink(op->unmap.va);
+	pvr_vm_gpuva_unlink(op->unmap.va);
 	kfree(op->unmap.va);
 
 	pvr_gem_object_put(gem_to_pvr_gem(op->remap.unmap->va->gem.obj));

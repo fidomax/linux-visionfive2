@@ -119,6 +119,12 @@ struct pvr_gem_object {
 	 *    lifetime.
 	 */
 	u64 flags;
+
+	/**
+	 * @gpuva_lock: Lock for preventing concurrent access during memory
+	 * mapping operations.
+	 */
+	struct mutex gpuva_lock;
 };
 
 static_assert(offsetof(struct pvr_gem_object, base) == 0,

@@ -22,6 +22,14 @@
 #include <linux/refcount.h>
 #include <linux/scatterlist.h>
 
+static void pvr_gem_object_free(struct drm_gem_object *obj)
+{
+	struct pvr_gem_object *pvr_gem = gem_to_pvr_gem(obj);
+
+	mutex_destroy(&pvr_gem->gpuva_lock);
+	drm_gem_shmem_object_free(obj);
+}
+
 static int pvr_gem_mmap(struct drm_gem_object *gem_obj, struct vm_area_struct *vma)
 {
 	struct pvr_gem_object *pvr_obj = gem_to_pvr_gem(gem_obj);
@@ -34,7 +42,7 @@ static int pvr_gem_mmap(struct drm_gem_object *gem_obj, struct vm_area_struct *v
 }
 
 static const struct drm_gem_object_funcs pvr_gem_object_funcs = {
-	.free = drm_gem_shmem_object_free,
+	.free = pvr_gem_object_free,
 	.print_info = drm_gem_shmem_object_print_info,
 	.pin = drm_gem_shmem_object_pin,
 	.unpin = drm_gem_shmem_object_unpin,
@@ -305,6 +313,9 @@ struct drm_gem_object *pvr_gem_create_object(struct drm_device *drm_dev, size_t 
 
 	gem_obj = gem_from_pvr_gem(pvr_obj);
 	gem_obj->funcs = &pvr_gem_object_funcs;
+
+	drm_gem_gpuva_set_lock(gem_obj, &pvr_obj->gpuva_lock);
+
 	return gem_obj;
 }
 
@@ -345,6 +356,8 @@ pvr_gem_object_create(struct pvr_device *pvr_dev, size_t size, u64 flags)
 	shmem_obj->map_wc = !(flags & PVR_BO_CPU_CACHED);
 	pvr_obj = shmem_gem_to_pvr_gem(shmem_obj);
 	pvr_obj->flags = flags;
+
+	mutex_init(&pvr_obj->gpuva_lock);
 
 	/*
 	 * Do this last because pvr_gem_object_zero() requires a fully
