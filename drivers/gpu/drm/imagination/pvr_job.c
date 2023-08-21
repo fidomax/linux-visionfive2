@@ -505,6 +505,9 @@ static int pvr_job_data_init(struct pvr_device *pvr_dev,
 					 &job_args[i].sync_ops);
 		if (err) {
 			*job_count = i;
+
+			/* Ensure the job created above is also cleaned up. */
+			i++;
 			goto err_cleanup;
 		}
 
