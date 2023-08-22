@@ -345,13 +345,17 @@ int pvr_context_create(struct pvr_file *pvr_file, struct drm_pvr_ioctl_create_co
 		goto err_destroy_fw_obj;
 
 	err = xa_alloc(&pvr_file->ctx_handles, &args->handle, ctx, xa_limit_32b, GFP_KERNEL);
-	if (err)
-		goto err_release_id;
+	if (err) {
+		/*
+		 * It's possible that another thread could have taken a reference on the context at
+		 * this point as it is in the ctx_ids xarray. Therefore instead of directly
+		 * destroying the context, drop a reference instead.
+		 */
+		pvr_context_put(ctx);
+		return err;
+	}
 
 	return 0;
-
-err_release_id:
-	xa_erase(&pvr_dev->ctx_ids, ctx->ctx_id);
 
 err_destroy_fw_obj:
 	pvr_fw_object_destroy(ctx->fw_obj);
