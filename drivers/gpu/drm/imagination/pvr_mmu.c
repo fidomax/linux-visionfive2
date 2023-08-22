@@ -1405,6 +1405,9 @@ struct pvr_mmu_op_context {
  *
  * It is the caller's responsibility to ensure @op_ctx.curr_page points to a
  * valid L2 entry.
+ *
+ * It is the caller's responsibility to execute any memory barries to ensure
+ * that the creation of @child_table is ordered before the L2 entry is inserted.
  */
 static void
 pvr_page_table_l2_insert(struct pvr_mmu_op_context *op_ctx,
@@ -1465,6 +1468,9 @@ pvr_page_table_l2_remove(struct pvr_mmu_op_context *op_ctx)
  *
  * It is the caller's responsibility to ensure @op_ctx.curr_page points to a
  * valid L1 entry.
+ *
+ * It is the caller's responsibility to execute any memory barries to ensure
+ * that the creation of @child_table is ordered before the L1 entry is inserted.
  */
 static void
 pvr_page_table_l1_insert(struct pvr_mmu_op_context *op_ctx,
@@ -1688,6 +1694,9 @@ pvr_page_table_l1_get_or_insert(struct pvr_mmu_op_context *op_ctx,
 	op_ctx->l1_free_tables = table->next_free;
 	table->next_free = NULL;
 
+	/* Ensure new table is fully written out before adding to L2 page table. */
+	wmb();
+
 	pvr_page_table_l2_insert(op_ctx, table);
 
 	return 0;
@@ -1733,6 +1742,9 @@ pvr_page_table_l0_get_or_insert(struct pvr_mmu_op_context *op_ctx,
 	/* Pop */
 	op_ctx->l0_free_tables = table->next_free;
 	table->next_free = NULL;
+
+	/* Ensure new table is fully written out before adding to L1 page table. */
+	wmb();
 
 	pvr_page_table_l1_insert(op_ctx, table);
 
