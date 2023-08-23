@@ -62,30 +62,102 @@ dma_addr_t pvr_vm_get_page_table_root_addr(struct pvr_vm_context *vm_ctx)
  * DOC: Memory mappings
  */
 
+/**
+ * struct pvr_vm_gpuva - Wrapper type representing a single VM mapping.
+ */
+struct pvr_vm_gpuva {
+	/** @base: The wrapped drm_gpuva object. */
+	struct drm_gpuva base;
+
+	/**
+	 * @node: Linked list node, to build a list of mappings to cleanup after
+	 * unmapping, so that all associated &struct pvr_gem_object can be freed
+	 * outside of callback context.
+	 */
+	struct list_head node;
+};
+
+static __always_inline
+struct pvr_vm_gpuva *to_pvr_vm_gpuva(struct drm_gpuva *gpuva)
+{
+	return container_of(gpuva, struct pvr_vm_gpuva, base);
+}
+
+/**
+ * pvr_vm_gpuva_mapping_init() - Setup a mapping object.
+ * @va: Pointer to pvr_vm_gpuva mapping object.
+ *
+ * The parameters of the mapping are handled internally by DRM GPUVA manager.
+ */
+static void
+pvr_vm_gpuva_mapping_init(struct pvr_vm_gpuva *va)
+{
+	INIT_LIST_HEAD(&va->node);
+}
+
+/**
+ * struct pvr_vm_gpuva_op_ctx - Context of a map/unmap operation.
+ */
 struct pvr_vm_gpuva_op_ctx {
+	/** @pvr_obj: Object associated with mapping (map only). */
+	struct pvr_gem_object *pvr_obj;
+
+	/**
+	 * @vm_ctx: VM context where the mapping will be created or destroyed.
+	 */
 	struct pvr_vm_context *vm_ctx;
+
+	/** @mmu_op_ctx: MMU op context. */
 	struct pvr_mmu_op_context *mmu_op_ctx;
-	struct drm_gpuva *new_va, *prev_va, *next_va;
+
+	/**
+	 * @new_va: Prealloced VA mapping object (init in callback).
+	 * Used when creating a mapping.
+	 */
+	struct pvr_vm_gpuva *new_va;
+
+	/**
+	 * @prev_va: Prealloced VA mapping object (init in callback).
+	 * Used when a mapping or unmapping operation overlaps an existing
+	 * mapping and splits away the beginning into a new mapping.
+	 */
+	struct pvr_vm_gpuva *prev_va;
+
+	/**
+	 * @next_va: Prealloced VA mapping object (init in callback).
+	 * Used when a mapping or unmapping operation overlaps an existing
+	 * mapping and splits away the end into a new mapping.
+	 */
+	struct pvr_vm_gpuva *next_va;
+
+	/**
+	 * @returned_gpuvas: When unlinking, this list holds now unused
+	 * &struct pvr_vm_gpuva objects. These must be cleaned up when this
+	 * object is cleaned up.
+	 */
+	struct list_head returned_gpuvas;
 };
 
 static void
-pvr_vm_gpuva_link(struct drm_gpuva *va)
+pvr_vm_gpuva_link(struct pvr_vm_gpuva *va)
 {
-	struct pvr_gem_object *pvr_gem = gem_to_pvr_gem(va->gem.obj);
+	struct pvr_gem_object *pvr_gem = gem_to_pvr_gem(va->base.gem.obj);
 
 	mutex_lock(&pvr_gem->gpuva_lock);
-	drm_gpuva_link(va);
+	drm_gpuva_link(&va->base);
 	mutex_unlock(&pvr_gem->gpuva_lock);
 }
 
 static void
-pvr_vm_gpuva_unlink(struct drm_gpuva *va)
+pvr_vm_gpuva_unlink(struct pvr_vm_gpuva_op_ctx *op, struct pvr_vm_gpuva *va)
 {
-	struct pvr_gem_object *pvr_gem = gem_to_pvr_gem(va->gem.obj);
+	struct pvr_gem_object *pvr_gem = gem_to_pvr_gem(va->base.gem.obj);
 
 	mutex_lock(&pvr_gem->gpuva_lock);
-	drm_gpuva_unlink(va);
+	drm_gpuva_unlink(&va->base);
 	mutex_unlock(&pvr_gem->gpuva_lock);
+
+	list_move_tail(&va->node, &op->returned_gpuvas);
 }
 
 /**
@@ -115,15 +187,15 @@ pvr_vm_gpuva_map(struct drm_gpuva_op *op, void *op_ctx)
 	if (err)
 		return err;
 
-	drm_gpuva_map(&ctx->vm_ctx->gpuva_mgr, ctx->new_va, &op->map);
+	drm_gpuva_map(&ctx->vm_ctx->gpuva_mgr, &ctx->new_va->base, &op->map);
 	pvr_vm_gpuva_link(ctx->new_va);
 	ctx->new_va = NULL;
 
 	/*
-	 * Increment the refcount on the underlying physical memory resource
-	 * to prevent de-allocation while the mapping exists.
+	 * Setting the pvr_obj pointer to NULL in the pvr_vm_bind_op means that
+	 * the reference won't be released when it is cleaned up.
 	 */
-	pvr_gem_object_get(pvr_gem);
+	ctx->pvr_obj = NULL;
 
 	return 0;
 }
@@ -143,7 +215,6 @@ pvr_vm_gpuva_map(struct drm_gpuva_op *op, void *op_ctx)
 static int
 pvr_vm_gpuva_unmap(struct drm_gpuva_op *op, void *op_ctx)
 {
-	struct pvr_gem_object *pvr_gem = gem_to_pvr_gem(op->unmap.va->gem.obj);
 	struct pvr_vm_gpuva_op_ctx *ctx = op_ctx;
 
 	int err = pvr_mmu_unmap(ctx->mmu_op_ctx, op->unmap.va->va.addr,
@@ -153,10 +224,7 @@ pvr_vm_gpuva_unmap(struct drm_gpuva_op *op, void *op_ctx)
 		return err;
 
 	drm_gpuva_unmap(&op->unmap);
-	pvr_vm_gpuva_unlink(op->unmap.va);
-	kfree(op->unmap.va);
-
-	pvr_gem_object_put(pvr_gem);
+	pvr_vm_gpuva_unlink(ctx, to_pvr_vm_gpuva(op->unmap.va));
 
 	return 0;
 }
@@ -195,24 +263,21 @@ pvr_vm_gpuva_remap(struct drm_gpuva_op *op, void *op_ctx)
 	/* No actual remap required: the page table tree depth is fixed to 3,
 	 * and we use 4k page table entries only for now.
 	 */
-	drm_gpuva_remap(ctx->prev_va, ctx->next_va, &op->remap);
+	drm_gpuva_remap(&ctx->prev_va->base, &ctx->next_va->base, &op->remap);
 
 	if (op->remap.prev) {
-		pvr_gem_object_get(gem_to_pvr_gem(ctx->prev_va->gem.obj));
+		pvr_gem_object_get(gem_to_pvr_gem(ctx->prev_va->base.gem.obj));
 		pvr_vm_gpuva_link(ctx->prev_va);
 		ctx->prev_va = NULL;
 	}
 
 	if (op->remap.next) {
-		pvr_gem_object_get(gem_to_pvr_gem(ctx->next_va->gem.obj));
+		pvr_gem_object_get(gem_to_pvr_gem(ctx->next_va->base.gem.obj));
 		pvr_vm_gpuva_link(ctx->next_va);
 		ctx->next_va = NULL;
 	}
 
-	pvr_vm_gpuva_unlink(op->unmap.va);
-	kfree(op->unmap.va);
-
-	pvr_gem_object_put(gem_to_pvr_gem(op->remap.unmap->va->gem.obj));
+	pvr_vm_gpuva_unlink(ctx, to_pvr_vm_gpuva(op->remap.unmap->va));
 
 	return 0;
 }
@@ -481,6 +546,7 @@ pvr_vm_map(struct pvr_vm_context *vm_ctx,
 {
 	const size_t pvr_obj_size = pvr_gem_object_size(pvr_obj);
 	struct pvr_vm_gpuva_op_ctx op_ctx = { .vm_ctx = vm_ctx };
+	struct pvr_vm_gpuva *gpuva, *tmp_gpuva;
 	struct sg_table *sgt;
 	int err;
 
@@ -491,6 +557,8 @@ pvr_vm_map(struct pvr_vm_context *vm_ctx,
 		return -EINVAL;
 	}
 
+	INIT_LIST_HEAD(&op_ctx.returned_gpuvas);
+
 	op_ctx.new_va = kzalloc(sizeof(*op_ctx.new_va), GFP_KERNEL);
 	op_ctx.prev_va = kzalloc(sizeof(*op_ctx.prev_va), GFP_KERNEL);
 	op_ctx.next_va = kzalloc(sizeof(*op_ctx.next_va), GFP_KERNEL);
@@ -498,6 +566,10 @@ pvr_vm_map(struct pvr_vm_context *vm_ctx,
 		err = -ENOMEM;
 		goto out_free;
 	}
+
+	pvr_vm_gpuva_mapping_init(op_ctx.new_va);
+	pvr_vm_gpuva_mapping_init(op_ctx.prev_va);
+	pvr_vm_gpuva_mapping_init(op_ctx.next_va);
 
 	sgt = pvr_gem_object_get_pages_sgt(pvr_obj);
 	err = PTR_ERR_OR_ZERO(sgt);
@@ -512,10 +584,15 @@ pvr_vm_map(struct pvr_vm_context *vm_ctx,
 		goto out_mmu_op_ctx_destroy;
 	}
 
+	pvr_gem_object_get(pvr_obj);
+	op_ctx.pvr_obj = pvr_obj;
+
 	mutex_lock(&vm_ctx->lock);
 	err = drm_gpuva_sm_map(&vm_ctx->gpuva_mgr, &op_ctx, device_addr, size,
 			       gem_from_pvr_gem(pvr_obj), pvr_obj_offset);
 	mutex_unlock(&vm_ctx->lock);
+
+	pvr_gem_object_put(op_ctx.pvr_obj);
 
 out_mmu_op_ctx_destroy:
 	pvr_mmu_op_context_destroy(op_ctx.mmu_op_ctx);
@@ -524,6 +601,13 @@ out_free:
 	kfree(op_ctx.next_va);
 	kfree(op_ctx.prev_va);
 	kfree(op_ctx.new_va);
+
+	list_for_each_entry_safe(gpuva, tmp_gpuva, &op_ctx.returned_gpuvas,
+				 node) {
+		drm_gem_object_put(gpuva->base.gem.obj);
+		list_del(&gpuva->node);
+		kfree(gpuva);
+	}
 
 	return err;
 }
@@ -546,10 +630,13 @@ int
 pvr_vm_unmap(struct pvr_vm_context *vm_ctx, u64 device_addr, u64 size)
 {
 	struct pvr_vm_gpuva_op_ctx op_ctx = { .vm_ctx = vm_ctx };
+	struct pvr_vm_gpuva *gpuva, *tmp_gpuva;
 	int err;
 
 	if (!pvr_device_addr_and_size_are_valid(device_addr, size))
 		return -EINVAL;
+
+	INIT_LIST_HEAD(&op_ctx.returned_gpuvas);
 
 	op_ctx.prev_va = kzalloc(sizeof(*op_ctx.prev_va), GFP_KERNEL);
 	op_ctx.next_va = kzalloc(sizeof(*op_ctx.next_va), GFP_KERNEL);
@@ -557,6 +644,9 @@ pvr_vm_unmap(struct pvr_vm_context *vm_ctx, u64 device_addr, u64 size)
 		err = -ENOMEM;
 		goto out;
 	}
+
+	pvr_vm_gpuva_mapping_init(op_ctx.prev_va);
+	pvr_vm_gpuva_mapping_init(op_ctx.next_va);
 
 	op_ctx.mmu_op_ctx =
 		pvr_mmu_op_context_create(vm_ctx->mmu_ctx, NULL, 0, 0);
@@ -574,6 +664,13 @@ out:
 	pvr_mmu_op_context_destroy(op_ctx.mmu_op_ctx);
 	kfree(op_ctx.next_va);
 	kfree(op_ctx.prev_va);
+
+	list_for_each_entry_safe(gpuva, tmp_gpuva, &op_ctx.returned_gpuvas,
+				 node) {
+		drm_gem_object_put(gpuva->base.gem.obj);
+		list_del(&gpuva->node);
+		kfree(gpuva);
+	}
 
 	return err;
 }
