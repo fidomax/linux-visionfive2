@@ -1361,23 +1361,36 @@ struct pvr_mmu_op_context {
 
 		/** @sgt_offset: Start address of the device-virtual mapping. */
 		u64 sgt_offset;
+
+		/**
+		 * @l1_prealloc_tables: Preallocated l1 page table objects
+		 * use by this context when creating a page mapping. Linked list
+		 * fully created during initialisation.
+		 */
+		struct pvr_page_table_l1 *l1_prealloc_tables;
+
+		/**
+		 * @l0_prealloc_tables: Preallocated l0 page table objects
+		 * use by this context when creating a page mapping. Linked list
+		 * fully created during initialisation.
+		 */
+		struct pvr_page_table_l0 *l0_prealloc_tables;
 	} map;
 
-	/**
-	 * @l1_free_tables: Preallocated l1 page table objects for use by this
-	 * context when creating a page mapping. Linked list created during
-	 * initialisation. Also used to collect page table objects freed by an
-	 * unmap.
-	 */
-	struct pvr_page_table_l1 *l1_free_tables;
+	/** @unmap: Data specifically for unmap operations. */
+	struct {
+		/**
+		 * @l1_free_tables: Collects page table objects freed by unmap
+		 * ops. Linked list empty at creation.
+		 */
+		struct pvr_page_table_l1 *l1_free_tables;
 
-	/**
-	 * @l0_free_tables: Preallocated l0 page table objects for use by this
-	 * context when creating a page mapping. Linked list created during
-	 * initialisation. Also used to collect page table objects freed by an
-	 * unmap.
-	 */
-	struct pvr_page_table_l0 *l0_free_tables;
+		/**
+		 * @l0_free_tables: Collects page table objects freed by unmap
+		 * ops. Linked list empty at creation.
+		 */
+		struct pvr_page_table_l0 *l0_free_tables;
+	} unmap;
 
 	/**
 	 * @curr_page - A reference to a single physical page as indexed by
@@ -1452,8 +1465,8 @@ pvr_page_table_l2_remove(struct pvr_mmu_op_context *op_ctx)
 
 	l2_table->entries[op_ctx->curr_page.l1_table->parent_idx] = NULL;
 	op_ctx->curr_page.l1_table->parent_idx = PVR_IDX_INVALID;
-	op_ctx->curr_page.l1_table->next_free = op_ctx->l1_free_tables;
-	op_ctx->l1_free_tables = op_ctx->curr_page.l1_table;
+	op_ctx->curr_page.l1_table->next_free = op_ctx->unmap.l1_free_tables;
+	op_ctx->unmap.l1_free_tables = op_ctx->curr_page.l1_table;
 	op_ctx->curr_page.l1_table = NULL;
 
 	--l2_table->entry_count;
@@ -1515,8 +1528,8 @@ pvr_page_table_l1_remove(struct pvr_mmu_op_context *op_ctx)
 
 	op_ctx->curr_page.l1_table->entries[op_ctx->curr_page.l0_table->parent_idx] = NULL;
 	op_ctx->curr_page.l0_table->parent_idx = PVR_IDX_INVALID;
-	op_ctx->curr_page.l0_table->next_free = op_ctx->l0_free_tables;
-	op_ctx->l0_free_tables = op_ctx->curr_page.l0_table;
+	op_ctx->curr_page.l0_table->next_free = op_ctx->unmap.l0_free_tables;
+	op_ctx->unmap.l0_free_tables = op_ctx->curr_page.l0_table;
 	op_ctx->curr_page.l0_table = NULL;
 
 	if (--op_ctx->curr_page.l1_table->entry_count == 0) {
@@ -1686,12 +1699,12 @@ pvr_page_table_l1_get_or_insert(struct pvr_mmu_op_context *op_ctx,
 		return -ENXIO;
 
 	/* Take a prealloced table. */
-	table = op_ctx->l1_free_tables;
+	table = op_ctx->map.l1_prealloc_tables;
 	if (!table)
 		return -ENOMEM;
 
 	/* Pop */
-	op_ctx->l1_free_tables = table->next_free;
+	op_ctx->map.l1_prealloc_tables = table->next_free;
 	table->next_free = NULL;
 
 	/* Ensure new table is fully written out before adding to L2 page table. */
@@ -1735,12 +1748,12 @@ pvr_page_table_l0_get_or_insert(struct pvr_mmu_op_context *op_ctx,
 		return -ENXIO;
 
 	/* Take a prealloced table. */
-	table = op_ctx->l0_free_tables;
+	table = op_ctx->map.l0_prealloc_tables;
 	if (!table)
 		return -ENOMEM;
 
 	/* Pop */
-	op_ctx->l0_free_tables = table->next_free;
+	op_ctx->map.l0_prealloc_tables = table->next_free;
 	table->next_free = NULL;
 
 	/* Ensure new table is fully written out before adding to L1 page table. */
@@ -1989,8 +2002,10 @@ pvr_mmu_op_context_load_tables(struct pvr_mmu_op_context *op_ctx,
 			       bool should_create,
 			       enum pvr_mmu_sync_level load_level_required)
 {
-	const struct pvr_page_table_l1 *l1_head_before = op_ctx->l1_free_tables;
-	const struct pvr_page_table_l0 *l0_head_before = op_ctx->l0_free_tables;
+	const struct pvr_page_table_l1 *l1_head_before =
+		op_ctx->map.l1_prealloc_tables;
+	const struct pvr_page_table_l0 *l0_head_before =
+		op_ctx->map.l0_prealloc_tables;
 	int err;
 
 	/* Clear tables we're about to fetch in case of error states. */
@@ -2041,7 +2056,7 @@ pvr_mmu_op_context_load_tables(struct pvr_mmu_op_context *op_ctx,
 			 * of the error path in
 			 * pvr_page_table_l0_get_or_insert().
 			 */
-			if (l1_head_before != op_ctx->l1_free_tables) {
+			if (l1_head_before != op_ctx->map.l1_prealloc_tables) {
 				pvr_page_table_l2_remove(op_ctx);
 				pvr_mmu_op_context_require_sync(op_ctx, PVR_MMU_SYNC_LEVEL_2);
 			}
@@ -2055,9 +2070,9 @@ pvr_mmu_op_context_load_tables(struct pvr_mmu_op_context *op_ctx,
 	 * inferred by checking if the pointer at the head of the linked list
 	 * has changed.
 	 */
-	if (l1_head_before != op_ctx->l1_free_tables)
+	if (l1_head_before != op_ctx->map.l1_prealloc_tables)
 		pvr_mmu_op_context_require_sync(op_ctx, PVR_MMU_SYNC_LEVEL_2);
-	else if (l0_head_before != op_ctx->l0_free_tables)
+	else if (l0_head_before != op_ctx->map.l0_prealloc_tables)
 		pvr_mmu_op_context_require_sync(op_ctx, PVR_MMU_SYNC_LEVEL_1);
 
 	return 0;
@@ -2230,17 +2245,35 @@ void pvr_mmu_op_context_destroy(struct pvr_mmu_op_context *op_ctx)
 	if (flush_caches)
 		WARN_ON(pvr_mmu_flush(op_ctx->mmu_ctx->pvr_dev));
 
-	while (op_ctx->l0_free_tables) {
-		struct pvr_page_table_l0 *tmp = op_ctx->l0_free_tables;
+	while (op_ctx->map.l0_prealloc_tables) {
+		struct pvr_page_table_l0 *tmp = op_ctx->map.l0_prealloc_tables;
 
-		op_ctx->l0_free_tables = op_ctx->l0_free_tables->next_free;
+		op_ctx->map.l0_prealloc_tables =
+			op_ctx->map.l0_prealloc_tables->next_free;
 		pvr_page_table_l0_free(tmp);
 	}
 
-	while (op_ctx->l1_free_tables) {
-		struct pvr_page_table_l1 *tmp = op_ctx->l1_free_tables;
+	while (op_ctx->map.l1_prealloc_tables) {
+		struct pvr_page_table_l1 *tmp = op_ctx->map.l1_prealloc_tables;
 
-		op_ctx->l1_free_tables = op_ctx->l1_free_tables->next_free;
+		op_ctx->map.l1_prealloc_tables =
+			op_ctx->map.l1_prealloc_tables->next_free;
+		pvr_page_table_l1_free(tmp);
+	}
+
+	while (op_ctx->unmap.l0_free_tables) {
+		struct pvr_page_table_l0 *tmp = op_ctx->unmap.l0_free_tables;
+
+		op_ctx->unmap.l0_free_tables =
+			op_ctx->unmap.l0_free_tables->next_free;
+		pvr_page_table_l0_free(tmp);
+	}
+
+	while (op_ctx->unmap.l1_free_tables) {
+		struct pvr_page_table_l1 *tmp = op_ctx->unmap.l1_free_tables;
+
+		op_ctx->unmap.l1_free_tables =
+			op_ctx->unmap.l1_free_tables->next_free;
 		pvr_page_table_l1_free(tmp);
 	}
 
@@ -2305,8 +2338,8 @@ pvr_mmu_op_context_create(struct pvr_mmu_context *ctx, struct sg_table *sgt,
 			if (err)
 				goto err_cleanup;
 
-			l1_tmp->next_free = op_ctx->l1_free_tables;
-			op_ctx->l1_free_tables = l1_tmp;
+			l1_tmp->next_free = op_ctx->map.l1_prealloc_tables;
+			op_ctx->map.l1_prealloc_tables = l1_tmp;
 		}
 
 		for (int i = 0; i < l0_count; i++) {
@@ -2317,8 +2350,8 @@ pvr_mmu_op_context_create(struct pvr_mmu_context *ctx, struct sg_table *sgt,
 			if (err)
 				goto err_cleanup;
 
-			l0_tmp->next_free = op_ctx->l0_free_tables;
-			op_ctx->l0_free_tables = l0_tmp;
+			l0_tmp->next_free = op_ctx->map.l0_prealloc_tables;
+			op_ctx->map.l0_prealloc_tables = l0_tmp;
 		}
 	}
 
