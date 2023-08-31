@@ -246,17 +246,11 @@ static int
 pvr_vm_gpuva_remap(struct drm_gpuva_op *op, void *op_ctx)
 {
 	struct pvr_vm_gpuva_op_ctx *ctx = op_ctx;
+	u64 va_start = 0, va_range = 0;
+	int err;
 
-	const u64 va_start = op->remap.prev ?
-			     op->remap.prev->va.addr + op->remap.prev->va.range :
-			     op->remap.unmap->va->va.addr;
-	const u64 va_end = op->remap.next ?
-			   op->remap.next->va.addr :
-			   op->remap.unmap->va->va.addr + op->remap.unmap->va->va.range;
-
-	int err = pvr_mmu_unmap(ctx->mmu_op_ctx, va_start,
-				va_end - va_start);
-
+	drm_gpuva_op_remap_get_unmap_range(&op->remap, &va_start, &va_range);
+	err = pvr_mmu_unmap(ctx->mmu_op_ctx, va_start, va_range);
 	if (err)
 		return err;
 
