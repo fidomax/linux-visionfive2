@@ -133,10 +133,12 @@ pvr_mips_fw_process(struct pvr_device *pvr_dev, const u8 *fw,
 	boot_data->reg_base = pvr_dev->regs_resource->start;
 
 	for (page_nr = 0; page_nr < ARRAY_SIZE(boot_data->pt_phys_addr); page_nr++) {
-		WARN_ON(pvr_gem_get_dma_addr(mips_data->pt_obj,
-					     page_nr << ROGUE_MIPSFW_LOG2_PAGE_SIZE_4K, &dma_addr));
+		/* Firmware expects 4k pages, but host page size might be different. */
+		u32 src_page_nr = (page_nr * ROGUE_MIPSFW_PAGE_SIZE_4K) >> PAGE_SHIFT;
+		u32 page_offset = (page_nr * ROGUE_MIPSFW_PAGE_SIZE_4K) & ~PAGE_MASK;
 
-		boot_data->pt_phys_addr[page_nr] = dma_addr;
+		boot_data->pt_phys_addr[page_nr] = mips_data->pt_dma_addr[src_page_nr] +
+						   page_offset;
 	}
 
 	boot_data->pt_log2_page_size = ROGUE_MIPSFW_LOG2_PAGE_SIZE_4K;

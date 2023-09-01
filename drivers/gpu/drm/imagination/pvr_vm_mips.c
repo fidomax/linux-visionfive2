@@ -10,6 +10,7 @@
 #include "pvr_vm_mips.h"
 
 #include <drm/drm_managed.h>
+#include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -28,8 +29,10 @@ int
 pvr_vm_mips_init(struct pvr_device *pvr_dev)
 {
 	u32 pt_size = 1 << ROGUE_MIPSFW_LOG2_PAGETABLE_SIZE_4K(pvr_dev);
+	struct device *dev = from_pvr_device(pvr_dev)->dev;
 	struct pvr_fw_mips_data *mips_data;
 	u32 phys_bus_width;
+	int page_nr;
 	int err;
 
 	/* Page table size must be at most ROGUE_MIPSFW_MAX_NUM_PAGETABLE_PAGES * 4k pages. */
@@ -43,15 +46,26 @@ pvr_vm_mips_init(struct pvr_device *pvr_dev)
 	if (!mips_data)
 		return -ENOMEM;
 
-	mips_data->pt_obj = pvr_gem_object_create(pvr_dev, pt_size,
-						  DRM_PVR_BO_DEVICE_PM_FW_PROTECT);
-	if (IS_ERR(mips_data->pt_obj))
-		return PTR_ERR(mips_data->pt_obj);
+	for (page_nr = 0; page_nr < ARRAY_SIZE(mips_data->pt_pages); page_nr++) {
+		mips_data->pt_pages[page_nr] = alloc_page(GFP_KERNEL | __GFP_ZERO);
+		if (!mips_data->pt_pages[page_nr]) {
+			err = -ENOMEM;
+			goto err_free_pages;
+		}
 
-	mips_data->pt = pvr_gem_object_vmap(mips_data->pt_obj);
-	if (IS_ERR(mips_data->pt)) {
-		err = PTR_ERR(mips_data->pt);
-		goto err_put_obj;
+		mips_data->pt_dma_addr[page_nr] = dma_map_page(dev, mips_data->pt_pages[page_nr], 0,
+							       PAGE_SIZE, DMA_TO_DEVICE);
+		if (dma_mapping_error(dev, mips_data->pt_dma_addr[page_nr])) {
+			err = -ENOMEM;
+			goto err_free_pages;
+		}
+	}
+
+	mips_data->pt = vmap(mips_data->pt_pages, pt_size >> PAGE_SHIFT, VM_MAP,
+			     pgprot_writecombine(PAGE_KERNEL));
+	if (!mips_data->pt) {
+		err = -ENOMEM;
+		goto err_free_pages;
 	}
 
 	mips_data->pfn_mask = (phys_bus_width > 32) ? ROGUE_MIPSFW_ENTRYLO_PFN_MASK_ABOVE_32BIT :
@@ -64,8 +78,15 @@ pvr_vm_mips_init(struct pvr_device *pvr_dev)
 
 	return 0;
 
-err_put_obj:
-	pvr_gem_object_put(mips_data->pt_obj);
+err_free_pages:
+	for (; page_nr >= 0; page_nr--) {
+		if (mips_data->pt_dma_addr[page_nr])
+			dma_unmap_page(from_pvr_device(pvr_dev)->dev,
+				       mips_data->pt_dma_addr[page_nr], PAGE_SIZE, DMA_TO_DEVICE);
+
+		if (mips_data->pt_pages[page_nr])
+			__free_page(mips_data->pt_pages[page_nr]);
+	}
 
 	return err;
 }
@@ -79,9 +100,16 @@ pvr_vm_mips_fini(struct pvr_device *pvr_dev)
 {
 	struct pvr_fw_device *fw_dev = &pvr_dev->fw_dev;
 	struct pvr_fw_mips_data *mips_data = fw_dev->processor_data.mips_data;
+	int page_nr;
 
-	pvr_gem_object_vunmap(mips_data->pt_obj);
-	pvr_gem_object_put(mips_data->pt_obj);
+	vunmap(mips_data->pt);
+	for (page_nr = ARRAY_SIZE(mips_data->pt_pages) - 1; page_nr >= 0; page_nr--) {
+		dma_unmap_page(from_pvr_device(pvr_dev)->dev,
+			       mips_data->pt_dma_addr[page_nr], PAGE_SIZE, DMA_TO_DEVICE);
+
+		__free_page(mips_data->pt_pages[page_nr]);
+	}
+
 	fw_dev->processor_data.mips_data = NULL;
 }
 

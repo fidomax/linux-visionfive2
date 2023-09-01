@@ -4,20 +4,30 @@
 #ifndef PVR_FW_MIPS_H
 #define PVR_FW_MIPS_H
 
+#include "pvr_rogue_mips.h"
+
+#include <asm/page.h>
 #include <linux/types.h>
 
 /* Forward declaration from pvr_gem.h. */
 struct pvr_gem_object;
 
+#define PVR_MIPS_PT_PAGE_COUNT ((ROGUE_MIPSFW_MAX_NUM_PAGETABLE_PAGES * ROGUE_MIPSFW_PAGE_SIZE_4K) \
+				>> PAGE_SHIFT)
 /**
  * struct pvr_fw_mips_data - MIPS-specific data
  */
 struct pvr_fw_mips_data {
-	/** @pt_obj: Object representing MIPS pagetable. */
-	struct pvr_gem_object *pt_obj;
+	/**
+	 * @pt_pages: Pages containing MIPS pagetable.
+	 */
+	struct page *pt_pages[PVR_MIPS_PT_PAGE_COUNT];
 
 	/** @pt: Pointer to CPU mapping of MIPS pagetable. */
 	u32 *pt;
+
+	/** @pt_dma_addr: DMA mappings of MIPS pagetable. */
+	dma_addr_t pt_dma_addr[PVR_MIPS_PT_PAGE_COUNT];
 
 	/** @boot_code_dma_addr: DMA address of MIPS boot code. */
 	dma_addr_t boot_code_dma_addr;
