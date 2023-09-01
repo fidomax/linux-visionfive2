@@ -37,10 +37,9 @@
 #include <linux/xarray.h>
 
 /**
- * DOC: PowerVR (Series 6 and later) Graphics Driver
+ * DOC: PowerVR (Series 6 and later) and IMG Graphics Driver
  *
- * This driver supports the following PowerVR graphics cores from Imagination
- * Technologies:
+ * This driver supports the following PowerVR/IMG graphics cores from Imagination Technologies:
  *
  * * GX6250 (found in MediaTek MT8173)
  * * AXE-1-16M (found in Texas Instruments AM62)
@@ -1505,7 +1504,7 @@ static const struct of_device_id dt_match[] = {
 	{ .compatible = "mediatek,mt8173-gpu", .data = &pvr_mt8173_callbacks },
 	{ .compatible = "ti,am62-gpu", .data = NULL },
 	{ .compatible = "img,powervr-series6xt", .data = NULL },
-	{ .compatible = "img,powervr-seriesaxe", .data = NULL },
+	{ .compatible = "img,img-axe", .data = NULL },
 	{}
 };
 MODULE_DEVICE_TABLE(of, dt_match);
