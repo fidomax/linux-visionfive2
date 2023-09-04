@@ -16,11 +16,11 @@ properties:
       - items:
           - enum:
               - mediatek,mt8173-gpu
-          - const: img,powervr-series6xt
+          - const: img,powervr-series6xt # PowerVR Series6XT GPU model/revision is fully discoverable
       - items:
           - enum:
               - ti,am62-gpu
-          - const: img,img-axe
+          - const: img,img-axe # IMG AXE GPU model/revision is fully discoverable
 
   reg:
     maxItems: 1
