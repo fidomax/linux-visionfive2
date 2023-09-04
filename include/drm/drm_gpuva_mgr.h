@@ -708,7 +708,7 @@ void drm_gpuva_unmap(struct drm_gpuva_op_unmap *op);
  * the unmap stage of a remap op.
  * @op: Remap op.
  * @start_addr: Output pointer for the start of the required unmap.
- * @range: Output pointer for the lengh of the required unmap.
+ * @range: Output pointer for the length of the required unmap.
  *
  * These parameters can then be used by the caller to unmap memory pages that
  * are no longer required.
