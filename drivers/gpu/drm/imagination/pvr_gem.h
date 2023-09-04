@@ -130,11 +130,11 @@ struct pvr_gem_object {
 static_assert(offsetof(struct pvr_gem_object, base) == 0,
 	      "offsetof(struct pvr_gem_object, base) not zero");
 
-#define shmem_gem_from_pvr_gem(pvr_obj) (&pvr_obj->base)
+#define shmem_gem_from_pvr_gem(pvr_obj) (&(pvr_obj)->base)
 
 #define shmem_gem_to_pvr_gem(shmem_obj) container_of_const(shmem_obj, struct pvr_gem_object, base)
 
-#define gem_from_pvr_gem(pvr_obj) (&pvr_obj->base.base)
+#define gem_from_pvr_gem(pvr_obj) (&(pvr_obj)->base.base)
 
 #define gem_to_pvr_gem(gem_obj) container_of_const(gem_obj, struct pvr_gem_object, base.base)
 
