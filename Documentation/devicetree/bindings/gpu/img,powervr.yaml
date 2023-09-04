@@ -87,8 +87,6 @@ allOf:
       properties:
         clocks:
           maxItems: 1
-        clock-names:
-          const: core
 
 examples:
   - |
