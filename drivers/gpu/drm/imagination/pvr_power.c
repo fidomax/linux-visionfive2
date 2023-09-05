@@ -233,7 +233,7 @@ pvr_watchdog_init(struct pvr_device *pvr_dev)
 	return 0;
 }
 
-static int
+int
 pvr_power_device_suspend(struct device *dev)
 {
 	struct platform_device *plat_dev = to_platform_device(dev);
@@ -270,7 +270,7 @@ err_drm_dev_exit:
 	return err;
 }
 
-static int
+int
 pvr_power_device_resume(struct device *dev)
 {
 	struct platform_device *plat_dev = to_platform_device(dev);
@@ -340,7 +340,7 @@ err_drm_dev_exit:
 	return err;
 }
 
-static int
+int
 pvr_power_device_idle(struct device *dev)
 {
 	struct platform_device *plat_dev = to_platform_device(dev);
@@ -464,9 +464,3 @@ pvr_watchdog_fini(struct pvr_device *pvr_dev)
 {
 	cancel_delayed_work_sync(&pvr_dev->watchdog.work);
 }
-
-EXPORT_NS_RUNTIME_DEV_PM_OPS(pvr_power_pm_ops,
-			     pvr_power_device_suspend,
-			     pvr_power_device_resume,
-			     pvr_power_device_idle,
-			     DRM_PVR);
