@@ -153,8 +153,10 @@ pvr_fw_start(struct pvr_device *pvr_dev)
 	/* We must init the AXI-ACE interface before first BIF transaction. */
 	rogue_axi_ace_list_init(pvr_dev);
 
-	/* Initialise BIF. */
-	rogue_bif_init(pvr_dev);
+	if (pvr_dev->fw_dev.processor_type != PVR_FW_PROCESSOR_TYPE_MIPS) {
+		/* Initialise BIF. */
+		rogue_bif_init(pvr_dev);
+	}
 
 	/* Need to wait for at least 16 cycles before taking the FW processor out of reset ... */
 	udelay(3);
