@@ -413,6 +413,24 @@ fw_sysinit_init(void *cpu_ptr, void *priv)
 	       sizeof(fwif_sysinit->bvnc_km_feature_flags));
 }
 
+#define ROGUE_FWIF_SLC_MIN_SIZE_FOR_DM_OVERLAP_KB 4
+
+static void
+fw_sysdata_init(void *cpu_ptr, void *priv)
+{
+	struct rogue_fwif_sysdata *fwif_sysdata = cpu_ptr;
+	struct pvr_device *pvr_dev = priv;
+	u32 slc_size_in_kilobytes = 0;
+	u32 config_flags = 0;
+
+	WARN_ON(PVR_FEATURE_VALUE(pvr_dev, slc_size_in_kilobytes, &slc_size_in_kilobytes));
+
+	if (slc_size_in_kilobytes < ROGUE_FWIF_SLC_MIN_SIZE_FOR_DM_OVERLAP_KB)
+		config_flags |= ROGUE_FWIF_INICFG_DISABLE_DM_OVERLAP;
+
+	fwif_sysdata->config_flags = config_flags;
+}
+
 static void
 fw_runtime_cfg_init(void *cpu_ptr, void *priv)
 {
@@ -475,7 +493,8 @@ pvr_fw_create_structures(struct pvr_device *pvr_dev)
 	fw_dev->fwif_sysdata = pvr_fw_object_create_and_map(pvr_dev,
 							    sizeof(*fw_dev->fwif_sysdata),
 							    PVR_BO_FW_FLAGS_DEVICE_UNCACHED,
-							    NULL, NULL, &fw_mem->sysdata_obj);
+							    fw_sysdata_init, pvr_dev,
+							    &fw_mem->sysdata_obj);
 	if (IS_ERR(fw_dev->fwif_sysdata)) {
 		drm_err(drm_dev, "Unable to allocate FW SYSDATA structure\n");
 		err = PTR_ERR(fw_dev->fwif_sysdata);
