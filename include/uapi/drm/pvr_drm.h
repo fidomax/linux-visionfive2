@@ -545,8 +545,12 @@ struct drm_pvr_ioctl_dev_query_args {
  * Device mapping options
  *    These use the prefix ``DRM_PVR_BO_DEVICE_``.
  *
- *    :BYPASS_CACHE: There are very few situations where this flag is useful.
- *       By default, the device flushes its memory caches after every job.
+ *    :BYPASS_CACHE: Specify that device accesses to this memory will bypass the cache.
+ *       This is used for buffers that will either be regularly updated by the CPU (eg
+ *       free lists) or will be accessed only once and therefore isn't worth caching (eg
+ *       partial render buffers).
+ *       By default, the device flushes its memory caches after every job, so this
+ *       is not normally required for coherency.
  *    :PM_FW_PROTECT: Specify that only the Parameter Manager (PM) and/or
  *       firmware processor should be allowed to access this memory when mapped
  *       to the device. It is not valid to specify this flag with
