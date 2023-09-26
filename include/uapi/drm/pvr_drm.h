@@ -139,6 +139,9 @@ struct drm_pvr_dev_query_gpu_info {
 	 * @num_phantoms: Number of Phantoms present.
 	 */
 	__u32 num_phantoms;
+
+	/** @_padding_c: Reserved. This field must be zeroed. */
+	__u32 _padding_c;
 };
 
 /**
