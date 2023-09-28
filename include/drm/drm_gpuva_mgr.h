@@ -713,7 +713,7 @@ void drm_gpuva_unmap(struct drm_gpuva_op_unmap *op);
  * These parameters can then be used by the caller to unmap memory pages that
  * are no longer required.
  */
-static __always_inline void
+static inline void
 drm_gpuva_op_remap_get_unmap_range(const struct drm_gpuva_op_remap *op,
 				   u64 *start_addr, u64 *range)
 {
