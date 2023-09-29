@@ -164,11 +164,11 @@ get_cr_multisamplectl_val(u32 samples, bool y_flip, u64 *value_out)
 		return -EINVAL;
 
 	for (u32 i = 0; i < 8; i++) {
-		value |= sample_positions[idx].x[i] << (i * 8);
+		value |= ((u64)sample_positions[idx].x[i]) << (i * 8);
 		if (y_flip)
-			value |= ((16 - sample_positions[idx].y[i]) & 0xf) << (i * 8 + 4);
+			value |= (((u64)(16 - sample_positions[idx].y[i]) & 0xf)) << (i * 8 + 4);
 		else
-			value |= (sample_positions[idx].y[i]) << (i * 8 + 4);
+			value |= ((u64)sample_positions[idx].y[i]) << (i * 8 + 4);
 	}
 
 	*value_out = value;
